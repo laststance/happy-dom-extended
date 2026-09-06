@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "entry": [
+    "packages/*/src/index.ts",
+    "packages/*/src/canvas.ts",
+    "packages/*/tsdown.config.ts",
+    "packages/*/test/**/*.test.ts",
+    "packages/compat/test/upstream-probe.ts",
+    "fixtures/consumer/*.cjs",
+    "fixtures/consumer/*.mjs"
+  ],
+  "ignorePatterns": [".artifacts/**"],
+  "health": {
+    "ignore": ["**/test/**"]
+  },
+  "duplicates": {
+    "ignore": ["**/test/**"]
+  },
+  "framework": [
+    {
+      "name": "repository-tools",
+      "entryPoints": ["scripts/*.mjs"],
+      "entryPointRole": "support",
+      "toolingDependencies": ["typescript-compiler"]
+    }
+  ]
+}

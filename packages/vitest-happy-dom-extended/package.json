@@ -1,0 +1,8 @@
+{
+  "name": "vitest-happy-dom-extended",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Reserved workspace for a future Vitest adapter."
+}

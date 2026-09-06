@@ -1,0 +1,14 @@
+{
+  "name": "@happy-dom-extended/compat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./replace-property": "./src/utils/replace-property.ts"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.14.0"
+  }
+}

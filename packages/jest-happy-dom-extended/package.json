@@ -1,0 +1,59 @@
+{
+  "name": "jest-happy-dom-extended",
+  "version": "0.1.0",
+  "description": "A Happy DOM Jest environment with verified Web API compatibility fixes.",
+  "type": "module",
+  "license": "MIT",
+  "author": "ryota-murakami",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laststance/happy-dom-extended.git",
+    "directory": "packages/jest-happy-dom-extended"
+  },
+  "homepage": "https://github.com/laststance/happy-dom-extended/tree/main/packages/jest-happy-dom-extended#readme",
+  "bugs": {
+    "url": "https://github.com/laststance/happy-dom-extended/issues"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.cts",
+      "default": "./dist/index.cjs"
+    },
+    "./canvas": {
+      "types": "./dist/canvas.d.cts",
+      "default": "./dist/canvas.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check:package": "publint && attw --pack --profile node16",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@happy-dom/jest-environment": "^20.14.0"
+  },
+  "peerDependencies": {
+    "jest": "^30.0.0"
+  },
+  "devDependencies": {
+    "@happy-dom-extended/compat": "workspace:*",
+    "@jest/environment": "30.5.1",
+    "@jest/globals": "30.5.1",
+    "@jest/types": "30.5.1"
+  }
+}

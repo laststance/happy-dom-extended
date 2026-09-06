@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+.fallow/
+.serena/
+*.tgz
+.artifacts/
+.DS_Store

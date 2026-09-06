@@ -1,0 +1,10 @@
+{
+  "name": "happy-dom-extended-consumer-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "30.5.1",
+    "jest-happy-dom-extended": "workspace:*"
+  }
+}
