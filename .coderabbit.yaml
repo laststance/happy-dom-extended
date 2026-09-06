@@ -1,0 +1,140 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: en-US
+early_access: false
+tone_instructions: >-
+  Be concise and specific. Explain the observable failure and affected consumers.
+  Prioritize correctness, compatibility, and resource cleanup over stylistic preferences.
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  review_status: true
+  review_details: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  in_progress_fortune: false
+  poem: false
+  enable_prompt_for_ai_agents: true
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
+
+  path_filters:
+    - '!**/node_modules/**'
+    - '!**/dist/**'
+    - '!**/coverage/**'
+    - '!**/.artifacts/**'
+    - '!**/.fallow/**'
+    - '!**/*.tgz'
+    # Keep dependency changes and checked-in reproduction evidence in review scope.
+    - pnpm-lock.yaml
+    - docs/research/*.log
+
+  path_instructions:
+    - path: '**/*'
+      instructions: |
+        This monorepo provides verified Happy DOM compatibility extensions for test runners.
+        Use README.md and the package guides for the supported behavior and runtime boundaries.
+        Prioritize regressions with a concrete consumer scenario; distinguish intentional
+        documented limitations from defects. Avoid duplicating formatting and naming feedback
+        already enforced by Prettier and eslint-config-ts-prefixer.
+
+    - path: 'packages/compat/src/**'
+      instructions: |
+        Keep compatibility installers independent of Jest and Vitest. New API support needs
+        a primary source or a reproduced upstream gap, with the affected version recorded.
+        Preserve working upstream APIs except for documented method repairs. Do not replace
+        the fetch, Blob, File, FileReader, and DOM event families wholesale with Node globals.
+        Check cross-VM ArrayBuffers and views, byte offsets, constructor identity, inheritance,
+        and ImageData shared storage. Blob.text must preserve UTF-8 semantics and leading-BOM handling.
+        Shared prototype repairs must survive overlapping environments until the final release.
+        Require rollback after partial installation, idempotent disposal, restored descriptors,
+        and cleanup of owned native resources. Preserve native channel reference behavior so
+        asynchronous setup cannot exit before tests run. Avoid no-op rendering or Worker APIs.
+
+    - path: 'packages/jest-happy-dom-extended/src/index.ts'
+      instructions: |
+        Extensions must be available during setupFiles and setupFilesAfterEnv, so installation
+        must complete synchronously during environment construction. Preserve upstream options.
+        Check rollback on constructor failure and cleanup when teardown fails or overlaps
+        another environment. Do not assume Jest calls teardown when setupFiles throws;
+        evaluate changes against the supported Jest versions and the documented runner boundary.
+
+    - path: 'packages/jest-happy-dom-extended/src/canvas.ts'
+      instructions: |
+        Canvas is an opt-in, non-rendering helper; importing the environment must not install it.
+        Preserve the documented 2D pixel handoff, explicit data URL, and descriptor restoration.
+        Do not demand real rendering from this stub. Keep its imports limited to the shared
+        property helper so the Canvas entry does not load Node streams inside the Jest runtime.
+
+    - path: '**/test/**'
+      instructions: |
+        Use test rather than it, observable behavior names, hard-coded expected values, and
+        Arrange/Act/Assert sections. Prefer DAMP over sharing assertion logic between tests.
+        Verify actual API behavior instead of constructor presence or implementation details.
+        For changed installers, cover relevant cross-VM inputs, overlapping environments,
+        partial failures, and restoration. Await asynchronous work and close owned channels.
+
+    - path: 'fixtures/consumer/**'
+      instructions: |
+        These fixtures exercise the installed npm tarball outside the workspace. Keep imports
+        on public package entry points and cover both ESM and CommonJS, including Canvas.
+        Exercise APIs during setupFiles and setupFilesAfterEnv, with actual native message
+        delivery. Use descriptive test calls and literal expectations. Do not replace these
+        checks with mocks or assume a successful process exit means the tests executed.
+
+    - path: '**/{package.json,tsdown.config.ts}'
+      instructions: |
+        Keep the root, shared compat workspace, consumer fixture, and reserved Vitest adapter
+        private. The shared compatibility code must be bundled into public adapters, without
+        workspace dependencies leaking into the published runtime dependency graph.
+        Check exports, files, engines, and peer ranges against clean consumer behavior.
+        ESM and CommonJS entries, including Canvas, need matching declarations for each format.
+        TypeScript's typecheck compiler alias and compiler-API dependency intentionally serve
+        different tools; evaluate version changes against the documented toolchain requirements.
+
+    - path: 'scripts/**'
+      instructions: |
+        Preserve portable process execution with separate executable and argument values,
+        Windows command-shim support, and paths containing spaces. Check launch errors and exits.
+        Tarball verification must install outside the workspace and test the minimum supported
+        Jest version plus the development version. Check Jest's report for actual passed tests;
+        an exit code of zero alone can hide early termination. Keep build and pack steps ordered,
+        and clean up only temporary directories created by the current invocation.
+
+    - path: '.github/**'
+      instructions: |
+        Preserve Linux and Windows coverage across the supported Node versions, including
+        installed-tarball consumers. Keep remote actions pinned to full commit SHAs, permissions
+        scoped to each job's needs, frozen-lockfile installs, and pnpm-store-only dependency caches.
+        Ensure build steps precede checks that import dist. CI currently validates without
+        publishing; review any release automation as an explicit change in delivery behavior.
+
+    - path: 'packages/vitest-happy-dom-extended/**'
+      instructions: |
+        This private workspace is reserved for a later phase. Missing adapter implementation
+        is not a defect unless the PR explicitly starts that phase. Future implementation
+        should reuse runner-independent compat code without introducing a Jest dependency.
+
+    - path: 'docs/**'
+      instructions: |
+        Distinguish upstream issue reports from behavior actually reproduced at a stated version.
+        Tie compatibility claims to primary sources and observable regression evidence.
+        Keep verification records explicit about locally executed checks versus configured CI,
+        and about supported behavior versus non-rendering helpers and runner limitations.
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - README.md
+      - packages/*/README.md
