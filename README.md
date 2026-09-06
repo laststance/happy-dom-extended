@@ -9,7 +9,7 @@
 
 Happy DOM supplies the DOM for your Jest tests. `jest-happy-dom-extended` builds on its official Jest environment to fill verified Web API gaps, normalize values crossing Jest's VM boundary, and provide native 2D Canvas rendering. Select one test environment instead of maintaining the same environment patches in every application's setup file.
 
-Canvas output contains the pixels your application drew. HTML Canvas and OffscreenCanvas support PNG/JPEG output, ImageData, resizing, and asynchronous completion. Application-specific mocks still belong in your tests. This project does not claim full browser equivalence; use a real browser for layout, WebGL, Worker execution, and browser-specific rendering checks.
+Canvas output contains the pixels your application drew. HTML Canvas and OffscreenCanvas support PNG output, ImageData, resizing, and asynchronous completion. JPEG output requires native JPEG support; when unavailable, JPEG requests produce PNG with an `image/png` MIME type. Application-specific mocks still belong in your tests. This project does not claim full browser equivalence; use a real browser for layout, WebGL, Worker execution, and browser-specific rendering checks.
 
 ## Install
 
@@ -85,14 +85,14 @@ OffscreenCanvas works the same way, with `await canvas.convertToBlob()` for outp
 
 ## What is included?
 
-| Capability                    | Behavior                                                                                                 |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| HTML Canvas / OffscreenCanvas | Real native 2D drawing, PNG/JPEG output, dimension/state resets, correct context owner                   |
-| ImageData                     | Preserves VM pixel arrays, shared storage, and subarray offsets; Canvas results use the Window's types   |
-| Blob / File                   | Handles binary VM inputs, UTF-8 BOM decoding, and `bytes()` while preserving FileReader compatibility    |
-| Streams / cloning             | Node-backed encoding and compression streams and `structuredClone`                                       |
-| Messaging                     | Native MessageChannel/MessagePort and environment-isolated BroadcastChannel, with owned-resource cleanup |
-| Events / animation / XHR      | CompositionEvent text, observable cancellation rejection, and XHR instance constants                     |
+| Capability                    | Behavior                                                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| HTML Canvas / OffscreenCanvas | Real native 2D drawing, PNG/JPEG output (JPEG falls back to `image/png` without its native codec), dimension/state resets, correct context owner |
+| ImageData                     | Preserves VM pixel arrays, shared storage, and subarray offsets; Canvas results use the Window's types                                           |
+| Blob / File                   | Handles binary VM inputs, UTF-8 BOM decoding, and `bytes()` while preserving FileReader compatibility                                            |
+| Streams / cloning             | Node-backed encoding and compression streams and `structuredClone`                                                                               |
+| Messaging                     | Native MessageChannel/MessagePort and environment-isolated BroadcastChannel, with owned-resource cleanup                                         |
+| Events / animation / XHR      | CompositionEvent text, observable cancellation rejection, and XHR instance constants                                                             |
 
 Existing Happy DOM fetch, DOM events, and related object families stay compatible with each other. See the [package guide](packages/jest-happy-dom-extended/README.md) for API details, configuration, custom adapter ownership, native requirements, and limitations.
 
