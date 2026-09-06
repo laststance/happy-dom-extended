@@ -15,8 +15,8 @@
     "lint:fix": "eslint . --fix --concurrency=auto --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm build && pnpm test:unit && pnpm test:jest",
-    "test:unit": "node --test packages/compat/test/*.test.ts",
+    "test": "pnpm build && c8 pnpm test:runtime",
+    "test:unit": "node --test packages/compat/test/*.test.ts packages/jest-happy-dom-extended/test-node/*.test.mjs",
     "test:jest": "jest --runInBand --no-cache",
     "sherif": "sherif",
     "health": "fallow health --fail-on-issues",
@@ -28,7 +28,9 @@
     "check": "pnpm sherif && pnpm format:check && pnpm test && pnpm lint && pnpm typecheck && pnpm health && pnpm dupes && pnpm dead-code && pnpm check:package && pnpm test:package",
     "release": "pnpm check && changeset publish",
     "probe:upstream": "node packages/compat/test/upstream-probe.ts",
-    "test:package": "node scripts/test-package.mjs"
+    "test:package": "node scripts/test-package.mjs",
+    "test:runtime": "pnpm test:unit && pnpm test:jest",
+    "test:coverage": "pnpm test"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
@@ -36,6 +38,7 @@
     "@swc/core": "1.16.2",
     "@swc/jest": "0.2.39",
     "@types/node": "^22.0.0",
+    "c8": "12.0.0",
     "cross-spawn": "7.0.6",
     "eslint": "10.10.0",
     "eslint-config-ts-prefixer": "5.0.0",

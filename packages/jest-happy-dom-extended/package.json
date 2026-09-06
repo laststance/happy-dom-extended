@@ -30,10 +30,6 @@
       "types": "./dist/index.d.cts",
       "default": "./dist/index.cjs"
     },
-    "./canvas": {
-      "types": "./dist/canvas.d.cts",
-      "default": "./dist/canvas.cjs"
-    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -45,7 +41,10 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
-    "@happy-dom/jest-environment": "^20.14.0"
+    "@happy-dom/jest-environment": "^20.14.0",
+    "@happy-dom/node-canvas-adapter": "^20.14.0",
+    "canvas": "^3.2.3",
+    "happy-dom": "^20.14.0"
   },
   "peerDependencies": {
     "jest": "^30.0.0"

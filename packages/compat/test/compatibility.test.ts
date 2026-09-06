@@ -7,6 +7,108 @@ import type { BroadcastChannel, MessageChannel } from 'node:worker_threads'
 import { Window } from 'happy-dom'
 
 import { installCompatibility } from '../src/index.ts'
+import { replaceProperty } from '../src/utils/replace-property.ts'
+
+test('A channel close failure still closes every sibling and restores the Window globals', async (context) => {
+  // Arrange
+  const window = new Window()
+  const originalBlob = window.Blob
+  const dispose = installCompatibility(window)
+  const Channel: typeof BroadcastChannel = Reflect.get(
+    window,
+    'BroadcastChannel',
+  )
+  const first = new Channel('first-survivor')
+  const failing = new Channel('failing-close')
+  const last = new Channel('last-survivor')
+  const failure = new Error('Channel close failed')
+  const close = context.mock.method(failing, 'close', () => {
+    throw failure
+  })
+  try {
+    // Act / Assert
+    assert.throws(dispose, (error) => error === failure)
+    assert.throws(() => first.postMessage('closed'))
+    assert.throws(() => last.postMessage('closed'))
+    assert.equal(window.Blob, originalBlob)
+    assert.equal(Reflect.get(window, 'BroadcastChannel'), undefined)
+    assert.doesNotThrow(dispose)
+  } finally {
+    // The intentionally failing close cannot release its own native handle.
+    close.mock.restore()
+    failing.close()
+    first.close()
+    last.close()
+    await window.happyDOM.close()
+  }
+})
+
+test('A locked added property reports failed restoration and prevents stale ownership from hiding a later installation error', () => {
+  // Arrange
+  const target = {}
+  const restore = replaceProperty(target, 'added', {
+    value: 1,
+    writable: true,
+  })
+  Object.defineProperty(target, 'added', { configurable: false })
+  // Act / Assert
+  assert.throws(restore, /Cannot restore property: added/)
+  assert.doesNotThrow(restore)
+  assert.equal(Reflect.get(target, 'added'), 1)
+  assert.throws(() => replaceProperty(target, 'added', { value: 2 }), TypeError)
+})
+
+test('A locked restoration still releases Blob patches, animation patches, and native channels', async () => {
+  // Arrange
+  const window = new Window()
+  const originalBlob = window.Blob
+  const originalCancel = window.Animation.prototype.cancel
+  const dispose = installCompatibility(window)
+  const Channel = Reflect.get(window, 'BroadcastChannel')
+  const channel = new Channel('cleanup-failure')
+  Object.defineProperty(window, 'CompositionEvent', { configurable: false })
+  try {
+    // Act / Assert
+    assert.throws(dispose, /Cannot redefine property: CompositionEvent/)
+    assert.equal(window.Blob, originalBlob)
+    assert.equal(window.Animation.prototype.cancel, originalCancel)
+    assert.throws(() => channel.postMessage('closed'))
+    assert.doesNotThrow(dispose)
+  } finally {
+    await window.happyDOM.close()
+  }
+})
+
+test('Failed initialization preserves its original error when an earlier property cannot be restored', async () => {
+  // Arrange
+  const window = new Window()
+  const originalBlob = window.Blob
+  const originalComposition = window.CompositionEvent
+  Object.defineProperty(window, 'CompositionEvent', {
+    configurable: false,
+    get() {
+      Object.defineProperty(window, 'ImageData', { configurable: false })
+      return originalComposition
+    },
+  })
+  try {
+    // Act / Assert
+    assert.throws(
+      () => installCompatibility(window),
+      (error) => {
+        assert.ok(error instanceof AggregateError)
+        assert.equal(error.errors.length, 2)
+        assert.match(error.errors[0].message, /CompositionEvent/)
+        assert.match(error.errors[1].message, /ImageData/)
+        assert.equal(error.cause, error.errors[0])
+        return true
+      },
+    )
+    assert.equal(window.Blob, originalBlob)
+  } finally {
+    await window.happyDOM.close()
+  }
+})
 
 /** Gives each regression test an independently disposed Happy DOM environment.
  * @param context - Node test lifecycle used for guaranteed cleanup.

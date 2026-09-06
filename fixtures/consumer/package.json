@@ -5,6 +5,7 @@
   "license": "MIT",
   "devDependencies": {
     "jest": "30.5.1",
-    "jest-happy-dom-extended": "workspace:*"
+    "jest-happy-dom-extended": "workspace:*",
+    "pngjs": "7.0.0"
   }
 }

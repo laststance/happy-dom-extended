@@ -2,19 +2,20 @@
   "$schema": "./node_modules/fallow/schema.json",
   "entry": [
     "packages/*/src/index.ts",
-    "packages/*/src/canvas.ts",
     "packages/*/tsdown.config.ts",
     "packages/*/test/**/*.test.ts",
     "packages/compat/test/upstream-probe.ts",
     "fixtures/consumer/*.cjs",
-    "fixtures/consumer/*.mjs"
+    "fixtures/consumer/*.mjs",
+    "packages/*/test-node/*.test.mjs"
   ],
   "ignorePatterns": [".artifacts/**"],
   "health": {
-    "ignore": ["**/test/**"]
+    "ignore": ["**/test/**", "**/test-node/**"],
+    "coverage": "coverage/coverage-final.json"
   },
   "duplicates": {
-    "ignore": ["**/test/**"]
+    "ignore": ["**/test/**", "**/test-node/**"]
   },
   "framework": [
     {
@@ -23,5 +24,16 @@
       "entryPointRole": "support",
       "toolingDependencies": ["typescript-compiler"]
     }
+  ],
+  "usedClassMembers": [
+    {
+      "extends": "CanvasAdapter",
+      "members": ["getContext", "toDataURL", "toBlob"]
+    }
+  ],
+  "ignoreDependencies": [
+    "@happy-dom/node-canvas-adapter",
+    "canvas",
+    "happy-dom"
   ]
 }
