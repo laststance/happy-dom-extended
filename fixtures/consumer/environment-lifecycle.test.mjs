@@ -162,8 +162,11 @@ test('Programmatic custom adapters retain identity and are not disposed by the e
     },
   }
   const config = {
-    ...configuration.projectConfig,
-    testEnvironmentOptions: { settings: { canvasAdapter: adapter } },
+    ...configuration,
+    projectConfig: {
+      ...configuration.projectConfig,
+      testEnvironmentOptions: { settings: { canvasAdapter: adapter } },
+    },
   }
   const environment = new ESMEnvironment(config, { console })
   // Act
@@ -181,8 +184,11 @@ test('Programmatic custom adapters retain identity and are not disposed by the e
 test('Invalid serialized adapters fail with actionable configuration guidance', () => {
   // Arrange
   const config = {
-    ...configuration.projectConfig,
-    testEnvironmentOptions: { settings: { canvasAdapter: {} } },
+    ...configuration,
+    projectConfig: {
+      ...configuration.projectConfig,
+      testEnvironmentOptions: { settings: { canvasAdapter: {} } },
+    },
   }
   // Act / Assert
   assert.throws(
