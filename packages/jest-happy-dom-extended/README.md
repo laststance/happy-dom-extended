@@ -15,7 +15,7 @@ pnpm add -D jest jest-happy-dom-extended
 export default {
   testEnvironment: 'jest-happy-dom-extended',
   testEnvironmentOptions: { url: 'https://example.test/' },
-};
+}
 ```
 
 Application-specific mocks and fixtures stay in your own `setupFiles` / `setupFilesAfterEnv`. The extensions are installed before those files run. Standard Happy DOM environment options continue to pass through to the upstream environment.
@@ -48,23 +48,23 @@ Sources and reproduction details live in the monorepo's research brief. Relevant
 Importing the environment does not install a rendering stub. Tests that only need to observe the pixel handoff can request one explicitly:
 
 ```ts
-import { installCanvasStub } from 'jest-happy-dom-extended/canvas';
+import { installCanvasStub } from 'jest-happy-dom-extended/canvas'
 
 test('hands pixels to the PNG encoder', () => {
-  const stub = installCanvasStub({ dataURL: 'data:image/png;base64,AA==' });
+  const stub = installCanvasStub({ dataURL: 'data:image/png;base64,AA==' })
   try {
-    const canvas = document.createElement('canvas');
-    const pixels = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1);
-    canvas.getContext('2d')?.putImageData(pixels, 0, 0);
+    const canvas = document.createElement('canvas')
+    const pixels = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1)
+    canvas.getContext('2d')?.putImageData(pixels, 0, 0)
 
     expect(stub.putImageDataCalls).toEqual([
       { canvas, imageData: pixels, dx: 0, dy: 0 },
-    ]);
-    expect(canvas.toDataURL()).toBe('data:image/png;base64,AA==');
+    ])
+    expect(canvas.toDataURL()).toBe('data:image/png;base64,AA==')
   } finally {
-    stub.restore();
+    stub.restore()
   }
-});
+})
 ```
 
 The helper supports only `getContext('2d')`, `putImageData`, and a caller-specified `toDataURL` result. Other context types return `null`; this helper does not render pixels. Use one active helper per canvas prototype and always restore it. For actual rendering, use Happy DOM's [Node Canvas Adapter](https://github.com/capricorn86/happy-dom/tree/master/packages/@happy-dom/node-canvas-adapter).

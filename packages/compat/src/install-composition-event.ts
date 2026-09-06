@@ -1,13 +1,13 @@
-import type { Window } from 'happy-dom';
+import type { Window } from 'happy-dom'
 
-import type { DisposeCompatibility } from './types.ts';
-import { replaceProperty } from './utils/replace-property.ts';
+import type { DisposeCompatibility } from './types.ts'
+import { replaceProperty } from './utils/replace-property.ts'
 
 type CompositionEventOptions = NonNullable<
   ConstructorParameters<Window['UIEvent']>[1]
 > & {
-  data?: string;
-};
+  data?: string
+}
 
 /** Adds the IME composition payload when Happy DOM's constructor omits composition data.
  * @param window - Environment used by editor and input-method tests.
@@ -22,12 +22,12 @@ export function installCompositionEvent(
   const probe = Reflect.construct(window.CompositionEvent, [
     'compositionend',
     { data: 'probe' },
-  ]);
-  if (Reflect.get(probe, 'data') === 'probe') return;
+  ])
+  if (Reflect.get(probe, 'data') === 'probe') return
 
   /** Preserves Happy DOM event dispatch while carrying the composed text. */
   class ExtendedCompositionEvent extends window.UIEvent {
-    #data: string;
+    #data: string
 
     /** Creates a composition event when an input-method consumer supplies composed text.
      * @param type - Composition event name.
@@ -35,8 +35,8 @@ export function installCompositionEvent(
      * @example new ExtendedCompositionEvent('compositionend', { data: 'あ' });
      */
     constructor(type: string, eventInit: CompositionEventOptions = {}) {
-      super(type, eventInit);
-      this.#data = eventInit?.data === undefined ? '' : String(eventInit.data);
+      super(type, eventInit)
+      this.#data = eventInit?.data === undefined ? '' : String(eventInit.data)
     }
 
     /** Exposes the composed text without permitting consumers to overwrite it.
@@ -44,7 +44,7 @@ export function installCompositionEvent(
      * @example event.data // 'あ'
      */
     get data(): string {
-      return this.#data;
+      return this.#data
     }
   }
   restorers.push(
@@ -52,5 +52,5 @@ export function installCompositionEvent(
       value: ExtendedCompositionEvent,
       writable: true,
     }),
-  );
+  )
 }

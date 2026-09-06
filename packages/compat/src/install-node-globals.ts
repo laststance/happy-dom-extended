@@ -3,12 +3,12 @@ import {
   DecompressionStream,
   TextDecoderStream,
   TextEncoderStream,
-} from 'node:stream/web';
+} from 'node:stream/web'
 
-import type { Window } from 'happy-dom';
+import type { Window } from 'happy-dom'
 
-import type { DisposeCompatibility } from './types.ts';
-import { replaceProperty } from './utils/replace-property.ts';
+import type { DisposeCompatibility } from './types.ts'
+import { replaceProperty } from './utils/replace-property.ts'
 
 const nodeGlobals = {
   structuredClone: globalThis.structuredClone,
@@ -16,7 +16,7 @@ const nodeGlobals = {
   TextDecoderStream,
   CompressionStream,
   DecompressionStream,
-};
+}
 
 /** Supplies missing Node-backed Web APIs before a runner evaluates application modules.
  * @param window - Happy DOM environment to extend.
@@ -36,7 +36,7 @@ export function installNodeGlobals(
           value: implementation,
           writable: true,
         }),
-      );
+      )
     }
   }
 }

@@ -1,4 +1,4 @@
-import { types } from 'node:util';
+import { types } from 'node:util'
 
 /** Identifies iterable Blob parts when a constructor receives untyped JavaScript arguments.
  * @param value - First constructor argument.
@@ -11,7 +11,7 @@ function isIterableParts(value: unknown): value is Iterable<unknown> {
     value !== null &&
     Symbol.iterator in value &&
     typeof value[Symbol.iterator] === 'function'
-  );
+  )
 }
 
 /** Converts foreign ArrayBuffers before Blob/File construction without disturbing Blob identity or view offsets.
@@ -20,12 +20,12 @@ function isIterableParts(value: unknown): value is Iterable<unknown> {
  * @example normalizeBlobArguments([[new ArrayBuffer(2)], { type: 'text/plain' }]);
  */
 export function normalizeBlobArguments(argumentsList: unknown[]): unknown[] {
-  const [parts, ...remaining] = argumentsList;
-  if (!isIterableParts(parts)) return argumentsList;
+  const [parts, ...remaining] = argumentsList
+  if (!isIterableParts(parts)) return argumentsList
   return [
     Array.from(parts, (part) =>
       types.isArrayBuffer(part) ? new Uint8Array(part) : part,
     ),
     ...remaining,
-  ];
+  ]
 }

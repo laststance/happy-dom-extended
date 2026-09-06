@@ -11,4 +11,4 @@ export default {
   },
   clearMocks: true,
   restoreMocks: true,
-};
+}

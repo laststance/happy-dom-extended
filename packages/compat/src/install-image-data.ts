@@ -1,10 +1,10 @@
-import { types } from 'node:util';
+import { types } from 'node:util'
 
-import type { Window } from 'happy-dom';
+import type { Window } from 'happy-dom'
 
-import { PROBE_IMAGE_WIDTH_PX, RGBA_CHANNEL_COUNT } from './constants.ts';
-import type { DisposeCompatibility } from './types.ts';
-import { replaceProperty } from './utils/replace-property.ts';
+import { PROBE_IMAGE_WIDTH_PX, RGBA_CHANNEL_COUNT } from './constants.ts'
+import type { DisposeCompatibility } from './types.ts'
+import { replaceProperty } from './utils/replace-property.ts'
 
 /** Checks whether ImageData already accepts pixels allocated in the test's VM.
  * @param window - Environment to probe.
@@ -16,10 +16,10 @@ function needsImageDataBridge(window: Window): boolean {
     new window.ImageData(
       new window.Uint8ClampedArray(RGBA_CHANNEL_COUNT),
       PROBE_IMAGE_WIDTH_PX,
-    );
-    return false;
+    )
+    return false
   } catch {
-    return true;
+    return true
   }
 }
 
@@ -33,39 +33,39 @@ export function installImageData(
   window: Window,
   restorers: DisposeCompatibility[],
 ): void {
-  if (!needsImageDataBridge(window)) return;
+  if (!needsImageDataBridge(window)) return
   const implementation = new Proxy(window.ImageData, {
     construct(target, argumentsList: unknown[], newTarget) {
-      const [pixels, ...dimensions] = argumentsList;
+      const [pixels, ...dimensions] = argumentsList
       if (
         !types.isUint8ClampedArray(pixels) ||
         Uint8ClampedArray.prototype.isPrototypeOf(pixels)
       ) {
-        return Reflect.construct(target, argumentsList, newTarget);
+        return Reflect.construct(target, argumentsList, newTarget)
       }
       const nativePixels = new Uint8ClampedArray(
         pixels.buffer,
         pixels.byteOffset,
         pixels.length,
-      );
+      )
       const image = Reflect.construct(
         target,
         [nativePixels, ...dimensions],
         newTarget,
-      );
+      )
       // The view shares bytes; callers also retain the original data object's identity.
       Object.defineProperty(image, 'data', {
         configurable: true,
         enumerable: true,
         get: () => pixels,
-      });
-      return image;
+      })
+      return image
     },
-  });
+  })
   restorers.push(
     replaceProperty(window, 'ImageData', {
       value: implementation,
       writable: true,
     }),
-  );
+  )
 }

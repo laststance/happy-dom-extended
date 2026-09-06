@@ -1,5 +1,5 @@
-import { defineConfig } from 'eslint/config';
-import tsPrefixer from 'eslint-config-ts-prefixer';
+import { defineConfig } from 'eslint/config'
+import tsPrefixer from 'eslint-config-ts-prefixer'
 
 export default defineConfig([
   ...tsPrefixer,
@@ -9,4 +9,4 @@ export default defineConfig([
       parserOptions: { tsconfigRootDir: import.meta.dirname },
     },
   },
-]);
+])

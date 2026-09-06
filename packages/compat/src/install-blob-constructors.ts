@@ -1,9 +1,9 @@
-import type { Window } from 'happy-dom';
+import type { Window } from 'happy-dom'
 
-import { PROBE_BYTE_LENGTH } from './constants.ts';
-import type { DisposeCompatibility } from './types.ts';
-import { normalizeBlobArguments } from './utils/normalize-blob-arguments.ts';
-import { replaceProperty } from './utils/replace-property.ts';
+import { PROBE_BYTE_LENGTH } from './constants.ts'
+import type { DisposeCompatibility } from './types.ts'
+import { normalizeBlobArguments } from './utils/normalize-blob-arguments.ts'
+import { replaceProperty } from './utils/replace-property.ts'
 
 /** Preserves binary parts from another VM when {@link installBinary} initializes Blob and File construction.
  * @param window - Environment whose constructors receive VM-created arrays.
@@ -20,7 +20,7 @@ export function installBlobConstructors(
     new window.Blob([new window.ArrayBuffer(PROBE_BYTE_LENGTH)]).size ===
     PROBE_BYTE_LENGTH
   ) {
-    return;
+    return
   }
   for (const name of ['Blob', 'File'] as const) {
     const implementation = new Proxy(window[name], {
@@ -29,14 +29,14 @@ export function installBlobConstructors(
           target,
           normalizeBlobArguments(argumentsList),
           newTarget,
-        );
+        )
       },
-    });
+    })
     restorers.push(
       replaceProperty(window, name, {
         value: implementation,
         writable: true,
       }),
-    );
+    )
   }
 }

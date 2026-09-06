@@ -1,8 +1,8 @@
-import type { Window } from 'happy-dom';
+import type { Window } from 'happy-dom'
 
-import { XHR_READY_STATES } from './constants.ts';
-import type { DisposeCompatibility } from './types.ts';
-import { replaceProperty } from './utils/replace-property.ts';
+import { XHR_READY_STATES } from './constants.ts'
+import type { DisposeCompatibility } from './types.ts'
+import { replaceProperty } from './utils/replace-property.ts'
 
 /** Exposes XMLHttpRequest ready-state constants on instances as required by Web IDL.
  * @param window - Environment whose XMLHttpRequest prototype lacks constants.
@@ -22,7 +22,7 @@ export function installXhrConstants(
           enumerable: true,
           writable: false,
         }),
-      );
+      )
     }
   }
 }

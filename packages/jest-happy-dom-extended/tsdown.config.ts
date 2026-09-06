@@ -1,4 +1,4 @@
-import { defineConfig } from 'tsdown';
+import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   entry: ['src/index.ts', 'src/canvas.ts'],
@@ -8,4 +8,4 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   deps: { alwaysBundle: ['@happy-dom-extended/compat'] },
-});
+})

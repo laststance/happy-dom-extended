@@ -1,14 +1,14 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto'
 import {
   BroadcastChannel,
   MessageChannel,
   MessagePort,
-} from 'node:worker_threads';
+} from 'node:worker_threads'
 
-import type { Window } from 'happy-dom';
+import type { Window } from 'happy-dom'
 
-import type { DisposeCompatibility } from './types.ts';
-import { replaceProperty } from './utils/replace-property.ts';
+import type { DisposeCompatibility } from './types.ts'
+import { replaceProperty } from './utils/replace-property.ts'
 
 /** Adds native message channels with per-environment cleanup and isolated broadcast names.
  * @param window - Happy DOM environment that owns these channels.
@@ -20,12 +20,12 @@ export function installMessaging(
   window: Window,
   restorers: DisposeCompatibility[],
 ): void {
-  const channels = new Set<BroadcastChannel | MessagePort>();
-  const namespace = `happy-dom-extended:${randomUUID()}:`;
+  const channels = new Set<BroadcastChannel | MessagePort>()
+  const namespace = `happy-dom-extended:${randomUUID()}:`
   restorers.push(() => {
-    for (const channel of channels) channel.close();
-    channels.clear();
-  });
+    for (const channel of channels) channel.close()
+    channels.clear()
+  })
 
   if (Reflect.get(window, 'BroadcastChannel') === undefined) {
     /** Keeps broadcasts within one test environment and registers channels for teardown. */
@@ -35,9 +35,9 @@ export function installMessaging(
        * @example new window.BroadcastChannel('updates');
        */
       constructor(name: string) {
-        super(`${namespace}${name}`);
-        Object.defineProperty(this, 'name', { value: name, enumerable: true });
-        channels.add(this);
+        super(`${namespace}${name}`)
+        Object.defineProperty(this, 'name', { value: name, enumerable: true })
+        channels.add(this)
       }
 
       /** Releases native handles when consumers close a channel.
@@ -45,8 +45,8 @@ export function installMessaging(
        * @example channel.close();
        */
       override close(): void {
-        channels.delete(this);
-        super.close();
+        channels.delete(this)
+        super.close()
       }
     }
     restorers.push(
@@ -54,7 +54,7 @@ export function installMessaging(
         value: EnvironmentBroadcastChannel,
         writable: true,
       }),
-    );
+    )
   }
 
   if (Reflect.get(window, 'MessageChannel') === undefined) {
@@ -64,9 +64,9 @@ export function installMessaging(
        * @example new window.MessageChannel();
        */
       constructor() {
-        super();
-        channels.add(this.port1);
-        channels.add(this.port2);
+        super()
+        channels.add(this.port1)
+        channels.add(this.port2)
       }
     }
     // Port identity must match the ports returned by the native channel.
@@ -75,12 +75,12 @@ export function installMessaging(
         value: MessagePort,
         writable: true,
       }),
-    );
+    )
     restorers.push(
       replaceProperty(window, 'MessageChannel', {
         value: EnvironmentMessageChannel,
         writable: true,
       }),
-    );
+    )
   }
 }

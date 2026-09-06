@@ -5,10 +5,10 @@
  * @example propertyOwner(window.Blob.prototype, 'text');
  */
 export function propertyOwner(target: object, key: PropertyKey): object {
-  let current: object | null = target;
+  let current: object | null = target
   while (current) {
-    if (Object.hasOwn(current, key)) return current;
-    current = Object.getPrototypeOf(current);
+    if (Object.hasOwn(current, key)) return current
+    current = Object.getPrototypeOf(current)
   }
-  throw new TypeError(`Missing property: ${String(key)}`);
+  throw new TypeError(`Missing property: ${String(key)}`)
 }

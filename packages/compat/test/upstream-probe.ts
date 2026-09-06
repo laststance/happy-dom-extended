@@ -1,7 +1,7 @@
-import { Window } from 'happy-dom';
-import metadata from 'happy-dom/package.json' with { type: 'json' };
+import { Window } from 'happy-dom'
+import metadata from 'happy-dom/package.json' with { type: 'json' }
 
-const window = new Window();
+const window = new Window()
 const apiNames = [
   'structuredClone',
   'BroadcastChannel',
@@ -16,22 +16,22 @@ const apiNames = [
   'CompositionEvent',
   'requestIdleCallback',
   'Worker',
-];
-let imageDataResult: unknown;
+]
+let imageDataResult: unknown
 try {
   imageDataResult = new window.ImageData(
     new window.Uint8ClampedArray([255, 0, 0, 255]),
     1,
     1,
-  ).width;
+  ).width
 } catch (error) {
-  imageDataResult = error instanceof Error ? error.message : String(error);
+  imageDataResult = error instanceof Error ? error.message : String(error)
 }
 const composition = Reflect.construct(window.CompositionEvent, [
   'compositionend',
   { data: 'あ' },
-]);
-let cryptoImportResult: unknown;
+])
+let cryptoImportResult: unknown
 try {
   // Older reports rejected buffers created in the window's VM during key import.
   const key = await window.crypto.subtle.importKey(
@@ -40,10 +40,10 @@ try {
     { name: 'AES-GCM' },
     false,
     ['encrypt', 'decrypt'],
-  );
-  cryptoImportResult = { type: key.type, algorithm: key.algorithm.name };
+  )
+  cryptoImportResult = { type: key.type, algorithm: key.algorithm.name }
 } catch (error) {
-  cryptoImportResult = error instanceof Error ? error.message : String(error);
+  cryptoImportResult = error instanceof Error ? error.message : String(error)
 }
 const output = {
   node: process.version,
@@ -60,6 +60,6 @@ const output = {
   xhrDone: Reflect.get(new window.XMLHttpRequest(), 'DONE') ?? null,
   compositionData: Reflect.get(composition, 'data') ?? null,
   cryptoImportResult,
-};
-process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
-await window.happyDOM.close();
+}
+process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)
+await window.happyDOM.close()

@@ -1,23 +1,23 @@
-import { replaceProperty } from '@happy-dom-extended/compat/replace-property';
+import { replaceProperty } from '@happy-dom-extended/compat/replace-property'
 
 interface CanvasStubWindow {
-  HTMLCanvasElement: { prototype: object };
+  HTMLCanvasElement: { prototype: object }
 }
 
 export interface CanvasStubOptions {
-  dataURL: string;
+  dataURL: string
 }
 
 export interface PutImageDataCall {
-  canvas: object;
-  imageData: Pick<ImageData, 'data' | 'width' | 'height'>;
-  dx: number;
-  dy: number;
+  canvas: object
+  imageData: Pick<ImageData, 'data' | 'width' | 'height'>
+  dx: number
+  dy: number
 }
 
 export interface CanvasStub {
-  readonly putImageDataCalls: readonly PutImageDataCall[];
-  restore: () => void;
+  readonly putImageDataCalls: readonly PutImageDataCall[]
+  restore: () => void
 }
 
 /** Installs an explicit non-rendering Canvas stub for tests that assert pixel handoff and a chosen data URL.
@@ -30,7 +30,7 @@ export function installCanvasStub(
   options: CanvasStubOptions,
   window: CanvasStubWindow = globalThis,
 ): CanvasStub {
-  const putImageDataCalls: PutImageDataCall[] = [];
+  const putImageDataCalls: PutImageDataCall[] = []
   const contexts = new WeakMap<
     object,
     {
@@ -38,36 +38,36 @@ export function installCanvasStub(
         imageData: PutImageDataCall['imageData'],
         dx: number,
         dy: number,
-      ) => void;
+      ) => void
     }
-  >();
-  const prototype = window.HTMLCanvasElement.prototype;
+  >()
+  const prototype = window.HTMLCanvasElement.prototype
   const restoreContext = replaceProperty(prototype, 'getContext', {
     writable: true,
     value: function getContext(this: object, contextId: string) {
       // This helper implements only the pixel handoff used by conversion tests.
-      if (contextId !== '2d') return null;
-      let context = contexts.get(this);
+      if (contextId !== '2d') return null
+      let context = contexts.get(this)
       if (!context) {
         context = {
           putImageData: (imageData, dx, dy) => {
-            putImageDataCalls.push({ canvas: this, imageData, dx, dy });
+            putImageDataCalls.push({ canvas: this, imageData, dx, dy })
           },
-        };
-        contexts.set(this, context);
+        }
+        contexts.set(this, context)
       }
-      return context;
+      return context
     },
-  });
+  })
   const restoreDataURL = replaceProperty(prototype, 'toDataURL', {
     writable: true,
     value: () => options.dataURL,
-  });
+  })
   return {
     putImageDataCalls,
     restore() {
-      restoreDataURL();
-      restoreContext();
+      restoreDataURL()
+      restoreContext()
     },
-  };
+  }
 }
