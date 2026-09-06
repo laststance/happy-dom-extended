@@ -84,6 +84,11 @@ try {
       consumer,
     )
     run(process.execPath, ['esm.mjs'], consumer)
+    run(
+      process.execPath,
+      ['--test', 'environment-lifecycle.test.mjs'],
+      consumer,
+    )
     const testReport = path.join(consumer, 'jest-results.json')
     run(
       process.execPath,

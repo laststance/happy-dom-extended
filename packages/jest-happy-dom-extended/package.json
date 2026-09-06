@@ -24,28 +24,15 @@
     "LICENSE"
   ],
   "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
+      "types": "./dist/index.d.cts",
+      "default": "./dist/index.cjs"
     },
     "./canvas": {
-      "import": {
-        "types": "./dist/canvas.d.mts",
-        "default": "./dist/canvas.mjs"
-      },
-      "require": {
-        "types": "./dist/canvas.d.cts",
-        "default": "./dist/canvas.cjs"
-      }
+      "types": "./dist/canvas.d.cts",
+      "default": "./dist/canvas.cjs"
     },
     "./package.json": "./package.json"
   },

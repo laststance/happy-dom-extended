@@ -24,20 +24,20 @@ pnpm check
 
 The repository pins pnpm 12.3.4 with an integrity hash. `pnpm-workspace.yaml` retains a one-day minimum release age and explicitly permits the native dependency build scripts used by the toolchain.
 
-| Task                                           | Command                             |
-| ---------------------------------------------- | ----------------------------------- |
-| Build ESM, CommonJS, declarations, source maps | `pnpm build`                        |
-| TypeScript 7 type checking                     | `pnpm typecheck`                    |
-| ESLint using `eslint-config-ts-prefixer`       | `pnpm lint` / `pnpm lint:fix`       |
-| Formatting                                     | `pnpm format` / `pnpm format:check` |
-| Monorepo dependency consistency                | `pnpm sherif`                       |
-| Complexity and maintainability                 | `pnpm health`                       |
-| Production code duplication                    | `pnpm dupes`                        |
-| Dead code and dependency hygiene               | `pnpm dead-code`                    |
-| Compatibility and actual Jest integration      | `pnpm test`                         |
-| npm export/type analysis                       | `pnpm check:package`                |
-| Clean consumer installation of the tarball     | `pnpm test:package`                 |
-| Reproduce the upstream behavior                | `pnpm probe:upstream`               |
+| Task                                       | Command                             |
+| ------------------------------------------ | ----------------------------------- |
+| Build runtime, declarations, source maps   | `pnpm build`                        |
+| TypeScript 7 type checking                 | `pnpm typecheck`                    |
+| ESLint using `eslint-config-ts-prefixer`   | `pnpm lint` / `pnpm lint:fix`       |
+| Formatting                                 | `pnpm format` / `pnpm format:check` |
+| Monorepo dependency consistency            | `pnpm sherif`                       |
+| Complexity and maintainability             | `pnpm health`                       |
+| Production code duplication                | `pnpm dupes`                        |
+| Dead code and dependency hygiene           | `pnpm dead-code`                    |
+| Compatibility and actual Jest integration  | `pnpm test`                         |
+| npm export/type analysis                   | `pnpm check:package`                |
+| Clean consumer installation of the tarball | `pnpm test:package`                 |
+| Reproduce the upstream behavior            | `pnpm probe:upstream`               |
 
 `pnpm check` builds before checking files that import the built package. When running individual lint or typecheck commands immediately after cloning, run `pnpm build` first.
 

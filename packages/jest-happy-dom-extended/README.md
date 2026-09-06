@@ -22,7 +22,7 @@ Application-specific mocks and fixtures stay in your own `setupFiles` / `setupFi
 
 Installation completes synchronously in the environment constructor. `Blob.text()` uses the package's UTF-8 reader through the public `arrayBuffer()` API, including during setup. This intentional method replacement restores the original method after the last environment closes; it does not wait for an asynchronous capability probe.
 
-Requires Node.js >=22.18.0 and Jest 30. The initial compatibility baseline is Happy DOM 20.14.0. Both ESM and CommonJS entry points include matching TypeScript declarations.
+Requires Node.js >=22.18.0 and Jest 30. The initial compatibility baseline is Happy DOM 20.14.0. ESM imports and CommonJS `require` share one CommonJS runtime and matching TypeScript declarations, so both loading styles coordinate the lifetime of shared Web API fixes.
 
 ## Included behavior
 
