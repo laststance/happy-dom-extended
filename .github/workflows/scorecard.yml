@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      actions: read
-      contents: read
-      id-token: write
-      security-events: write
+      actions: read # Inspect workflow configuration and runs.
+      contents: read # Read the repository for Scorecard checks.
+      id-token: write # Authenticate publication of Scorecard results with OIDC.
+      security-events: write # Upload the SARIF report to code scanning.
 
     steps:
       - name: Checkout

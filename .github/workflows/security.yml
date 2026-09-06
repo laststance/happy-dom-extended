@@ -22,9 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      actions: read
-      contents: read
-      security-events: write
+      actions: read # Read workflow metadata for CodeQL reporting.
+      contents: read # Read the source being analyzed.
+      security-events: write # Publish CodeQL code-scanning results.
 
     steps:
       - name: Checkout
@@ -46,8 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: read
-      pull-requests: read
+      contents: read # Read dependency changes between the compared commits.
+      pull-requests: read # Read the pull request used for the comparison.
 
     steps:
       - name: Checkout
