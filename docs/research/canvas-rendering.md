@@ -4,7 +4,7 @@ Baseline examined: Happy DOM and its official Canvas adapter 20.14.0; node-canva
 
 ## Primary sources
 
-- [Happy DOM Canvas adapter source](https://github.com/capricorn86/happy-dom/tree/v20.14.0/packages/node-canvas-adapter): bridge from DOM objects to node-canvas.
+- [Happy DOM Canvas adapter source](https://github.com/capricorn86/happy-dom/tree/v20.14.0/packages/@happy-dom/node-canvas-adapter): bridge from DOM objects to node-canvas.
 - [node-canvas 3.2.3](https://github.com/Automattic/node-canvas/tree/v3.2.3): rendering, native dependencies, codecs, and platform support.
 - [HTML Canvas serialization](https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob): copy the bitmap before parallel serialization, callback delivery, and output fallback behavior.
 - [OffscreenCanvas serialization](https://html.spec.whatwg.org/multipage/canvas.html#dom-offscreencanvas-converttoblob): promise-based output and errors.
