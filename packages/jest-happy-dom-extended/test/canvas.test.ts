@@ -50,3 +50,56 @@ test('failed canvas initialization restores getContext when toDataURL cannot be 
     value: originalGetContext,
   })
 })
+
+test('a second canvas helper cannot replace an active helper or capture its calls', () => {
+  // Arrange
+  const stub = installCanvasStub({ dataURL: 'data:image/png;base64,AA==' })
+  const canvas = document.createElement('canvas')
+  const pixels = new ImageData(new Uint8ClampedArray([0, 255, 0, 255]), 1, 1)
+  try {
+    // Act
+    expect(() => {
+      const unexpectedStub = installCanvasStub({
+        dataURL: 'data:image/png;base64,AQ==',
+      })
+      unexpectedStub.restore()
+    }).toThrow('A Canvas stub is already installed for this prototype')
+    canvas.getContext('2d')?.putImageData(pixels, 1, 2)
+
+    // Assert
+    expect(canvas.toDataURL()).toBe('data:image/png;base64,AA==')
+    expect(stub.putImageDataCalls).toEqual([
+      { canvas, imageData: pixels, dx: 1, dy: 2 },
+    ])
+  } finally {
+    stub.restore()
+  }
+})
+
+test('restoring an old canvas helper again cannot unlock a newer installation', () => {
+  // Arrange
+  const previousStub = installCanvasStub({
+    dataURL: 'data:image/png;base64,AA==',
+  })
+  previousStub.restore()
+  const currentStub = installCanvasStub({
+    dataURL: 'data:image/png;base64,AQ==',
+  })
+  try {
+    // Act
+    previousStub.restore()
+
+    // Assert
+    expect(document.createElement('canvas').toDataURL()).toBe(
+      'data:image/png;base64,AQ==',
+    )
+    expect(() => {
+      const unexpectedStub = installCanvasStub({
+        dataURL: 'data:image/png;base64,Ag==',
+      })
+      unexpectedStub.restore()
+    }).toThrow('A Canvas stub is already installed for this prototype')
+  } finally {
+    currentStub.restore()
+  }
+})

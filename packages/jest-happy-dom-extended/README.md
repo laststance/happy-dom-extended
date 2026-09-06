@@ -67,7 +67,7 @@ test('hands pixels to the PNG encoder', () => {
 })
 ```
 
-The helper supports only `getContext('2d')`, `putImageData`, and a caller-specified `toDataURL` result. Other context types return `null`; this helper does not render pixels. Use one active helper per canvas prototype and always restore it. For actual rendering, use Happy DOM's [Node Canvas Adapter](https://github.com/capricorn86/happy-dom/tree/master/packages/@happy-dom/node-canvas-adapter).
+The helper supports only `getContext('2d')`, `putImageData`, and a caller-specified `toDataURL` result. Other context types return `null`; this helper does not render pixels. Only one helper can be active per canvas prototype: overlapping installations throw an error, so always restore the active helper before installing another. For actual rendering, use Happy DOM's [Node Canvas Adapter](https://github.com/capricorn86/happy-dom/tree/master/packages/@happy-dom/node-canvas-adapter).
 
 ## Runtime boundaries
 
