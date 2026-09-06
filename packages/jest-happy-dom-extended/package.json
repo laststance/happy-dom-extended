@@ -1,0 +1,63 @@
+{
+  "name": "jest-happy-dom-extended",
+  "version": "0.1.0",
+  "description": "A Happy DOM Jest environment with verified Web API compatibility fixes.",
+  "type": "module",
+  "license": "MIT",
+  "author": "ryota-murakami",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./canvas": {
+      "import": {
+        "types": "./dist/canvas.d.mts",
+        "default": "./dist/canvas.mjs"
+      },
+      "require": {
+        "types": "./dist/canvas.d.cts",
+        "default": "./dist/canvas.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check:package": "publint && attw --pack --profile node16",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@happy-dom/jest-environment": "^20.14.0"
+  },
+  "peerDependencies": {
+    "jest": "^30.0.0"
+  },
+  "devDependencies": {
+    "@happy-dom-extended/compat": "workspace:*",
+    "@jest/environment": "30.5.1",
+    "@jest/globals": "30.5.1",
+    "@jest/types": "30.5.1"
+  }
+}

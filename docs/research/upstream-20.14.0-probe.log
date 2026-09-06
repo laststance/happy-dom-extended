@@ -1,0 +1,29 @@
+{
+  "node": "v24.20.0",
+  "happyDom": "20.14.0",
+  "globals": {
+    "structuredClone": "undefined",
+    "BroadcastChannel": "undefined",
+    "MessageChannel": "undefined",
+    "MessagePort": "function",
+    "TextEncoder": "function",
+    "TextDecoder": "function",
+    "TextEncoderStream": "undefined",
+    "TextDecoderStream": "undefined",
+    "CompressionStream": "undefined",
+    "DecompressionStream": "undefined",
+    "CompositionEvent": "function",
+    "requestIdleCallback": "undefined",
+    "Worker": "undefined"
+  },
+  "binaryBlobText": "[object ArrayBuffer]",
+  "bomBlobText": "﻿A",
+  "blobBytes": "undefined",
+  "imageDataResult": "Invalid array length",
+  "xhrDone": null,
+  "compositionData": null,
+  "cryptoImportResult": {
+    "type": "secret",
+    "algorithm": "AES-GCM"
+  }
+}
