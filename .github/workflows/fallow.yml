@@ -27,4 +27,6 @@ jobs:
       - name: Measure coverage for complexity analysis
         if: matrix.check == 'health'
         run: pnpm test:coverage
-      - run: pnpm ${{ matrix.check }}
+      - run: pnpm "$FALLOW_CHECK"
+        env:
+          FALLOW_CHECK: ${{ matrix.check }}
