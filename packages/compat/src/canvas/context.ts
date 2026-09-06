@@ -20,7 +20,33 @@ export function createCanvasContext(
     PropertyKey,
     { original: unknown; bound: (...argumentsList: unknown[]) => unknown }
   >()
-  const replacements = new Set<PropertyKey>()
+  const replacements = new Map<PropertyKey, unknown>()
+
+  /** Tracks successful consumer mutations for the proxy traps without treating restored methods as overrides.
+   * @returns Whether the property mutation succeeded.
+   * @example updateReplacement('drawImage', () => Reflect.defineProperty(context, 'drawImage', descriptor));
+   */
+  function updateReplacement(key: PropertyKey, mutate: () => boolean): boolean {
+    const original = replacements.has(key)
+      ? replacements.get(key)
+      : Reflect.get(context, key, context)
+    if (!mutate()) return false
+    const descriptor = Reflect.getOwnPropertyDescriptor(context, key)
+    const cached = methods.get(key)
+    // Inspect descriptors so installing a consumer getter does not execute it.
+    if (
+      !descriptor ||
+      ('value' in descriptor &&
+        (descriptor.value === original ||
+          (cached && descriptor.value === cached.bound)))
+    ) {
+      replacements.delete(key)
+    } else {
+      replacements.set(key, original)
+    }
+    return true
+  }
+
   return new Proxy(context, {
     get(target, key) {
       if (key === 'canvas') return caller.canvas
@@ -30,7 +56,8 @@ export function createCanvasContext(
       if (replacements.has(key)) return original
       if (typeof original !== 'function') return original
       const cached = methods.get(key)
-      if (cached && cached.original === original) return cached.bound
+      if (cached && (cached.original === original || cached.bound === original))
+        return cached.bound
       const bound = (...argumentsList: unknown[]): unknown => {
         const [source] = argumentsList
         if (
@@ -73,16 +100,17 @@ export function createCanvasContext(
       return bound
     },
     set(target, key, value) {
-      replacements.add(key)
-      return Reflect.set(target, key, value, target)
+      return updateReplacement(key, () =>
+        Reflect.set(target, key, value, target),
+      )
     },
     defineProperty(target, key, descriptor) {
-      replacements.add(key)
-      return Reflect.defineProperty(target, key, descriptor)
+      return updateReplacement(key, () =>
+        Reflect.defineProperty(target, key, descriptor),
+      )
     },
     deleteProperty(target, key) {
-      replacements.delete(key)
-      return Reflect.deleteProperty(target, key)
+      return updateReplacement(key, () => Reflect.deleteProperty(target, key))
     },
   })
 }

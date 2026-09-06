@@ -9,7 +9,7 @@ Local tests ran on macOS arm64 with Node.js 24.20.0. Test output, not a zero pro
 | Layer                               | Expected successful execution                                                                           |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Node source regressions             | 53 tests: compatibility, real Canvas, and source environment failure paths                              |
-| Jest integration                    | 14 tests in 3 suites                                                                                    |
+| Jest integration                    | 15 tests in 3 suites                                                                                    |
 | Installed consumer per Jest version | 10 lifecycle tests; 6 Jest tests in 3 suites in serial mode; the same 6 tests with two worker processes |
 | Public entry points                 | Shared ESM/CommonJS runtime, consistent Happy DOM class identity, removed `/canvas` rejected            |
 

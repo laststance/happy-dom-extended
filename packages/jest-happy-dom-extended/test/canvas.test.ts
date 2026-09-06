@@ -58,3 +58,53 @@ test('Real Canvas output completes even while Jest fake timers are enabled', asy
     jest.useRealTimers()
   }
 })
+
+test('Restoring Canvas method descriptors preserves Window ImageData and source Canvas drawing', () => {
+  // Arrange
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const drawing = canvas.getContext('2d')!
+  const imageDescriptor = Object.getOwnPropertyDescriptor(
+    drawing,
+    'createImageData',
+  )!
+  const drawDescriptor = Object.getOwnPropertyDescriptor(drawing, 'drawImage')!
+  const putDescriptor = Object.getOwnPropertyDescriptor(
+    drawing,
+    'putImageData',
+  )!
+  const replacement = jest.fn<typeof drawing.createImageData>(
+    () => new ImageData(1, 1),
+  )
+  Object.defineProperty(drawing, 'createImageData', { value: replacement })
+  Object.defineProperty(drawing, 'drawImage', { value: jest.fn() })
+  Object.defineProperty(drawing, 'putImageData', { value: jest.fn() })
+
+  // Act / Assert: consumer overrides stay observable before restoration.
+  expect(drawing.createImageData).toBe(replacement)
+  drawing.createImageData(1, 1)
+  expect(replacement).toHaveBeenCalledWith(1, 1)
+  Object.defineProperty(drawing, 'createImageData', imageDescriptor)
+  Object.defineProperty(drawing, 'drawImage', drawDescriptor)
+  Object.defineProperty(drawing, 'putImageData', putDescriptor)
+
+  // Assert: restoring raw adapter descriptors still goes through compatibility.
+  const pixels = drawing.createImageData(1, 1)
+  expect(pixels).toBeInstanceOf(ImageData)
+  expect(pixels.data).toBeInstanceOf(Uint8ClampedArray)
+  pixels.data.set([255, 0, 0, 255])
+  drawing.putImageData(pixels, 0, 0)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
+  const source = document.createElement('canvas')
+  source.width = 1
+  source.height = 1
+  const sourceDrawing = source.getContext('2d')!
+  sourceDrawing.fillStyle = 'blue'
+  sourceDrawing.fillRect(0, 0, 1, 1)
+  drawing.drawImage(source, 0, 0)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([0, 0, 255, 255])
+  const restored = drawing.createImageData
+  drawing.createImageData = restored
+  expect(drawing.createImageData).toBe(restored)
+})
