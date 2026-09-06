@@ -8,8 +8,11 @@ import { installMessaging } from './install-messaging.ts'
 import { installNodeGlobals } from './install-node-globals.ts'
 import { installXhrConstants } from './install-xhr-constants.ts'
 import type { DisposeCompatibility } from './types.ts'
+import { disposeAll } from './utils/dispose-all.ts'
 
 export type { DisposeCompatibility } from './types.ts'
+export { ExtendedCanvasAdapter } from './canvas/adapter.ts'
+export { disposeAll } from './utils/dispose-all.ts'
 
 /** Installs verified Web API extensions for a runner and owns their complete teardown.
  * @param window - Happy DOM window created by Jest or a future runner adapter.
@@ -19,7 +22,7 @@ export type { DisposeCompatibility } from './types.ts'
 export function installCompatibility(window: Window): DisposeCompatibility {
   const restorers: DisposeCompatibility[] = []
   const dispose = (): void => {
-    for (const restore of restorers.splice(0).reverse()) restore()
+    disposeAll(restorers)
   }
   try {
     installNodeGlobals(window, restorers)
@@ -31,7 +34,7 @@ export function installCompatibility(window: Window): DisposeCompatibility {
     installCompositionEvent(window, restorers)
     return dispose
   } catch (error) {
-    dispose()
+    disposeAll(restorers, [error])
     throw error
   }
 }

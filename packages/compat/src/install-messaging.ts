@@ -8,6 +8,7 @@ import {
 import type { Window } from 'happy-dom'
 
 import type { DisposeCompatibility } from './types.ts'
+import { disposeAll } from './utils/dispose-all.ts'
 import { replaceProperty } from './utils/replace-property.ts'
 
 /** Adds native message channels with per-environment cleanup and isolated broadcast names.
@@ -23,8 +24,9 @@ export function installMessaging(
   const channels = new Set<BroadcastChannel | MessagePort>()
   const namespace = `happy-dom-extended:${randomUUID()}:`
   restorers.push(() => {
-    for (const channel of channels) channel.close()
+    const closers = [...channels].map((channel) => () => channel.close())
     channels.clear()
+    disposeAll(closers)
   })
 
   if (Reflect.get(window, 'BroadcastChannel') === undefined) {

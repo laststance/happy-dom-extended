@@ -22,6 +22,12 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["packages/**/*.ts", "*.mjs", "scripts/**/*.mjs", "fixtures/**/*"],
+  "include": [
+    "packages/**/*.ts",
+    "*.mjs",
+    "scripts/**/*.mjs",
+    "fixtures/**/*",
+    "packages/**/*.mjs"
+  ],
   "exclude": ["**/node_modules", "**/dist", ".artifacts"]
 }

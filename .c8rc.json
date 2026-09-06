@@ -1,0 +1,8 @@
+{
+  "all": true,
+  "include": ["packages/*/src/**/*.ts"],
+  "exclude": ["**/test/**"],
+  "extension": [".ts", ".js", ".cjs", ".mjs"],
+  "exclude-after-remap": true,
+  "reporter": ["json", "lcov", "text-summary"]
+}

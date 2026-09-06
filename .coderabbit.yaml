@@ -26,6 +26,7 @@ reviews:
     drafts: false
 
   path_filters:
+    - '**/*'
     - '!**/node_modules/**'
     - '!**/dist/**'
     - '!**/coverage/**'
@@ -33,7 +34,7 @@ reviews:
     - '!**/.fallow/**'
     - '!**/*.tgz'
     # Keep dependency changes and checked-in reproduction evidence in review scope.
-    - pnpm-lock.yaml
+    - '**/pnpm-lock.yaml'
     - docs/research/*.log
 
   path_instructions:
@@ -66,12 +67,14 @@ reviews:
         another environment. Do not assume Jest calls teardown when setupFiles throws;
         evaluate changes against the supported Jest versions and the documented runner boundary.
 
-    - path: 'packages/jest-happy-dom-extended/src/canvas.ts'
+    - path: 'packages/compat/src/canvas/**'
       instructions: |
-        Canvas is an opt-in, non-rendering helper; importing the environment must not install it.
-        Preserve the documented 2D pixel handoff, explicit data URL, and descriptor restoration.
-        Do not demand real rendering from this stub. Keep its imports limited to the shared
-        property helper so the Canvas entry does not load Node streams inside the Jest runtime.
+        Canvas provides real 2D rendering by default. Preserve owner/context/method identity,
+        same-value dimension resets, VM ImageData identity, and current source-canvas pixels.
+        Export must snapshot pixels before asynchronous compression, with matching MIME/data.
+        Register output with Happy DOM and drain only owned jobs before Window shutdown.
+        Release temporary native bitmaps and tasks on every error path. Use weak ownership
+        for idle canvases. Check pixel values and independent PNG decoding, not fixed stubs.
 
     - path: '**/test/**'
       instructions: |
@@ -84,7 +87,7 @@ reviews:
     - path: 'fixtures/consumer/**'
       instructions: |
         These fixtures exercise the installed npm tarball outside the workspace. Keep imports
-        on public package entry points and cover both ESM and CommonJS, including Canvas.
+        on public package entry points and cover both ESM and CommonJS, with real Canvas through the environment.
         Exercise APIs during setupFiles and setupFilesAfterEnv, with actual native message
         delivery. Use descriptive test calls and literal expectations. Do not replace these
         checks with mocks or assume a successful process exit means the tests executed.
@@ -95,7 +98,7 @@ reviews:
         private. The shared compatibility code must be bundled into public adapters, without
         workspace dependencies leaking into the published runtime dependency graph.
         Check exports, files, engines, and peer ranges against clean consumer behavior.
-        ESM and CommonJS entries, including Canvas, need matching declarations for each format.
+        ESM and CommonJS share one runtime and matching declarations; the old /canvas subpath is removed.
         TypeScript's typecheck compiler alias and compiler-API dependency intentionally serve
         different tools; evaluate version changes against the documented toolchain requirements.
 
@@ -127,7 +130,7 @@ reviews:
         Distinguish upstream issue reports from behavior actually reproduced at a stated version.
         Tie compatibility claims to primary sources and observable regression evidence.
         Keep verification records explicit about locally executed checks versus configured CI,
-        and about supported behavior versus non-rendering helpers and runner limitations.
+        and about supported rendering versus native backend and runner limitations.
 
 chat:
   auto_reply: true

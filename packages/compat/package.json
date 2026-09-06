@@ -5,10 +5,11 @@
   "type": "module",
   "license": "MIT",
   "exports": {
-    ".": "./src/index.ts",
-    "./replace-property": "./src/utils/replace-property.ts"
+    ".": "./src/index.ts"
   },
   "devDependencies": {
+    "@happy-dom/node-canvas-adapter": "^20.14.0",
+    "canvas": "^3.2.3",
     "happy-dom": "^20.14.0"
   }
 }

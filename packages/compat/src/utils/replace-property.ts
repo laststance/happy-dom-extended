@@ -33,15 +33,21 @@ export function replaceProperty(
   }
   patch.references += 1
   let released = false
-  return () => {
+  return function releaseProperty() {
     if (released) return
     released = true
     patch.references -= 1
     // Other environments may still use this shared Happy DOM prototype.
     if (patch.references > 0) return
-    if (patch.original) Object.defineProperty(target, key, patch.original)
-    else Reflect.deleteProperty(target, key)
-    patches.delete(key)
-    if (patches.size === 0) installedPatches.delete(target)
+    try {
+      if (patch.original) Object.defineProperty(target, key, patch.original)
+      else if (!Reflect.deleteProperty(target, key)) {
+        throw new TypeError(`Cannot restore property: ${String(key)}`)
+      }
+    } finally {
+      // Failed restoration still releases ownership, so later installations cannot reuse a stale patch.
+      patches.delete(key)
+      if (patches.size === 0) installedPatches.delete(target)
+    }
   }
 }

@@ -5,6 +5,7 @@ packages:
 minimumReleaseAge: 1440
 
 allowBuilds:
+  canvas: true
   '@parcel/watcher': true
   '@swc/core': true
   unrs-resolver: true

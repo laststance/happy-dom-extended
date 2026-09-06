@@ -1,105 +1,114 @@
-import { expect, test } from '@jest/globals'
+import { expect, jest, test } from '@jest/globals'
 
-import { installCanvasStub } from '../dist/canvas.cjs'
-
-test('the opt-in canvas helper records pixel handoff and restores the original methods', () => {
+test('Canvas draws ImageData from Jest VM subarrays and returns the same Window image family', () => {
   // Arrange
-  const originalGetContext = HTMLCanvasElement.prototype.getContext
-  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL
-  const stub = installCanvasStub({ dataURL: 'data:image/png;base64,AA==' })
   const canvas = document.createElement('canvas')
-  const pixels = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1)
-  try {
-    // Act
-    const context = canvas.getContext('2d')
-    context?.putImageData(pixels, 2, 3)
-    // Assert
-    expect(context).toBe(canvas.getContext('2d'))
-    expect(canvas.getContext('webgl')).toBeNull()
-    expect(canvas.toDataURL()).toBe('data:image/png;base64,AA==')
-    expect(stub.putImageDataCalls).toEqual([
-      { canvas, imageData: pixels, dx: 2, dy: 3 },
-    ])
-  } finally {
-    stub.restore()
-  }
-  expect(HTMLCanvasElement.prototype.getContext).toBe(originalGetContext)
-  expect(HTMLCanvasElement.prototype.toDataURL).toBe(originalToDataURL)
-})
-
-test('failed canvas initialization restores getContext when toDataURL cannot be patched', () => {
-  // Arrange
-  const originalGetContext = () => null
-  const prototype = { getContext: originalGetContext }
-  Object.defineProperty(prototype, 'toDataURL', {
-    configurable: false,
-    value: () => 'data:,',
-  })
-  const window = { HTMLCanvasElement: { prototype } }
-
+  canvas.width = 2
+  canvas.height = 1
+  const drawing = canvas.getContext('2d')!
+  const bytes = new Uint8ClampedArray([9, 9, 9, 9, 255, 0, 0, 255])
+  const pixels = bytes.subarray(4)
+  const input = new ImageData(pixels, 1, 1)
   // Act
-  expect(() =>
-    installCanvasStub({ dataURL: 'data:image/png;base64,AA==' }, window),
-  ).toThrow(TypeError)
-
+  drawing.putImageData(input, 1, 0)
+  const output = drawing.getImageData(0, 0, 2, 1)
   // Assert
-  expect(Object.getOwnPropertyDescriptor(prototype, 'getContext')).toEqual({
-    configurable: true,
-    enumerable: true,
-    writable: true,
-    value: originalGetContext,
-  })
+  expect(input.data).toBe(pixels)
+  expect(output).toBeInstanceOf(ImageData)
+  expect(output.data).toBeInstanceOf(Uint8ClampedArray)
+  expect([...output.data]).toEqual([0, 0, 0, 0, 255, 0, 0, 255])
+  expect(drawing.canvas).toBe(canvas)
+  expect(drawing.createImageData(1, 1)).toBeInstanceOf(ImageData)
 })
 
-test('a second canvas helper cannot replace an active helper or capture its calls', () => {
+test('Consumers can spy on real Canvas methods and restore drawing without replacing the context', () => {
   // Arrange
-  const stub = installCanvasStub({ dataURL: 'data:image/png;base64,AA==' })
   const canvas = document.createElement('canvas')
-  const pixels = new ImageData(new Uint8ClampedArray([0, 255, 0, 255]), 1, 1)
+  canvas.width = 1
+  canvas.height = 1
+  const drawing = canvas.getContext('2d')!
+  const spy = jest.spyOn(drawing, 'fillRect')
+  // Act
+  drawing.fillStyle = 'blue'
+  drawing.fillRect(0, 0, 1, 1)
+  // Assert: an active spy observes the call and still draws the requested pixels.
+  expect(spy).toHaveBeenCalledWith(0, 0, 1, 1)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([0, 0, 255, 255])
+  // Act: restoring the spy keeps the original drawing implementation usable.
+  spy.mockRestore()
+  drawing.fillStyle = 'red'
+  drawing.fillRect(0, 0, 1, 1)
+  // Assert
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
+  expect(canvas.getContext('2d')).toBe(drawing)
+})
+
+test('Real Canvas output completes even while Jest fake timers are enabled', async () => {
+  // Arrange
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  jest.useFakeTimers()
   try {
     // Act
-    expect(() => {
-      const unexpectedStub = installCanvasStub({
-        dataURL: 'data:image/png;base64,AQ==',
-      })
-      unexpectedStub.restore()
-    }).toThrow('A Canvas stub is already installed for this prototype')
-    canvas.getContext('2d')?.putImageData(pixels, 1, 2)
-
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve),
+    )
     // Assert
-    expect(canvas.toDataURL()).toBe('data:image/png;base64,AA==')
-    expect(stub.putImageDataCalls).toEqual([
-      { canvas, imageData: pixels, dx: 1, dy: 2 },
-    ])
+    expect(blob).toBeInstanceOf(Blob)
+    expect(blob?.type).toBe('image/png')
+    expect(blob?.size).toBeGreaterThan(0)
   } finally {
-    stub.restore()
+    jest.useRealTimers()
   }
 })
 
-test('restoring an old canvas helper again cannot unlock a newer installation', () => {
+test('Restoring Canvas method descriptors preserves Window ImageData and source Canvas drawing', () => {
   // Arrange
-  const previousStub = installCanvasStub({
-    dataURL: 'data:image/png;base64,AA==',
-  })
-  previousStub.restore()
-  const currentStub = installCanvasStub({
-    dataURL: 'data:image/png;base64,AQ==',
-  })
-  try {
-    // Act
-    previousStub.restore()
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const drawing = canvas.getContext('2d')!
+  const imageDescriptor = Object.getOwnPropertyDescriptor(
+    drawing,
+    'createImageData',
+  )!
+  const drawDescriptor = Object.getOwnPropertyDescriptor(drawing, 'drawImage')!
+  const putDescriptor = Object.getOwnPropertyDescriptor(
+    drawing,
+    'putImageData',
+  )!
+  const replacement = jest.fn<typeof drawing.createImageData>(
+    () => new ImageData(1, 1),
+  )
+  Object.defineProperty(drawing, 'createImageData', { value: replacement })
+  Object.defineProperty(drawing, 'drawImage', { value: jest.fn() })
+  Object.defineProperty(drawing, 'putImageData', { value: jest.fn() })
 
-    // Assert
-    expect(document.createElement('canvas').toDataURL()).toBe(
-      'data:image/png;base64,AQ==',
-    )
-    expect(() => {
-      const unexpectedStub = installCanvasStub({
-        dataURL: 'data:image/png;base64,Ag==',
-      })
-      unexpectedStub.restore()
-    }).toThrow('A Canvas stub is already installed for this prototype')
-  } finally {
-    currentStub.restore()
-  }
+  // Act / Assert: consumer overrides stay observable before restoration.
+  expect(drawing.createImageData).toBe(replacement)
+  drawing.createImageData(1, 1)
+  expect(replacement).toHaveBeenCalledWith(1, 1)
+  Object.defineProperty(drawing, 'createImageData', imageDescriptor)
+  Object.defineProperty(drawing, 'drawImage', drawDescriptor)
+  Object.defineProperty(drawing, 'putImageData', putDescriptor)
+
+  // Assert: restoring raw adapter descriptors still goes through compatibility.
+  const pixels = drawing.createImageData(1, 1)
+  expect(pixels).toBeInstanceOf(ImageData)
+  expect(pixels.data).toBeInstanceOf(Uint8ClampedArray)
+  pixels.data.set([255, 0, 0, 255])
+  drawing.putImageData(pixels, 0, 0)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
+  const source = document.createElement('canvas')
+  source.width = 1
+  source.height = 1
+  const sourceDrawing = source.getContext('2d')!
+  sourceDrawing.fillStyle = 'blue'
+  sourceDrawing.fillRect(0, 0, 1, 1)
+  drawing.drawImage(source, 0, 0)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([0, 0, 255, 255])
+  const restored = drawing.createImageData
+  drawing.createImageData = restored
+  expect(drawing.createImageData).toBe(restored)
 })
