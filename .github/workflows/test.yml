@@ -14,9 +14,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['22.18.0', '24.20.0']
+        node: ['22.18.0', '24.20.0', '26.8.1']
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,5 +25,14 @@ jobs:
       - uses: ./.github/actions/prepare
         with:
           node-version: ${{ matrix.node }}
-      - run: pnpm test
+      - run: pnpm test:coverage
       - run: pnpm test:package
+      - name: Upload coverage to Codecov
+        if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          disable_search: true
+          fail_ci_if_error: true
