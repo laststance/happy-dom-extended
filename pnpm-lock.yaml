@@ -124,6 +124,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
+      cross-spawn:
+        specifier: 7.0.6
+        version: 7.0.6
       eslint:
         specifier: 10.10.0
         version: 10.10.0(supports-color@8.1.1)

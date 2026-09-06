@@ -1,4 +1,4 @@
-import { replaceProperty } from '@happy-dom-extended/compat';
+import { replaceProperty } from '@happy-dom-extended/compat/replace-property';
 
 interface CanvasStubWindow {
   HTMLCanvasElement: { prototype: object };

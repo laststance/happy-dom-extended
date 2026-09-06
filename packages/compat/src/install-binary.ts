@@ -2,9 +2,8 @@ import { TextDecoder } from 'node:util';
 
 import type { Blob, Window } from 'happy-dom';
 
-import { PROBE_BYTE_LENGTH, UTF8_BOM_PROBE } from './constants.ts';
+import { installBlobConstructors } from './install-blob-constructors.ts';
 import type { DisposeCompatibility } from './types.ts';
-import { normalizeBlobArguments } from './utils/normalize-blob-arguments.ts';
 import { propertyOwner } from './utils/property-owner.ts';
 import { replaceProperty } from './utils/replace-property.ts';
 
@@ -28,35 +27,14 @@ async function readBlobText(this: Blob): Promise<string> {
  * @param window - Environment whose constructors receive VM-created arrays.
  * @param restorers - Shared teardown registry, updated immediately after each mutation.
  * @returns Nothing; registers cleanup for the runner.
- * @example await installBinary(window, restorers);
+ * @example installBinary(window, restorers);
  */
-export async function installBinary(
+export function installBinary(
   window: Window,
   restorers: DisposeCompatibility[],
-): Promise<void> {
+): void {
   const blobPrototype = propertyOwner(window.Blob.prototype, 'arrayBuffer');
-  if (
-    new window.Blob([new window.ArrayBuffer(PROBE_BYTE_LENGTH)]).size !==
-    PROBE_BYTE_LENGTH
-  ) {
-    for (const name of ['Blob', 'File'] as const) {
-      const implementation = new Proxy(window[name], {
-        construct(target, argumentsList: unknown[], newTarget) {
-          return Reflect.construct(
-            target,
-            normalizeBlobArguments(argumentsList),
-            newTarget,
-          );
-        },
-      });
-      restorers.push(
-        replaceProperty(window, name, {
-          value: implementation,
-          writable: true,
-        }),
-      );
-    }
-  }
+  installBlobConstructors(window, restorers);
   if (
     Reflect.get(blobPrototype, 'bytes') === undefined ||
     Reflect.get(blobPrototype, 'bytes') === readBlobBytes
@@ -69,16 +47,12 @@ export async function installBinary(
       }),
     );
   }
-  const needsTextPatch =
-    (await new window.Blob([UTF8_BOM_PROBE]).text()) !== 'A';
-  // Register shared methods even when another environment has already repaired this prototype.
-  if (needsTextPatch || Reflect.get(blobPrototype, 'text') === readBlobText) {
-    restorers.push(
-      replaceProperty(blobPrototype, 'text', {
-        value: readBlobText,
-        writable: true,
-        enumerable: true,
-      }),
-    );
-  }
+  // Install the UTF-8 reader before setup modules can read a Blob or another environment can close.
+  restorers.push(
+    replaceProperty(blobPrototype, 'text', {
+      value: readBlobText,
+      writable: true,
+      enumerable: true,
+    }),
+  );
 }

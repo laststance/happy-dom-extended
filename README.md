@@ -10,7 +10,7 @@ A pnpm monorepo for Happy DOM test environments with verified Web API compatibil
 
 See the [Jest package guide](packages/jest-happy-dom-extended/README.md) for consumer usage and the [source-grounded research brief](docs/research/2026-09-06-web-api-compatibility.md) for sources, reproduced gaps, exclusions, and the query log.
 
-The [initial verification record](docs/verification.md) includes the Node.js 22/24 test results and package quality checks.
+The [verification record](docs/verification.md) includes the review corrections, Node.js 22/24 test results, and package quality checks.
 
 ## Development
 
@@ -55,11 +55,11 @@ The shared compatibility workspace is bundled into each adapter. It is not a run
 
 Public changes use [Changesets](.changeset/README.md). `pnpm version:packages` prepares release versions and changelogs; `pnpm run release` validates and publishes using separately configured npm credentials. CI does not publish. The initial repository setup does not claim a GitHub repository or npm release already exists.
 
-CI includes lint/quality checks, typechecking, build/package analysis, and Node 22/24 tests. Remote actions are pinned to commits, permissions are read-only, and only the pnpm store is cached. Dependabot maintains GitHub Actions pins.
+CI includes lint/quality checks, typechecking, build/package analysis, and Node 22/24 tests on Linux and Windows. The isolated tarball consumer checks Jest 30.0.0 and the development version, including both setup phases. Remote actions are pinned to commits, permissions are read-only, and only the pnpm store is cached. Dependabot maintains GitHub Actions pins.
 
 ## Contribution policy
 
-New compatibility behavior needs a primary source or a reproducible upstream gap, an observable regression test, and a lifecycle restoration test when it owns resources or shared prototypes. Preserve working upstream implementations. Feature requests requiring real rendering, a browser scheduler, or complete Worker semantics should document that requirement instead of adding a no-op global.
+New compatibility behavior needs a primary source or a reproducible upstream gap, an observable regression test, and a lifecycle restoration test when it owns resources or shared prototypes. Preserve working upstream implementations except for documented method repairs. `Blob.text()` is deliberately supplied synchronously so setup files can decode UTF-8 before Jest's setup hook. Feature requests requiring real rendering, a browser scheduler, or complete Worker semantics should document that requirement instead of adding a no-op global.
 
 Code and documentation are English. Tests use `test`, descriptive behavior names, hard-coded expectations, and Arrange/Act/Assert sections.
 

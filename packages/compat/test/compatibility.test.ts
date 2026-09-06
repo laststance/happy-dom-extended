@@ -15,7 +15,7 @@ import { installCompatibility } from '../src/index.ts';
  */
 async function createWindow(context: TestContext): Promise<Window> {
   const window = new Window();
-  const dispose = await installCompatibility(window);
+  const dispose = installCompatibility(window);
   context.after(async () => {
     dispose();
     await window.happyDOM.close();
@@ -212,8 +212,8 @@ test('disposing one environment does not remove shared Blob methods from another
   // Arrange
   const first = new Window();
   const second = new Window();
-  const disposeFirst = await installCompatibility(first);
-  const disposeSecond = await installCompatibility(second);
+  const disposeFirst = installCompatibility(first);
+  const disposeSecond = installCompatibility(second);
   context.after(async () => {
     disposeFirst();
     disposeSecond();
@@ -233,7 +233,7 @@ test('teardown restores constructors and prototype methods and closes forgotten 
   const originalBlob = window.Blob;
   const originalText = window.Blob.prototype.text;
   const originalCancel = window.Animation.prototype.cancel;
-  const dispose = await installCompatibility(window);
+  const dispose = installCompatibility(window);
   const Constructor: typeof BroadcastChannel = Reflect.get(
     window,
     'BroadcastChannel',
@@ -251,6 +251,25 @@ test('teardown restores constructors and prototype methods and closes forgotten 
   await window.happyDOM.close();
 });
 
+test('disposing an earlier environment before awaiting the next installation preserves BOM decoding', async (context) => {
+  // Arrange
+  const first = new Window();
+  const second = new Window();
+  const disposeFirst = await Promise.resolve(installCompatibility(first));
+  const installingSecond = Promise.resolve(installCompatibility(second));
+  context.after(async () => {
+    disposeFirst();
+    (await installingSecond)();
+    await first.happyDOM.close();
+    await second.happyDOM.close();
+  });
+  // Act
+  disposeFirst();
+  await installingSecond;
+  // Assert
+  assert.equal(await new second.Blob(['\uFEFFA']).text(), 'A');
+});
+
 test('failed setup restores earlier global replacements before reporting the error', async () => {
   // Arrange
   const window = new Window();
@@ -259,10 +278,8 @@ test('failed setup restores earlier global replacements before reporting the err
     value: undefined,
     configurable: false,
   });
-  // Act
-  const installing = installCompatibility(window);
-  // Assert
-  await assert.rejects(installing, TypeError);
+  // Act / Assert
+  assert.throws(() => installCompatibility(window), TypeError);
   assert.equal(Reflect.get(window, 'structuredClone'), undefined);
   assert.equal(Reflect.get(window, 'BroadcastChannel'), undefined);
   assert.equal(window.MessagePort, originalPort);
@@ -278,12 +295,35 @@ test('existing native global implementations retain their identity', async () =>
     configurable: true,
   });
   // Act
-  const dispose = await installCompatibility(window);
+  const dispose = installCompatibility(window);
   // Assert
   assert.equal(Reflect.get(window, 'structuredClone'), nativeClone);
   dispose();
   assert.equal(Reflect.get(window, 'structuredClone'), nativeClone);
   await window.happyDOM.close();
+});
+
+test('failed installation restores its window while preserving another environment Blob readers', async (context) => {
+  // Arrange
+  const active = new Window();
+  const failing = new Window();
+  const disposeActive = installCompatibility(active);
+  const originalBlob = failing.Blob;
+  context.after(async () => {
+    disposeActive();
+    await active.happyDOM.close();
+    await failing.happyDOM.close();
+  });
+  Object.defineProperty(failing, 'CompositionEvent', {
+    value: failing.CompositionEvent,
+    configurable: false,
+  });
+  // Act / Assert
+  assert.throws(() => installCompatibility(failing), TypeError);
+  assert.equal(failing.Blob, originalBlob);
+  assert.equal(Reflect.get(failing, 'structuredClone'), undefined);
+  assert.equal(Reflect.get(failing, 'BroadcastChannel'), undefined);
+  assert.equal(await new active.Blob(['\uFEFFA']).text(), 'A');
 });
 
 test('composition events dispatch IME text through Happy DOM UIEvent with a read-only payload', async (context) => {

@@ -36,6 +36,7 @@
     "@swc/core": "1.16.2",
     "@swc/jest": "0.2.39",
     "@types/node": "^22.0.0",
+    "cross-spawn": "7.0.6",
     "eslint": "10.10.0",
     "eslint-config-ts-prefixer": "5.0.0",
     "fallow": "3.22.0",

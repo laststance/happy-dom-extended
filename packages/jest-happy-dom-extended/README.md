@@ -20,6 +20,8 @@ export default {
 
 Application-specific mocks and fixtures stay in your own `setupFiles` / `setupFilesAfterEnv`. The extensions are installed before those files run. Standard Happy DOM environment options continue to pass through to the upstream environment.
 
+Installation completes synchronously in the environment constructor. `Blob.text()` uses the package's UTF-8 reader through the public `arrayBuffer()` API, including during setup. This intentional method replacement restores the original method after the last environment closes; it does not wait for an asynchronous capability probe.
+
 Requires Node.js >=22.18.0 and Jest 30. The initial compatibility baseline is Happy DOM 20.14.0. Both ESM and CommonJS entry points include matching TypeScript declarations.
 
 ## Included behavior
@@ -71,6 +73,7 @@ The helper supports only `getContext('2d')`, `putImageData`, and a caller-specif
 
 - Node-backed APIs use Node's implementations and event/clone semantics. They do not make every Happy DOM object serializable by `structuredClone`; Happy DOM Blob, File, DOM nodes, and platform objects must not be treated as Node-native cloneable objects.
 - Broadcast names are isolated per environment. Cross-window/origin browser broadcasting is not simulated. Consumers must close ports received from elsewhere or transferred out of the environment; teardown tracks the channels and ports created by the provided constructors.
+- Jest 30.5.1 skips the environment teardown hook when `setupFiles` throws. A setup module that opens native channels must close them in its own `try/finally` if initialization fails. Native channel references are preserved so asynchronous setup cannot silently exit before running tests.
 - Existing fetch, FormData, Blob, FileReader, and DOM event families are not replaced wholesale with Node equivalents.
 - ImageData repair targets the reproduced array-realm problem; it is not a replacement canvas engine or a complete validation rewrite.
 - Animation support repairs unhandled cancellation promises. Other upstream animation limitations remain, and actual motion should be checked in a browser.
@@ -78,6 +81,6 @@ The helper supports only `getContext('2d')`, `putImageData`, and a caller-specif
 
 ## Local packaging
 
-This package is initially developed in the `happy-dom-extended` monorepo. `pnpm build` produces `dist`; `pnpm check:package` validates export/type resolution; `pnpm test:package` installs an npm tarball into a separate consumer fixture and runs Jest there. The private compatibility package is bundled and is not needed by consumers.
+This package is initially developed in the `happy-dom-extended` monorepo. `pnpm build` produces `dist`; `pnpm check:package` validates export/type resolution; `pnpm test:package` installs an npm tarball into separate consumer fixtures for Jest 30.0.0 and the development version. Both setup phases and test execution are checked. The private compatibility package is bundled and is not needed by consumers.
 
 MIT licensed.

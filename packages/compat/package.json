@@ -5,7 +5,8 @@
   "type": "module",
   "license": "MIT",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./replace-property": "./src/utils/replace-property.ts"
   },
   "devDependencies": {
     "happy-dom": "^20.14.0"

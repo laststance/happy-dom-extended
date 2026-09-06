@@ -10,16 +10,13 @@ import { installXhrConstants } from './install-xhr-constants.ts';
 import type { DisposeCompatibility } from './types.ts';
 
 export type { DisposeCompatibility } from './types.ts';
-export { replaceProperty } from './utils/replace-property.ts';
 
 /** Installs verified Web API extensions for a runner and owns their complete teardown.
  * @param window - Happy DOM window created by Jest or a future runner adapter.
  * @returns An idempotent disposer that closes resources and restores patched properties.
- * @example const dispose = await installCompatibility(window); dispose();
+ * @example const dispose = installCompatibility(window); dispose();
  */
-export async function installCompatibility(
-  window: Window,
-): Promise<DisposeCompatibility> {
+export function installCompatibility(window: Window): DisposeCompatibility {
   const restorers: DisposeCompatibility[] = [];
   const dispose = (): void => {
     for (const restore of restorers.splice(0).reverse()) restore();
@@ -27,7 +24,7 @@ export async function installCompatibility(
   try {
     installNodeGlobals(window, restorers);
     installMessaging(window, restorers);
-    await installBinary(window, restorers);
+    installBinary(window, restorers);
     installImageData(window, restorers);
     installAnimation(window, restorers);
     installXhrConstants(window, restorers);
