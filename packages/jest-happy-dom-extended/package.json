@@ -5,6 +5,15 @@
   "type": "module",
   "license": "MIT",
   "author": "ryota-murakami",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laststance/happy-dom-extended.git",
+    "directory": "packages/jest-happy-dom-extended"
+  },
+  "homepage": "https://github.com/laststance/happy-dom-extended/tree/main/packages/jest-happy-dom-extended#readme",
+  "bugs": {
+    "url": "https://github.com/laststance/happy-dom-extended/issues"
+  },
   "engines": {
     "node": ">=22.18.0"
   },

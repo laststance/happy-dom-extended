@@ -54,4 +54,4 @@ Run `pnpm probe:upstream` to inspect the unmodified upstream behavior. The initi
 
 `jest-happy-dom-extended` is implemented at version 0.1.0. The shared compatibility workspace is private and bundled into that package. `vitest-happy-dom-extended` is a private placeholder for the explicitly requested later phase.
 
-The repository and a local npm tarball are prepared. No GitHub repository or npm registry release was created in this implementation task. The original Zumen checkout remains unchanged.
+The implementation and a local npm tarball are prepared. The project is hosted at [laststance/happy-dom-extended](https://github.com/laststance/happy-dom-extended). The package has not been published to the npm registry.

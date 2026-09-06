@@ -53,7 +53,7 @@ Fallow's health and duplication passes exclude test procedures to preserve descr
 
 The shared compatibility workspace is bundled into each adapter. It is not a runtime npm dependency, and the future Vitest adapter will not need Jest.
 
-Public changes use [Changesets](.changeset/README.md). `pnpm version:packages` prepares release versions and changelogs; `pnpm run release` validates and publishes using separately configured npm credentials. CI does not publish. The initial repository setup does not claim a GitHub repository or npm release already exists.
+Public changes use [Changesets](.changeset/README.md). `pnpm version:packages` prepares release versions and changelogs; `pnpm run release` validates and publishes using separately configured npm credentials. CI does not publish. npm publication remains a separate release step after this initial implementation.
 
 CI includes lint/quality checks, typechecking, build/package analysis, and Node 22/24 tests on Linux and Windows. The isolated tarball consumer checks Jest 30.0.0 and the development version, including both setup phases. Remote actions are pinned to commits, permissions are read-only, and only the pnpm store is cached. Dependabot maintains GitHub Actions pins.
 
