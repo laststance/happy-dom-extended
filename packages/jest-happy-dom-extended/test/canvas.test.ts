@@ -31,6 +31,10 @@ test('Consumers can spy on real Canvas methods and restore drawing without repla
   // Act
   drawing.fillStyle = 'blue'
   drawing.fillRect(0, 0, 1, 1)
+  // Assert: an active spy observes the call and still draws the requested pixels.
+  expect(spy).toHaveBeenCalledWith(0, 0, 1, 1)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([0, 0, 255, 255])
+  // Act: restoring the spy keeps the original drawing implementation usable.
   spy.mockRestore()
   drawing.fillStyle = 'red'
   drawing.fillRect(0, 0, 1, 1)
