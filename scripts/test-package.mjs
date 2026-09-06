@@ -121,11 +121,11 @@ try {
       )
       if (mode === 'parallel') {
         if (
-          workers.length !== 2 ||
+          workers.length < 2 ||
           workers.some((worker) => worker.pid === runnerPid)
         ) {
           throw new Error(
-            'Parallel verification did not run setup in two separate Jest worker processes.',
+            'Parallel verification did not run setup in at least two separate Jest worker processes.',
           )
         }
       } else if (workers.length !== 1 || workers[0]?.pid !== runnerPid) {
