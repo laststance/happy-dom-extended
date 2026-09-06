@@ -26,6 +26,7 @@ reviews:
     drafts: false
 
   path_filters:
+    - '**/*'
     - '!**/node_modules/**'
     - '!**/dist/**'
     - '!**/coverage/**'
@@ -33,7 +34,7 @@ reviews:
     - '!**/.fallow/**'
     - '!**/*.tgz'
     # Keep dependency changes and checked-in reproduction evidence in review scope.
-    - pnpm-lock.yaml
+    - '**/pnpm-lock.yaml'
     - docs/research/*.log
 
   path_instructions:
