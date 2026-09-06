@@ -26,3 +26,27 @@ test('the opt-in canvas helper records pixel handoff and restores the original m
   expect(HTMLCanvasElement.prototype.getContext).toBe(originalGetContext)
   expect(HTMLCanvasElement.prototype.toDataURL).toBe(originalToDataURL)
 })
+
+test('failed canvas initialization restores getContext when toDataURL cannot be patched', () => {
+  // Arrange
+  const originalGetContext = () => null
+  const prototype = { getContext: originalGetContext }
+  Object.defineProperty(prototype, 'toDataURL', {
+    configurable: false,
+    value: () => 'data:,',
+  })
+  const window = { HTMLCanvasElement: { prototype } }
+
+  // Act
+  expect(() =>
+    installCanvasStub({ dataURL: 'data:image/png;base64,AA==' }, window),
+  ).toThrow(TypeError)
+
+  // Assert
+  expect(Object.getOwnPropertyDescriptor(prototype, 'getContext')).toEqual({
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: originalGetContext,
+  })
+})

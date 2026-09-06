@@ -59,15 +59,21 @@ export function installCanvasStub(
       return context
     },
   })
-  const restoreDataURL = replaceProperty(prototype, 'toDataURL', {
-    writable: true,
-    value: () => options.dataURL,
-  })
-  return {
-    putImageDataCalls,
-    restore() {
-      restoreDataURL()
-      restoreContext()
-    },
+  try {
+    const restoreDataURL = replaceProperty(prototype, 'toDataURL', {
+      writable: true,
+      value: () => options.dataURL,
+    })
+    return {
+      putImageDataCalls,
+      restore() {
+        restoreDataURL()
+        restoreContext()
+      },
+    }
+  } catch (error) {
+    // A rejected second patch must not leave the first method changed.
+    restoreContext()
+    throw error
   }
 }
