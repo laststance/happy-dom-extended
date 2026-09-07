@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { TestContext } from 'node:test'
 
 import { CanvasAdapter } from '@happy-dom/node-canvas-adapter'
 import canvasModule, {
@@ -12,32 +11,9 @@ import canvasModule, {
 import { HTMLCanvasElement, PropertySymbol, Window } from 'happy-dom'
 import type { Blob, OffscreenCanvas } from 'happy-dom'
 
-import {
-  ExtendedCanvasAdapter,
-  disposeAll,
-  installCompatibility,
-} from '../src/index.ts'
+import type { ExtendedCanvasAdapter } from '../src/index.ts'
 
-/** Supplies a real rendering Window to regression tests and releases it after every assertion.
- * @returns The Window and its owned adapter.
- * @example const { window } = renderingWindow(context);
- */
-function renderingWindow(context: TestContext) {
-  const adapter = new ExtendedCanvasAdapter()
-  const window = new Window({
-    settings: { canvasAdapter: adapter, enableImageFileLoading: true },
-  })
-  const dispose = installCompatibility(window)
-  context.after(async () => {
-    try {
-      await adapter.drain()
-    } finally {
-      await window.happyDOM.close()
-      disposeAll([dispose, () => adapter.dispose()])
-    }
-  })
-  return { window, adapter }
-}
+import { renderingWindow } from './utils/rendering-window.ts'
 
 /** Resolves the output of either public Canvas API for non-empty image regression tests.
  * @returns The exported image Blob, rejecting unexpected encoding failure.
