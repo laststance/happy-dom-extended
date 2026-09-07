@@ -1,13 +1,16 @@
 # jest-happy-dom-extended
 
-A Happy DOM Jest environment that supplies missing Node-backed Web APIs and repairs reproduced browser compatibility gaps.
-
-## Usage
-
-After the package is published, install it with Jest 30:
+**Run browser JavaScript tests in Node.js with a Happy DOM Jest environment, real 2D Canvas rendering and additional working Web APIs.**
 
 ```sh
-pnpm add -D jest jest-happy-dom-extended
+npm install --save-dev jest@30 jest-happy-dom-extended
+```
+
+With npm 12, approve and run Skia's native installation script before running Jest:
+
+```sh
+npm approve-scripts skia-canvas
+npm rebuild skia-canvas
 ```
 
 ```js
@@ -18,60 +21,80 @@ export default {
 }
 ```
 
-Application-specific mocks and fixtures stay in your own `setupFiles` / `setupFilesAfterEnv`. The extensions are installed before those files run. Standard Happy DOM environment options continue to pass through to the upstream environment.
+```sh
+npx jest
+```
 
-Installation completes synchronously in the environment constructor. `Blob.text()` uses the package's UTF-8 reader through the public `arrayBuffer()` API, including during setup. This intentional method replacement restores the original method after the last environment closes; it does not wait for an asynchronous capability probe.
-
-Requires Node.js >=22.18.0 and Jest 30. The initial compatibility baseline is Happy DOM 20.14.0. ESM imports and CommonJS `require` share one CommonJS runtime and matching TypeScript declarations, so both loading styles coordinate the lifetime of shared Web API fixes.
+Requires **Node.js >=22.18.0** and **Jest 30**. Use `module.exports` in `jest.config.cjs` for CommonJS. Extensions are installed synchronously before `setupFiles` and `setupFilesAfterEnv`; existing transforms and application fixtures remain normal Jest configuration. Before the first npm publication, or for an unreleased checkout, follow the [local tarball instructions](https://github.com/laststance/happy-dom-extended/blob/main/docs/releasing.md#build-and-inspect-the-package).
 
 ## Included behavior
 
-| API                                        | Extension                                                                                                   |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| HTML Canvas / OffscreenCanvas              | Real native 2D drawing, dimension resets, and PNG/JPEG output                                               |
-| `structuredClone`                          | Node's native clone algorithm, including cycles, standard data types, and ArrayBuffer transfer              |
-| `TextEncoderStream`, `TextDecoderStream`   | Node's encoding streams                                                                                     |
-| `CompressionStream`, `DecompressionStream` | Node's real compression streams                                                                             |
-| `BroadcastChannel`                         | Native delivery with a namespace per test environment and teardown cleanup                                  |
-| `MessageChannel`, `MessagePort`            | Entangled Node ports with matching constructor identity and cleanup of created ports                        |
-| `Blob`, `File`                             | VM ArrayBuffer input normalization while preserving Happy DOM FileReader compatibility and Blob inheritance |
-| `Blob.bytes()`                             | Fresh byte arrays, also available on Files and sliced Blobs                                                 |
-| `Blob.text()`                              | UTF-8 decoding that consumes a leading BOM                                                                  |
-| `ImageData`                                | VM pixel-array handling with preserved input identity, offsets, and shared storage                          |
-| `Animation.cancel()`                       | Internally handles the rejected finished promise while allowing callers to observe its AbortError           |
-| `XMLHttpRequest`                           | Instance-level `UNSENT`, `OPENED`, `HEADERS_RECEIVED`, `LOADING`, and `DONE` constants                      |
-| `CompositionEvent`                         | Composed text via a read-only `data` property, retaining UIEvent flags and dispatch                         |
+Happy DOM provides the DOM, fetch and related browser object families. This package extends its official Jest environment and normalizes verified differences across Jest's VM boundary.
 
-Sources and reproduction details live in the monorepo's research brief. Relevant upstream reports include [structuredClone #556](https://github.com/capricorn86/happy-dom/issues/556), [binary File #704](https://github.com/capricorn86/happy-dom/issues/704), [BroadcastChannel #1920](https://github.com/capricorn86/happy-dom/issues/1920), [XHR constants #2096](https://github.com/capricorn86/happy-dom/issues/2096), [Blob BOM #2355](https://github.com/capricorn86/happy-dom/issues/2355), and [CompositionEvent #1457](https://github.com/capricorn86/happy-dom/issues/1457).
+| API                               | Extension                                                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTML Canvas / OffscreenCanvas     | CPU Skia 2D drawing, paths, filters, compositing, PNG/JPEG/WebP output, dimension/state resets and call-time asynchronous snapshots         |
+| ImageData                         | Window-compatible types, shared VM pixel arrays/subviews, sRGB/display-p3 byte conversion                                                   |
+| Images and createImageBitmap      | Intrinsic dimensions, invocation-time readiness, Blob/ImageData/Canvas/video sources, crop/resize/flip and real Bitmap storage              |
+| Canvas security                   | Image/video CORS, redirect/credential handling, taint propagation and protected readback/export                                             |
+| Canvas transport / Worker         | ImageBitmap cloning/transfer and context-free OffscreenCanvas transfer, HTML placeholder presentation and actual dedicated Worker execution |
+| structuredClone                   | Native graph cloning and ArrayBuffer transfer, extended for owned Canvas/Bitmap payloads                                                    |
+| Encoding / compression streams    | Node-backed TextEncoderStream, TextDecoderStream, CompressionStream and DecompressionStream                                                 |
+| MessageChannel / MessagePort      | Native entangled ports with matching constructor identity and owned-resource cleanup                                                        |
+| BroadcastChannel                  | Native delivery isolated to the test environment                                                                                            |
+| Blob / File                       | VM binary normalization, FileReader compatibility, bytes() and BOM-aware UTF-8 text()                                                       |
+| Animation.cancel()                | Observable AbortError rejection without an internal unhandled rejection                                                                     |
+| XMLHttpRequest / CompositionEvent | Instance ready-state constants and composed text with normal event flags                                                                    |
 
-## Real Canvas rendering
+Application-specific mocks remain in your tests. The [Canvas contract](https://github.com/laststance/happy-dom-extended/blob/main/docs/canvas-compatibility.md) documents supported behavior, resource limits and measured browser differences.
 
-Canvas works immediately with the environment setting above, including inside setupFiles. The package installs canvas and the official Happy DOM adapter as runtime dependencies. No separate Canvas import or setup helper is required.
+## Native installation
 
-```ts
-import { expect, test } from '@jest/globals'
+`skia-canvas` is a required dependency. Permit its install script to obtain the native binary; a missing binary is reported instead of silently replacing rendering. See [Skia's installation guide](https://skia-canvas.org/getting-started) for supported Linux/macOS/Windows builds and source-build prerequisites.
 
-test('draws a red pixel', async () => {
+For pnpm, run `pnpm approve-builds` after installation and approve **skia-canvas** and your project's required native scripts. Jest 30 also lists **@parcel/watcher** and **unrs-resolver**. With pnpm 12, merge this into your project's `pnpm-workspace.yaml` before a non-interactive installation:
+
+```yaml
+allowBuilds:
+  skia-canvas: true
+  '@parcel/watcher': true
+  unrs-resolver: true
+```
+
+Other pnpm versions have their own build-approval configuration. Consumers do not need to install the official node-canvas adapter or Cairo/Pango.
+
+**Drawing video frames additionally requires `ffmpeg` and `ffprobe` on PATH.** Video loading, seeking and playback use real CPU decoding with cancellation and bounded child processes. Missing executables or invalid video produce a recoverable media error; ordinary Canvas and image use do not invoke these tools. Supported video formats depend on your FFmpeg build.
+
+## Real Canvas output
+
+Save this as `canvas.test.cjs`; it runs with the configuration above without a TypeScript transform.
+
+```js
+const { expect, test } = require('@jest/globals')
+
+test('draws a red pixel and exports PNG', async () => {
+  // Arrange
   const canvas = document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
-  const context = canvas.getContext('2d')!
+  const context = canvas.getContext('2d')
+  // Act
   context.fillStyle = 'red'
   context.fillRect(0, 0, 1, 1)
-
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve))
+  // Assert
   expect([...context.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve),
-  )
   expect(blob?.type).toBe('image/png')
 })
 ```
 
-HTMLCanvasElement and OffscreenCanvas provide 2D drawing, ImageData, dimension resets, and real PNG/JPEG output. Contexts retain their DOM owner and identity. Canvas width/height assignments reset pixels and state, even when assigned the same value; HTML setAttribute/removeAttribute updates also reset the native bitmap. Unsupported output formats use PNG with a matching MIME type.
+OffscreenCanvas provides the same drawing with `await canvas.convertToBlob()`. Reassigning a dimension, including the same value or a dimension attribute, clears pixels and drawing state while preserving an already obtained context's identity. Unsupported output MIME types fall back to real PNG bytes with the matching MIME type.
 
-Asynchronous output copies pixels at invocation. Later drawing or resizing does not change the pending image. Happy DOM's waitUntilComplete() includes these outputs; teardown drains this environment's outputs before closing the Window, without waiting for unrelated application intervals. Encoding failures produce a null HTML toBlob result or an OffscreenCanvas EncodingError rejection. Zero-size HTML canvases produce data:, or an asynchronous null callback; zero-size Offscreen canvases reject with IndexSizeError. User callback exceptions are retained and reported by environment teardown after cleanup.
+Asynchronous outputs copy pixels at invocation. Later redraws or resizes cannot change the pending image. Happy DOM's `waitUntilComplete()` includes these outputs, and teardown drains the environment's own outputs without waiting for unrelated application intervals. Encoding failures produce an asynchronous null HTML toBlob result or an Offscreen EncodingError rejection. Empty HTML canvases produce data:, or asynchronous null; empty Offscreen exports reject with IndexSizeError. Tainted readback/export fails with SecurityError. Cleanup still runs when a user callback throws.
 
-Image file loading is enabled by default. Preserve a deliberate opt-out with the upstream setting:
+## Configuration and lifecycle
+
+Image loading is enabled by default. Opt out explicitly when needed:
 
 ```js
 export default {
@@ -82,28 +105,24 @@ export default {
 }
 ```
 
-Jest serializes configuration when starting workers. Create custom Canvas adapter instances inside a custom environment subclass before calling super(), or when constructing the environment directly. Those instances retain their identity and are not disposed by this package; their owner supplies any required cleanup. An explicit canvasAdapter: null retains upstream behavior with rendering disabled. Normal Jest configuration only needs the environment name.
+Standard Happy DOM environment options pass through. Jest serializes configuration for its workers, so construct custom Canvas adapter instances programmatically in a custom environment subclass before `super()`, or when constructing the environment directly. Custom adapters preserve their identity and remain their owner's cleanup responsibility. An explicit `canvasAdapter: null` keeps rendering disabled.
 
-The former /canvas subpath and fixed-result helper have been removed. Consumers wanting specific return values can use their test framework's mocks or spies in individual tests.
-
-## Native installation
-
-Permit canvas's install script so its native binary can be installed. This repository uses pnpm 12 allowBuilds with canvas: true; consuming pnpm projects must likewise approve canvas according to their pnpm version. Avoid installing with all lifecycle scripts disabled. A native loading failure is reported by the module loader instead of silently switching to simulated output.
-
-The canvas 3.2.3 baseline offers prebuilt binaries for macOS x64/arm64, Linux x64 with glibc, and Windows x64. Other platforms or source builds require Cairo, Pango, build tools, and image libraries. JPEG support requires libjpeg when compiling from source; when a build omits JPEG, JPEG export requests fall back to PNG with the matching MIME type. Follow the [node-canvas installation instructions](https://github.com/Automattic/node-canvas/tree/v3.2.3#installation) for platform-specific prerequisites. Missing native builds or dependencies must be fixed before running Jest.
+ESM imports and CommonJS require share one runtime, coordinating prototype restoration across simultaneous environments. The package owns the Canvas/media/Worker resources it creates. Close ports transferred out to other owners when those owners finish. Setup code that opens native resources must clean them up if it throws: Jest 30.5.1 can skip environment teardown after a failing setupFiles module.
 
 ## Runtime boundaries
 
-- Node-backed APIs use Node's implementations and event/clone semantics. They do not make every Happy DOM object serializable by `structuredClone`; Happy DOM Blob, File, DOM nodes, and platform objects must not be treated as Node-native cloneable objects.
-- Broadcast names are isolated per environment. Cross-window/origin browser broadcasting is not simulated. Consumers must close ports received from elsewhere or transferred out of the environment; teardown tracks the channels and ports created by the provided constructors.
-- Jest 30.5.1 skips the environment teardown hook when `setupFiles` throws. A setup module that opens native channels must close them in its own `try/finally` if initialization fails. Native channel references are preserved so asynchronous setup cannot silently exit before running tests.
-- Existing fetch, FormData, Blob, FileReader, and DOM event families are not replaced wholesale with Node equivalents.
-- ImageData repair targets the reproduced array-realm problem and Canvas return-value identity; full argument-validation parity is not established.
-- Animation support repairs unhandled cancellation promises. Other upstream animation limitations remain, and actual motion should be checked in a browser.
-- Canvas uses Cairo/Pango through node-canvas. Font availability, text metrics, anti-aliasing, color handling, image codecs, and browser rendering can differ. WebGL, Worker transfer, video drawing, complete ImageBitmap/transferControlToOffscreen behavior, Canvas origin-clean/CORS state, and complete attribute/argument validation are not guaranteed. Real layout, Worker execution, and idle scheduling remain upstream limitations; no no-op implementations are supplied.
+- Runtime dependencies are pinned to Happy DOM 20.14.0 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows, plus installed Jest 30.0.0 and 30.5.1 consumers in serial and two-process modes.
+- Canvas contexts use effective sRGB/unorm8 backing. Byte ImageData supports sRGB/display-p3 conversion; float16 ImageData is not supported. Font availability, edge rasterization and decoder rounding can differ from browsers.
+- 2D support does not include a Window Path2D constructor, WebGL, WebGPU or bitmaprenderer. Real layout and browser scheduling require a browser.
+- Dedicated Workers use actual node:worker_threads and the documented classic/module script loader. They are for trusted test code; their VM contexts are not a security sandbox. Node/file imports, service/shared workers and arbitrary browser-platform serialization are outside the supported contract.
+- Video selects the latest frame at or before the requested timestamp and samples playback at up to 20 fps. Audio playback and browser media scheduling are outside the contract.
+- Native structuredClone does not make every Happy DOM Blob, File, DOM node or platform object cloneable. BroadcastChannel names are isolated per test environment.
+- Animation support addresses cancellation promises; other upstream animation limitations remain.
 
-## Local packaging
+Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-dom-extended/blob/main/docs/canvas-compatibility.md), [verification guide](https://github.com/laststance/happy-dom-extended/blob/main/docs/verification.md) and [architecture](https://github.com/laststance/happy-dom-extended/blob/main/ARCHITECTURE.md) for details. The former `/canvas` helper subpath is removed; use the environment setting above.
 
-This package is initially developed in the `happy-dom-extended` monorepo. `pnpm build` produces `dist`; `pnpm check:package` validates export/type resolution; `pnpm test:package` installs an npm tarball into separate consumer fixtures for Jest 30.0.0 and the development version. Both setup phases, decoded PNG/JPEG output, ten lifecycle tests per Jest version, and six Jest tests in three suites are checked. Each Jest version runs serially and in two worker processes; process identities and JSON reports prove the requested execution paths actually ran. The private compatibility package is bundled and is not needed by consumers.
+## Contributing and releases
 
-MIT licensed.
+The [monorepo](https://github.com/laststance/happy-dom-extended) contains source, regression/property tests and installed-consumer fixtures. `pnpm check` validates the implementation and its distribution. The private compatibility workspace is bundled; consumers install only this public package and its normal dependencies. Follow the [contribution guide](https://github.com/laststance/happy-dom-extended/blob/main/CONTRIBUTING.md) or [manual release guide](https://github.com/laststance/happy-dom-extended/blob/main/docs/releasing.md).
+
+Independent Laststance project; not an official Happy DOM or Jest package. MIT licensed.

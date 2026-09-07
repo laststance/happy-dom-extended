@@ -1,7 +1,7 @@
 {
   "name": "jest-happy-dom-extended",
-  "version": "0.1.0",
-  "description": "A Happy DOM Jest environment with verified Web API compatibility fixes.",
+  "version": "0.2.0",
+  "description": "A Happy DOM Jest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
   "type": "module",
   "license": "MIT",
   "author": "ryota-murakami",
@@ -21,6 +21,7 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "main": "./dist/index.cjs",
@@ -33,7 +34,8 @@
     "./package.json": "./package.json"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "build": "tsdown",
