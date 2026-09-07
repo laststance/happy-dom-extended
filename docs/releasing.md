@@ -22,23 +22,23 @@ If the version/changelog changes are already included in the reviewed commit, sk
 
 ## Build and inspect the package
 
-From the repository root:
+Start in the repository root and keep the maintainer blocks in the same shell. Each build creates a new absolute archive path; a new shell must repeat this block before publication:
 
 ```sh
+set -eu
+release_version="$(node -p "require('./packages/jest-happy-dom-extended/package.json').version")"
 mkdir -p .artifacts/release
-pnpm --filter jest-happy-dom-extended pack --pack-destination .artifacts/release
+release_directory="$(mktemp -d "$(pwd)/.artifacts/release/pack.XXXXXX")"
+release_tarball="$release_directory/jest-happy-dom-extended-${release_version}.tgz"
+pnpm --filter jest-happy-dom-extended pack --pack-destination "$release_directory"
+test -f "$release_tarball"
+tar -tzf "$release_tarball"
+npm publish "$release_tarball" --dry-run --access public --registry=https://registry.npmjs.org
 ```
 
 The package's prepack script builds the public entry, declarations and private Worker bootstrap. The `files` allowlist includes only distribution files, the package guide, changelog and license, plus npm's mandatory package manifest. A separate `.npmignore` is unnecessary. Registry/access are set in the public package's publishConfig; project `.npmrc` credentials are unnecessary. [npm's file selection rules](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#files) describe how the allowlist is applied.
 
-Set the exact versioned artifact path and inspect it without publishing:
-
-```sh
-release_version="$(node -p "require('./packages/jest-happy-dom-extended/package.json').version")"
-release_tarball=".artifacts/release/jest-happy-dom-extended-${release_version}.tgz"
-tar -tzf "$release_tarball"
-npm publish "$release_tarball" --dry-run --access public --registry=https://registry.npmjs.org
-```
+The block stops on a failed build or a missing archive before inspecting or dry-running publication. Keep the inspected archive for release records.
 
 Expect `dist/index.cjs`, `dist/index.d.cts`, `dist/worker.cjs`, their build chunks, README, CHANGELOG, LICENSE and package.json. Repository tests, fixtures, local artifacts, credentials and workspace source directories must not appear. Distribution source maps may contain the public source used to build the package.
 
@@ -64,17 +64,29 @@ npm rebuild skia-canvas
 The maintainer performs this step after reviewing the artifact. Authenticate to the intended npm account, then publish the same file that was inspected:
 
 ```sh
+set -eu
+: "${release_tarball:?Run the build-and-inspect block in this shell first.}"
 npm login --registry=https://registry.npmjs.org
 npm whoami --registry=https://registry.npmjs.org
+test -f "$release_tarball"
 npm publish "$release_tarball" --access public --registry=https://registry.npmjs.org
 ```
 
 Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal. This local manual workflow does not enable CI provenance; configure trusted publishing separately if automated releases become a requirement.
 
-After publication, verify the registry version and install it in a clean consumer:
+After publication, verify the registry version in the same shell:
 
 ```sh
+set -eu
+: "${release_version:?Run the build-and-inspect block in this shell first.}"
 npm view "jest-happy-dom-extended@${release_version}" version dist.integrity --registry=https://registry.npmjs.org
+```
+
+Switch to a clean consumer project directory in that same shell, then install the verified version:
+
+```sh
+set -eu
+: "${release_version:?Run the build-and-inspect block in this shell first.}"
 npm install --save-dev jest@30 "jest-happy-dom-extended@${release_version}"
 ```
 
