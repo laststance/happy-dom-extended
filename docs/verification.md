@@ -4,7 +4,9 @@ The current implementation owns Canvas semantics around CPU skia-canvas 3.0.8, i
 
 ## Local evidence
 
-Local tests ran on macOS arm64 with Node.js 24.20.0. Test output, not a zero process exit alone, determines completion.
+The full local gate ran on macOS arm64 with Node.js 24.20.0, pnpm 12.3.4 and npm 11.19.0. Source integration used Jest 30.5.1; installed consumers used Jest 30.0.0 and 30.5.1. Both consumer versions also passed independently with npm 12.0.2 on Node 24.20.0 after their generated manifests explicitly approved Skia installation. Test output, not a zero process exit alone, determines completion.
+
+The README Canvas/PNG example additionally passed as one actual Jest 30.5.1 test in each clean external consumer using npm 12.0.2 and pnpm 12.3.4, both on Node 24.20.0. npm approval alone left the Skia binary absent; the documented rebuild installed it.
 
 | Layer                               | Expected successful execution                                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -32,10 +34,18 @@ Coverage is source-mapped V8 coverage from the source tests and Jest process. Fa
 
 The [Test workflow](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml) runs Node 22.18.0 / 24.20.0 / 26.8.1 on Linux and Windows. The [other workflows](https://github.com/laststance/happy-dom-extended/actions) cover lint, types, package build, Fallow, CodeQL, dependency review, audit, and Scorecard. Codecov receives the Linux Node 24 source report.
 
-These workflow definitions describe the configured matrix. A local macOS pass does not prove Windows/Linux execution: inspect the successful runs for the PR's exact commit. Scorecard runs on `main`, scheduled runs, and repository policy changes, so its first result follows merge. No npm publication happens in CI.
+Recorded execution: the [successful PR #10 Test run](https://github.com/laststance/happy-dom-extended/actions/runs/34156732310) ran all six Linux/Windows combinations on commit `d86b89644ce93dfe7b9b8ad9713730c46088e95f`. Its setup logs report these exact versions on both operating systems; all jobs used pnpm 12.3.4, Jest 30.5.1 integration and Jest 30.0.0/30.5.1 installed consumers:
+
+| Node.js | npm     |
+| ------- | ------- |
+| 22.18.0 | 10.9.3  |
+| 24.20.0 | 11.19.0 |
+| 26.8.1  | 11.19.0 |
+
+The workflow definitions describe the configured matrix beyond that recorded commit. A local macOS pass does not prove Windows/Linux execution: inspect the successful runs for the PR's exact commit. Scorecard runs on `main`, scheduled runs, and repository policy changes, so its first result follows merge. No npm publication happens in CI.
 
 ## Boundaries and release status
 
 Jest 30.5.1 evaluates setup modules outside part of its teardown protection. Application setup that opens native channels must clean up if setup fails; preserving native references prevents silent early process exit. This runner boundary and rendering limitations are described in the [package guide](../packages/jest-happy-dom-extended/README.md#runtime-boundaries).
 
-A minor Changeset records the public Canvas change. The package has not yet been published to npm; `packages/compat` remains private and bundled, and the Vitest workspace remains a placeholder. See [Canvas compatibility and verification](canvas-compatibility.md) for current guarantees, native prerequisites, selected WPT coverage and measured renderer differences. Earlier research documents are historical evidence, not the current support contract.
+Version 0.2.0 and its generated package changelog record the public Canvas change; the pending minor Changeset has been consumed. The package has not yet been published to npm; `packages/compat` remains private and bundled, and the Vitest workspace remains a placeholder. See [Canvas compatibility and verification](canvas-compatibility.md) for current guarantees, native prerequisites, selected WPT coverage and measured renderer differences. Earlier research documents are historical evidence, not the current support contract.

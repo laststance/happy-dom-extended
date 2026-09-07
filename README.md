@@ -9,125 +9,133 @@
 
 # happy-dom-extended
 
-**Run browser application tests in Node.js with Happy DOM, additional Web APIs, and real Canvas drawing.**
+**A Jest environment for running browser JavaScript tests in Node.js with Happy DOM, real 2D Canvas rendering, and additional working Web APIs.**
 
-Happy DOM supplies the DOM for your Jest tests. `jest-happy-dom-extended` builds on its official Jest environment to fill verified Web API gaps, normalize values crossing Jest's VM boundary, and provide native 2D Canvas rendering. Select one test environment instead of maintaining the same environment patches in every application's setup file.
-
-Canvas output contains the pixels your application drew. HTML Canvas and OffscreenCanvas support PNG output, ImageData, resizing, and asynchronous completion. JPEG output requires native JPEG support; when unavailable, JPEG requests produce PNG with an `image/png` MIME type. Application-specific mocks still belong in your tests. This project does not claim full browser equivalence; use a real browser for layout, WebGL, Worker execution, and browser-specific rendering checks.
-
-## Install
-
-Requires **Node.js >=22.18.0** and **Jest 30**. CI tests Node **22.18.0, 24.20.0, and 26.8.1** on Linux and Windows, with both Jest 30.0.0 and 30.5.1 installed-package consumers.
-
-The package is **not yet published to npm**. To try the current implementation, build a tarball locally:
+Install the public package and select it as your Jest environment:
 
 ```sh
-git clone https://github.com/laststance/happy-dom-extended.git
-cd happy-dom-extended
-pnpm install --frozen-lockfile
-pnpm build
-mkdir -p artifacts
-pnpm --filter jest-happy-dom-extended pack --pack-destination ../../artifacts
-
-# Run in your application, using the actual tarball path produced above:
-pnpm add -D /absolute/path/to/happy-dom-extended/artifacts/jest-happy-dom-extended-0.1.0.tgz
+npm install --save-dev jest@30 jest-happy-dom-extended
 ```
 
-Use the pnpm version pinned in `package.json` (12.3.4). See [pnpm installation](https://pnpm.io/installation) if it is not installed. After the first npm release, the installation command will be:
+With npm 12, approve and run Skia's native installation script before running Jest:
 
 ```sh
-pnpm add -D jest-happy-dom-extended
+npm approve-scripts skia-canvas
+npm rebuild skia-canvas
 ```
-
-`canvas` is a required native dependency. Approve its build when your package manager requests it. For pnpm 12, merge this entry into your application's `pnpm-workspace.yaml`:
-
-```yaml
-allowBuilds:
-  canvas: true
-```
-
-Other pnpm versions use their corresponding build approval settings. Prebuilt binaries cover common macOS, Linux glibc x64, and Windows x64 systems. Source builds need Cairo/Pango and platform build tools; see [native installation](packages/jest-happy-dom-extended/README.md#native-installation).
-
-## Configure Jest
 
 ```js
 // jest.config.mjs
 export default {
   testEnvironment: 'jest-happy-dom-extended',
-  testEnvironmentOptions: {
-    url: 'https://example.test/',
-  },
+  testEnvironmentOptions: { url: 'https://example.test/' },
 }
 ```
 
-For CommonJS, use the same object with `module.exports` in `jest.config.cjs`. Existing transforms, test matching, application fixtures, and setup files remain ordinary Jest configuration. Extensions are ready before `setupFiles` and `setupFilesAfterEnv` run.
+```sh
+npx jest
+```
 
-Remove setup patches for the APIs this package supplies after validating your application tests. Keep application-specific mocks and fixtures. No `/canvas` import is required; that former stub entry has been removed.
+Requires **Node.js >=22.18.0** and **Jest 30**. CommonJS projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal Jest configuration. Extensions are available before `setupFiles` and `setupFilesAfterEnv` run.
+
+Before the first npm publication, or when trying an unreleased commit, use a [locally built tarball](docs/releasing.md#build-and-inspect-the-package). Publishing is a maintainer action; CI only validates packages.
+
+## What this library provides
+
+Happy DOM supplies the DOM and browser object families. This package builds on its official Jest environment, adds missing Node-backed APIs, repairs verified compatibility gaps across Jest's VM boundary, and owns the Canvas behavior listed below. One environment setting supplies these capabilities to every test file.
+
+| Capability                    | Included behavior                                                                                                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTML Canvas / OffscreenCanvas | Real CPU Skia 2D drawing, paths, filters, compositing, PNG/JPEG/WebP output, attribute-driven dimension resets and asynchronous output snapshots                                |
+| ImageData and image sources   | Window-compatible pixel arrays, preserved subarray/shared storage, sRGB/display-p3 byte conversion, intrinsic image dimensions, invocation-time readiness and createImageBitmap |
+| Cross-origin media            | Image/video CORS and redirect checks, credentials, origin taint, protected readback/export and request cancellation                                                             |
+| Bitmap transport and Workers  | ImageBitmap cloning/transfer and context-free OffscreenCanvas transfer, HTML placeholder presentation, MessageChannel and actual dedicated worker_threads execution             |
+| Video Canvas sources          | Actual decoded frames, seeking and clock-driven playback when ffmpeg/ffprobe are installed                                                                                      |
+| Blob / File                   | Binary VM inputs, FileReader compatibility, UTF-8 BOM handling and bytes()                                                                                                      |
+| Streams and messaging         | Encoding/compression streams, native structuredClone, MessagePort and environment-isolated BroadcastChannel                                                                     |
+| Events, animation and XHR     | CompositionEvent text, observable animation cancellation rejection and XHR instance constants                                                                                   |
+
+Application-specific mocks and fixtures stay in your tests. Real browsers remain necessary for layout, WebGL/WebGPU, browser-specific scheduling and exact browser rendering. The [package guide](packages/jest-happy-dom-extended/README.md) explains configuration and lifecycle behavior; the [Canvas compatibility contract](docs/canvas-compatibility.md) records precise supported APIs, limits and comparison evidence.
+
+## Native installation
+
+The package includes `skia-canvas` as a required runtime dependency. Its installation must be allowed to obtain the platform-native binary. Supported builds are available for Linux, Windows and macOS; see the [Skia installation guide](https://skia-canvas.org/getting-started) for architecture, system-library and source-build requirements.
+
+For pnpm:
+
+```sh
+pnpm add -D jest@30 jest-happy-dom-extended
+pnpm approve-builds
+```
+
+Approve **skia-canvas** and the native scripts required by your project. Jest 30 also lists **@parcel/watcher** and **unrs-resolver**. With pnpm 12, a non-interactive project can merge this into `pnpm-workspace.yaml` before installation:
+
+```yaml
+allowBuilds:
+  skia-canvas: true
+  '@parcel/watcher': true
+  unrs-resolver: true
+```
+
+Use the build-approval setting supported by your pnpm version. Ordinary consumers do not need the official node-canvas adapter or Cairo/Pango.
+
+**Video input also requires `ffmpeg` and `ffprobe` on PATH.** These executables are used only for video; image loading and ordinary Canvas drawing do not start them. CI installs and verifies both on Linux and Windows.
 
 ## Draw and inspect real pixels
 
-```ts
-import { expect, test } from '@jest/globals'
+Save this as `canvas.test.cjs`; it runs with the configuration above without a TypeScript transform.
+
+```js
+const { expect, test } = require('@jest/globals')
 
 test('draws a red pixel and exports PNG', async () => {
+  // Arrange
   const canvas = document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
-  const context = canvas.getContext('2d')!
+  const context = canvas.getContext('2d')
+  // Act
   context.fillStyle = 'red'
   context.fillRect(0, 0, 1, 1)
-
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve))
+  // Assert
   expect([...context.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve),
-  )
   expect(blob?.type).toBe('image/png')
 })
 ```
 
-OffscreenCanvas works the same way, with `await canvas.convertToBlob()` for output. Asynchronous exports keep the pixels from the moment you request them, even if your code immediately draws again or resizes. Teardown waits for this environment's pending exports and releases its resources.
+OffscreenCanvas offers the same 2D drawing with `await canvas.convertToBlob()` for output. Asynchronous exports preserve the pixels present when requested, including when a test immediately redraws or resizes. Environment teardown drains its own pending exports and releases owned media, ports and Workers.
 
-## What is included?
+Image loading is enabled by default. Disable it with `testEnvironmentOptions.settings.enableImageFileLoading: false`. Custom Canvas adapters can still be supplied programmatically; ownership remains with the caller. No extra Canvas setup import is required.
 
-| Capability                    | Behavior                                                                                                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| HTML Canvas / OffscreenCanvas | Real native 2D drawing, PNG/JPEG output (JPEG falls back to `image/png` without its native codec), dimension/state resets, correct context owner |
-| ImageData                     | Preserves VM pixel arrays, shared storage, and subarray offsets; Canvas results use the Window's types                                           |
-| Blob / File                   | Handles binary VM inputs, UTF-8 BOM decoding, and `bytes()` while preserving FileReader compatibility                                            |
-| Streams / cloning             | Node-backed encoding and compression streams and `structuredClone`                                                                               |
-| Messaging                     | Native MessageChannel/MessagePort and environment-isolated BroadcastChannel, with owned-resource cleanup                                         |
-| Events / animation / XHR      | CompositionEvent text, observable cancellation rejection, and XHR instance constants                                                             |
+## Compatibility and verification
 
-Existing Happy DOM fetch, DOM events, and related object families stay compatible with each other. See the [package guide](packages/jest-happy-dom-extended/README.md) for API details, configuration, custom adapter ownership, native requirements, and limitations.
+The runtime pair is pinned to **Happy DOM 20.14.0**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**, including installed consumers using Jest **30.0.0 and 30.5.1**, serial execution and two worker processes.
 
-Image loading is enabled by default; opt out with `testEnvironmentOptions.settings.enableImageFileLoading: false`. Font metrics, anti-aliasing, codecs, complete WebIDL validation, and origin-clean/CORS behavior can differ from browsers. The package supplies verified extensions rather than a complete browser engine.
+The tests check real pixels and encoded images, actual HTTP/decoder/Worker cancellation, ownership transfer, failure recovery and teardown. Shared browser fixtures measure renderer-dependent differences with explicit tolerances. This is selected conformance evidence, not a complete Web Platform Tests run. See [verification](docs/verification.md) and the [Canvas contract](docs/canvas-compatibility.md).
 
-## Contribute
+## Contribute and release
 
-Bug reports, minimal reproductions, documentation improvements, and compatibility fixes are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [TESTING.md](TESTING.md). Changes to public behavior need an observable regression test and a [Changeset](.changeset/README.md).
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), [TESTING.md](TESTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md). Public behavior changes need an observable regression and a [Changeset](.changeset/README.md).
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
 ```
 
-`pnpm check` runs build, tests with coverage, types, ESLint, Prettier, Sherif, Fallow health/dupes/dead-code, npm export/type checks, and isolated tarball consumers. Coverage is emitted to `coverage/lcov.info` and `coverage/coverage-final.json`; CI uploads the Linux Node 24 report to Codecov. Test and packaging checks run across all six Node/OS combinations.
+Use the pnpm version pinned in the root package manifest. `pnpm check` runs source/Jest tests with coverage, lint, format, types, Sherif, Fallow, package export/type checks and isolated tarball consumers. Maintainers can follow the [manual npm release guide](docs/releasing.md) to inspect and publish the validated tarball.
 
-Workflows are separated into [Test](.github/workflows/test.yml), [Lint](.github/workflows/lint.yml), [Format](.github/workflows/format.yml), [TypeCheck](.github/workflows/typecheck.yml), [Build](.github/workflows/build.yml), [Fallow](.github/workflows/fallow.yml), [Security](.github/workflows/security.yml), [Socket](.github/workflows/socket.yml), and [OpenSSF Scorecard](.github/workflows/scorecard.yml). Security includes CodeQL, dependency review, and a production dependency audit. Actions are pinned to commits; write permissions are limited to security reporting. CI validates packages and does not publish to npm.
+Workflows are separated into [Test](.github/workflows/test.yml), [Lint](.github/workflows/lint.yml), [Format](.github/workflows/format.yml), [TypeCheck](.github/workflows/typecheck.yml), [Build](.github/workflows/build.yml), [Fallow](.github/workflows/fallow.yml), [Security](.github/workflows/security.yml), [Socket](.github/workflows/socket.yml) and [OpenSSF Scorecard](.github/workflows/scorecard.yml). Security includes CodeQL, dependency review and a production dependency audit. Codecov receives the Linux Node 24 coverage report.
 
-Socket scans dependency manifests and lockfiles on same-repository PRs, pushes to `main`, a weekly schedule, and manual runs. Its pinned CLI runs without installing workspace dependencies and fails when the scan violates the Socket organization's policy. Maintainers must add `SOCKET_SECURITY_API_TOKEN` to repository or organization Actions secrets; see [Socket API token setup](https://docs.socket.dev/docs/create-socket-api-key-for-cicd). A missing token fails with a configuration error. Fork PRs skip this workflow because GitHub does not expose the token to them; the existing dependency review still runs.
+Socket scans same-repository PRs, pushes to main, its weekly schedule and manual runs, using the `SOCKET_SECURITY_API_TOKEN` Actions secret. Fork PRs skip that secret-dependent workflow. See [Socket token setup](https://docs.socket.dev/docs/create-socket-api-key-for-cicd) for maintainer configuration.
 
-## Repository and project status
+| Workspace                          | Purpose                                                          |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| packages/jest-happy-dom-extended   | Public Jest environment distributed on npm                       |
+| packages/compat                    | Private implementation bundled into the Jest package             |
+| packages/vitest-happy-dom-extended | Reserved workspace; no usable Vitest environment is provided yet |
 
-| Workspace                            | Purpose                                                                  |
-| ------------------------------------ | ------------------------------------------------------------------------ |
-| `packages/jest-happy-dom-extended`   | Public Jest environment; currently preparing its first npm release       |
-| `packages/compat`                    | Private runner-independent implementation, bundled into the Jest package |
-| `packages/vitest-happy-dom-extended` | Reserved for the next phase; no usable Vitest environment yet            |
-
-The baseline is Happy DOM 20.14.0 with canvas 3.2.3. [Research](docs/research/2026-09-06-web-api-compatibility.md) records sources and reproduced gaps; [Canvas research](docs/research/canvas-rendering.md) explains the adapter corrections; [verification](docs/verification.md) separates local evidence from CI. [ARCHITECTURE.md](ARCHITECTURE.md) explains ownership and lifecycle decisions.
-
-This is an independent [Laststance](https://github.com/laststance) project. It is not an official Happy DOM or Jest package. Report vulnerabilities using [SECURITY.md](SECURITY.md), and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+This is an independent [Laststance](https://github.com/laststance) project. It is not an official Happy DOM or Jest package. Report vulnerabilities through [SECURITY.md](SECURITY.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

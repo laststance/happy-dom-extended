@@ -69,6 +69,8 @@ try {
         {
           name: 'happy-dom-extended-consumer-verification',
           private: true,
+          // npm 12 requires explicit approval to install Skia's native binary.
+          allowScripts: { 'skia-canvas': true },
           devDependencies: {
             ...fixtureManifest.devDependencies,
             jest: jestVersion,
