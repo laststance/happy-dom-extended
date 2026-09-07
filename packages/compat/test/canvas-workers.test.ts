@@ -301,7 +301,7 @@ test(
   async (context) => {
     // Arrange
     const scripts: Record<string, string> = {}
-    const { origin, crossOrigin, requests } = await imageServers(
+    const { origin, crossOrigin, requests, servers } = await imageServers(
       context,
       undefined,
       scripts,
@@ -309,13 +309,17 @@ test(
     const { window } = await renderingWindow(context)
     window.happyDOM.setURL(origin)
     window.document.cookie = 'session=worker; Path=/'
+    servers[1]!.prependListener('request', (_request, response) => {
+      response.setHeader('Set-Cookie', 'foreign=forbidden; Path=/')
+    })
+    scripts['/same.js'] = "self.helperColor = 'red'"
     scripts['/helper.js'] = "self.helperColor = 'blue'"
     scripts['/classic.js'] =
-      `importScripts('${crossOrigin}/helper.js'); postMessage(helperColor)`
+      `importScripts('./same.js', '${crossOrigin}/helper.js'); postMessage(helperColor)`
     scripts['/denied.js'] = `import '${crossOrigin}/helper.js'`
     scripts['/foreign.js'] = "postMessage('should not run')"
     const Constructor = Reflect.get(window, 'Worker')
-    const worker = new Constructor('/classic.js')
+    const worker = new Constructor('/classic.js', { credentials: 'include' })
     const received = new Promise<{ data: unknown }>((resolve, reject) => {
       worker.onmessage = resolve
       worker.onerror = (event: { message: string }) =>
@@ -327,6 +331,15 @@ test(
       requests.find(({ path }) => path === '/classic.js')?.cookie,
       'session=worker',
     )
+    assert.equal(
+      requests.find(({ path }) => path === '/same.js')?.cookie,
+      'session=worker',
+    )
+    assert.equal(
+      requests.find(({ path }) => path === '/helper.js')?.cookie,
+      undefined,
+    )
+    assert.equal(window.document.cookie, 'session=worker')
     worker.terminate()
     for (const { url, expected } of [
       { url: '/redirect.js', expected: /crossed origins/ },

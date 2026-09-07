@@ -18,6 +18,13 @@ export function serveWorkerScripts(
   options: ReturnType<typeof workerOptions>,
   signal: InstanceType<Window['AbortSignal']>,
 ): void {
+  const { credentialMode, workerType } = options
+  const crossOrigin =
+    workerType === 'classic'
+      ? null
+      : credentialMode === 'include'
+        ? 'use-credentials'
+        : 'anonymous'
   let entryRequest = true
   port.on('message', async function serveWorkerScript(request: unknown) {
     let release = () => {}
@@ -42,20 +49,17 @@ export function serveWorkerScripts(
       const url: unknown = Reflect.get(request, 'url')
       if (typeof url !== 'string')
         throw new window.TypeError('Invalid worker script URL.')
-      const { credentialMode, workerType } = options
       const resource = await fetchCanvasResource(
         window,
         url,
-        workerType === 'classic'
-          ? null
-          : credentialMode === 'include'
-            ? 'use-credentials'
-            : 'anonymous',
+        crossOrigin,
         signal,
         {
-          ...(workerType === 'module' && credentialMode === 'omit'
-            ? { credentials: 'omit' }
-            : {}),
+          ...(workerType === 'classic'
+            ? { credentials: 'same-origin' }
+            : credentialMode === 'omit'
+              ? { credentials: 'omit' }
+              : {}),
           sameOrigin: isEntry,
         },
       )

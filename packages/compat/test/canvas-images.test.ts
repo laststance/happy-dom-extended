@@ -95,6 +95,13 @@ test('rejecting response cancellation preserves media status, byte-limit, CORS a
       name: 'NetworkError',
       message: 'The media redirect has no location.',
     },
+    {
+      status: 302,
+      headers: { location: 'http://[invalid' },
+      crossOrigin: null,
+      name: 'NetworkError',
+      message: 'The media redirect URL is invalid.',
+    },
   ]
   let cancellations = 0
   for (const { status, headers, crossOrigin, name, message } of cases) {
@@ -119,7 +126,7 @@ test('rejecting response cancellation preserves media status, byte-limit, CORS a
       { name, message },
     )
   }
-  assert.equal(cancellations, 4)
+  assert.equal(cancellations, 5)
 })
 
 test('a loading image never paints later and decoded intrinsic pixels ignore HTML width and height attributes', async (context) => {

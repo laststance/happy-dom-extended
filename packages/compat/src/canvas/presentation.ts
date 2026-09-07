@@ -225,30 +225,43 @@ export function installCanvasPresentation(
         const display = new owner.OffscreenCanvas(this.width, this.height)
         const channel = new MessageChannel()
         const reference = new WeakRef(this)
-        bindCanvasPresenter(canvas, channel.port2)
-        htmlPlaceholders.set(this, display)
-        channel.port1.on('message', (message: unknown) => {
-          const element = reference.deref()
-          if (!element) {
-            channel.port1.close()
-            return
-          }
-          try {
-            receiveCanvasPresentation(
-              owner,
-              htmlPlaceholders.get(element)!,
-              message,
-            )
-            channel.port1.postMessage({})
-          } catch (error) {
-            channel.port1.postMessage({ error: String(error) })
-          }
-        })
-        collectedPlaceholders.register(this, channel.port1, channel.port1)
-        trackPresentationPort(owner, channel.port1, () =>
-          collectedPlaceholders.unregister(channel.port1),
-        )
-        return canvas
+        try {
+          bindCanvasPresenter(canvas, channel.port2)
+          htmlPlaceholders.set(this, display)
+          channel.port1.on('message', (message: unknown) => {
+            const element = reference.deref()
+            if (!element) {
+              channel.port1.close()
+              return
+            }
+            try {
+              receiveCanvasPresentation(
+                owner,
+                htmlPlaceholders.get(element)!,
+                message,
+              )
+              channel.port1.postMessage({})
+            } catch (error) {
+              channel.port1.postMessage({ error: String(error) })
+            }
+          })
+          collectedPlaceholders.register(this, channel.port1, channel.port1)
+          trackPresentationPort(owner, channel.port1, () =>
+            collectedPlaceholders.unregister(channel.port1),
+          )
+          return canvas
+        } catch (error) {
+          // A failed setup must leave this HTML canvas eligible for another transfer attempt.
+          htmlPlaceholders.delete(this)
+          offscreenPresenters.delete(canvas)
+          presentationUpdates.delete(canvas)
+          collectedPlaceholders.unregister(channel.port1)
+          disposeAll(
+            [() => channel.port1.close(), () => channel.port2.close()],
+            [error],
+          )
+          throw error
+        }
       },
     }),
   )

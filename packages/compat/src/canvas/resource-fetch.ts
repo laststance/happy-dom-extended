@@ -392,7 +392,14 @@ async function redirectURL(
       'The media redirect has no location.',
       'NetworkError',
     )
-  return new URL(location, url)
+  try {
+    return new URL(location, url)
+  } catch {
+    throw new window.DOMException(
+      'The media redirect URL is invalid.',
+      'NetworkError',
+    )
+  }
 }
 
 /** Fetches a Canvas subresource with per-hop CORS, credentials and byte limits, without relaxing its Window's normal fetch policy.
@@ -404,7 +411,7 @@ export async function fetchCanvasResource(
   source: string,
   crossOrigin: string | null,
   signal: AbortSignal,
-  options: { credentials?: 'omit'; sameOrigin?: boolean } = {},
+  options: { credentials?: 'omit' | 'same-origin'; sameOrigin?: boolean } = {},
 ) {
   let url = new URL(source, window.location.href)
   if (url.protocol === 'blob:') return blobResource(window, url, signal)

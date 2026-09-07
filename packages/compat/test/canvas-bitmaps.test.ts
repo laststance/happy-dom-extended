@@ -4,6 +4,47 @@ import { test } from 'node:test'
 import { imageServers } from './utils/image-servers.ts'
 import { renderingWindow } from './utils/rendering-window.ts'
 
+test('Blob bitmaps preserve resource-limit and shutdown failures while malformed headers remain decode errors', async (context) => {
+  // Arrange
+  const { redPng } = await imageServers(context)
+  const { window, adapter } = await renderingWindow(context)
+  const blob = new window.Blob([new window.Uint8Array(redPng)])
+  const release = adapter.reserveStorage(window, 134217728)
+  // Act / Assert
+  try {
+    await assert.rejects(
+      Reflect.apply(window.createImageBitmap, window, [blob]),
+      window.RangeError,
+    )
+  } finally {
+    release()
+  }
+  const bitmap = await Reflect.apply(window.createImageBitmap, window, [blob])
+  assert.deepEqual([bitmap.width, bitmap.height], [1, 1])
+  bitmap.close()
+  for (const bytes of [
+    [66, 77],
+    [71, 73, 70, 56, 57, 97],
+  ])
+    await assert.rejects(
+      Reflect.apply(window.createImageBitmap, window, [
+        new window.Blob([new window.Uint8Array(bytes)]),
+      ]),
+      {
+        name: 'InvalidStateError',
+        message: 'The Blob is not a decodable image.',
+      },
+    )
+  adapter.dispose()
+  await assert.rejects(
+    Reflect.apply(window.createImageBitmap, window, [blob]),
+    {
+      name: 'InvalidStateError',
+      message: 'The Canvas environment is closing.',
+    },
+  )
+})
+
 test('ImageBitmap snapshots ImageData and Canvas pixels before the creating call returns', async (context) => {
   // Arrange
   const { window } = await renderingWindow(context)

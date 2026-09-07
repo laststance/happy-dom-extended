@@ -1,10 +1,66 @@
 import assert from 'node:assert/strict'
+import { once } from 'node:events'
 import { test } from 'node:test'
 import { setTimeout } from 'node:timers/promises'
+import { MessagePort } from 'node:worker_threads'
 
 import { PNG } from 'pngjs'
 
 import { renderingWindow } from './utils/rendering-window.ts'
+
+test(
+  'failed placeholder setup closes both ports and the same HTML canvas can present pixels on retry',
+  { timeout: 4000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const html = window.document.createElement('canvas')
+    html.width = 1
+    html.height = 1
+    const nativeOn = MessagePort.prototype.on
+    const captured: MessagePort[] = []
+    context.after(() => {
+      for (const port of captured) port.close()
+    })
+    const failure = new Error('Injected parent presentation listener failure')
+    const registration = context.mock.method(
+      MessagePort.prototype,
+      'on',
+      function (this: MessagePort, event: string, ...argumentsList: unknown[]) {
+        if (event === 'message') {
+          captured.push(this)
+          if (captured.length === 2) throw failure
+        }
+        return Reflect.apply(nativeOn, this, [event, ...argumentsList])
+      },
+    )
+    // Act / Assert
+    try {
+      assert.throws(
+        () => html.transferControlToOffscreen(),
+        (error) => error === failure,
+      )
+    } finally {
+      registration.mock.restore()
+    }
+    assert.equal(captured.length, 2)
+    await Promise.all(captured.map(async (port) => once(port, 'close')))
+    const drawing = html.transferControlToOffscreen().getContext('2d')!
+    drawing.fillStyle = 'red'
+    drawing.fillRect(0, 0, 1, 1)
+    let png = PNG.sync.read(
+      Buffer.from(html.toDataURL().split(',')[1]!, 'base64'),
+    )
+    const deadline = Date.now() + 3000
+    while (png.data[0] !== 255 && Date.now() < deadline) {
+      await setTimeout(1)
+      png = PNG.sync.read(
+        Buffer.from(html.toDataURL().split(',')[1]!, 'base64'),
+      )
+    }
+    assert.deepEqual([...png.data], [255, 0, 0, 255])
+  },
+)
 
 test(
   'resizing an Offscreen placeholder publishes blank pixels without requiring another draw',

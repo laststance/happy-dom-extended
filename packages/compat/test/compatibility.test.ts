@@ -2,12 +2,74 @@ import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { test } from 'node:test'
 import type { TestContext } from 'node:test'
-import type { BroadcastChannel, MessageChannel } from 'node:worker_threads'
+import type {
+  BroadcastChannel,
+  MessageChannel,
+  MessagePort,
+} from 'node:worker_threads'
 
 import { Window } from 'happy-dom'
 
-import { installCompatibility } from '../src/index.ts'
+import {
+  ExtendedCanvasAdapter,
+  disposeAll,
+  installCompatibility,
+} from '../src/index.ts'
+import { installMessaging } from '../src/install-messaging.ts'
+import type { DisposeCompatibility } from '../src/types.ts'
 import { replaceProperty } from '../src/utils/replace-property.ts'
+
+test(
+  'closed channels leave bounded teardown tracking and keep closed-port semantics until final restoration',
+  { timeout: 4000 },
+  async (context) => {
+    // Arrange
+    const adapter = new ExtendedCanvasAdapter()
+    const window = new Window({ settings: { canvasAdapter: adapter } })
+    const restorers: DisposeCompatibility[] = []
+    installMessaging(window, restorers)
+    context.after(async () => {
+      await window.happyDOM.close()
+      disposeAll(restorers)
+      adapter.dispose()
+    })
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    let retained: MessagePort | undefined
+    // Act
+    for (let index = 0; index < 3; index += 1) {
+      const channel = new Constructor()
+      retained ??= channel.port1
+      const closed = Promise.all([
+        once(channel.port1, 'close'),
+        once(channel.port2, 'close'),
+      ])
+      channel.port1.close()
+      channel.port2.close()
+      await closed
+    }
+    // Assert
+    assert.equal(restorers.length, 6)
+    assert.ok(retained)
+    const buffer = new ArrayBuffer(4)
+    retained.postMessage(
+      {
+        get value() {
+          throw new Error('Closed ports must not serialize')
+        },
+      },
+      [buffer],
+    )
+    assert.equal(buffer.byteLength, 4)
+    disposeAll(restorers)
+    assert.equal(Object.hasOwn(retained, 'postMessage'), false)
+    assert.equal(Object.hasOwn(retained, 'close'), false)
+    assert.equal(Object.hasOwn(retained, 'addEventListener'), false)
+    assert.equal(restorers.length, 0)
+  },
+)
 
 test('A channel close failure still closes every sibling and restores the Window globals', async (context) => {
   // Arrange

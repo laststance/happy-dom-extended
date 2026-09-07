@@ -146,7 +146,13 @@ function bitmapFromSource(
         adapter,
         source[PropertySymbol.buffer],
       )
-    } catch {
+    } catch (error) {
+      // Resource refusal and shutdown remain distinct from an invalid encoded image.
+      if (
+        error instanceof window.RangeError ||
+        (error instanceof window.DOMException && error.name !== 'EncodingError')
+      )
+        throw error
       throw new window.DOMException(
         'The Blob is not a decodable image.',
         'InvalidStateError',

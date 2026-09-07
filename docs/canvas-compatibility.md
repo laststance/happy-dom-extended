@@ -20,6 +20,8 @@ The context's effective storage is sRGB `unorm8`. A requested P3 or float16 **co
 
 Rasterization and installed system fonts can differ from a browser. The pinned Ahem comparison below measures those differences separately from API behavior. Opaque `alpha: false` contexts maintain opaque black backing as required by the specification; the local Chrome 152 headless comparison returned transparent initial pixels before a first draw, so that browser discrepancy is not copied. Skia's half-alpha compositing can differ by one channel level (127 versus 128).
 
+Use Blob, ImageData and other platform constructors provided by the installed test environment. Objects created by a separate Happy DOM module copy or another Happy DOM version are unsupported; the public package pins its own runtime pair to 20.14.0.
+
 Only the 2D context is implemented. WebGL, WebGPU, `bitmaprenderer`, a public Window.Path2D constructor, CanvasFilter objects, HDR/float surfaces and full browser text/layout behavior are not provided. The Canvas transfer extension handles ImageBitmap and OffscreenCanvas; it does not turn every Happy DOM class into a native structured-clone type. Browser-specific structured-clone realm behavior for ordinary Node values is not promised.
 
 DOMException transport preserves its name, message and receiving Window brand. Other Error subclasses follow the standard error-name fallback; AggregateError's `errors` array is not preserved. Decoded image bytes supplied by an unpatched Window without recorded origin/CORS metadata are treated as origin-tainted, including when used in patterns or copied to another Canvas.
@@ -50,6 +52,8 @@ Local file URLs, Node/bare-package imports, import attributes, nested Worker, Sh
 | Dedicated Workers                                                                         | 8 live children per Window; excess creation throws QuotaExceededError                                       |
 | Unreceived Canvas messages                                                                | 64 per sending port plus the shared storage ceiling; excess throws QuotaExceededError before detachment     |
 | Placeholder presentation                                                                  | One unacknowledged pixel frame; later draws coalesce                                                        |
+
+With an existing Offscreen 2D context, setting `width` to `32_768` reflects that width and throws RangeError; the context rejects rendering until a supported dimension is set. This prevents reads of stale pixels after a rejected allocation.
 
 Offscreen metadata reflection and context-free transfer do not allocate pixels: valid logical dimensions can exceed raster limits until an operation requires storage. Zero-size Canvas output remains `data:,`/null for HTML and IndexSizeError for Offscreen Blob conversion. These ceilings are implementation limits, not universal browser limits.
 

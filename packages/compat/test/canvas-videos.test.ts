@@ -8,6 +8,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { test } from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 
+import { decodeVideoFrame } from '../src/canvas/video-decoder.ts'
 import { videoSources } from '../src/canvas/videos.ts'
 
 import { imageServers } from './utils/image-servers.ts'
@@ -17,6 +18,114 @@ const videoBytes = await readFile(
   new URL('../../../fixtures/consumer/red-blue.webm', import.meta.url),
 )
 const videoURL = `data:video/webm;base64,${videoBytes.toString('base64')}`
+
+test(
+  'seeking near the start decodes a bounded prefix of a real long video and preserves its pixels',
+  { timeout: 15_000 },
+  async (context) => {
+    // Arrange: lossless BGRA frames keep the expected red pixel independent of YUV rounding.
+    const input = childProcess.execFileSync(
+      'ffmpeg',
+      [
+        '-v',
+        'error',
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'bgra',
+        '-video_size',
+        '16x16',
+        '-framerate',
+        '30',
+        '-i',
+        'pipe:0',
+        '-c:v',
+        'ffv1',
+        '-f',
+        'matroska',
+        'pipe:1',
+      ],
+      {
+        input: Buffer.alloc(16 * 16 * 4 * 300, Buffer.from([0, 0, 255, 255])),
+        timeout: 5000,
+      },
+    )
+    const { window, adapter } = await renderingWindow(context)
+    const nativeSpawn = childProcess.spawn
+    let diagnostics = ''
+    context.mock.method(
+      childProcess,
+      'spawn',
+      (
+        executable: string,
+        argumentsList: readonly string[],
+        options: childProcess.SpawnOptions,
+      ) => {
+        const loggingArguments = [...argumentsList]
+        loggingArguments[loggingArguments.indexOf('-v') + 1] = 'debug'
+        const child = nativeSpawn(executable, loggingArguments, options)
+        child.stderr?.on('data', (chunk: Buffer) => {
+          diagnostics += chunk.toString('utf8')
+        })
+        return child
+      },
+    )
+    syncBuiltinESMExports()
+    context.after(() => {
+      context.mock.restoreAll()
+      syncBuiltinESMExports()
+    })
+    // Act: a non-frame-aligned seek exposes accidental decoding through the entire input.
+    const frame = await decodeVideoFrame(
+      window,
+      adapter,
+      input,
+      { width: 16, height: 16, duration: 10 },
+      0.11,
+      new window.AbortController().signal,
+    )
+    try {
+      // Assert
+      const decodedFrames = diagnostics.match(/(\d+) frames decoded/)
+      assert.ok(decodedFrames, diagnostics)
+      assert.ok(Number(decodedFrames[1]) >= 4)
+      assert.ok(Number(decodedFrames[1]) < 30, diagnostics)
+      assert.equal(frame.native.width, 16)
+      assert.equal(frame.native.height, 16)
+      assert.deepEqual([...frame.native.data.slice(0, 4)], [255, 0, 0, 255])
+    } finally {
+      frame.release()
+    }
+  },
+)
+
+test(
+  'malformed video redirect targets report a network error in the owning Window',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    window.happyDOM.setURL('https://video.test/')
+    window.happyDOM.settings.fetch.interceptor = {
+      beforeAsyncRequest: async () =>
+        new window.Response(null, {
+          status: 302,
+          headers: { location: 'http://[invalid' },
+        }),
+    }
+    const video = window.document.createElement('video')
+    // Act
+    video.src = '/redirect.webm'
+    // Assert
+    await assert.rejects(videoSources.get(video)!.completion, (error) => {
+      assert.ok(error instanceof window.DOMException)
+      assert.equal(error.name, 'NetworkError')
+      assert.equal(error.message, 'The media redirect URL is invalid.')
+      return true
+    })
+    assert.equal(video.error?.code, 2)
+  },
+)
 
 /** Allows measured FFmpeg RGB rounding when video tests check their selected solid-color frame.
  * @returns Nothing; wrong frames, changed alpha or RGB errors beyond two byte levels fail.
@@ -35,88 +144,96 @@ function assertVideoPixel(
     )
 }
 
-test('video loads real intrinsic pixels, never paints a deferred draw, and seeks to the frame at or before the requested time', async (context) => {
-  // Arrange
-  const { window } = await renderingWindow(context)
-  const video = window.document.createElement('video')
-  const drawing = new window.OffscreenCanvas(16, 16).getContext('2d')!
-  const events: string[] = []
-  for (const type of [
-    'loadedmetadata',
-    'loadeddata',
-    'canplay',
-    'seeking',
-    'seeked',
-    'error',
-  ])
-    video.addEventListener(type, () => {
-      events.push(type)
-    })
-  // Act
-  video.src = videoURL
-  drawing.drawImage(video, 0, 0)
-  assert.equal(drawing.createPattern(video, 'repeat'), null)
-  assert.equal(video.readyState, 0)
-  await videoSources.get(video)!.completion
-  // Assert
-  assert.deepEqual(
-    [
-      Reflect.get(video, 'videoWidth'),
-      Reflect.get(video, 'videoHeight'),
-      video.duration,
-      video.readyState,
-    ],
-    [16, 16, 2, 4],
-  )
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 0, 0])
-  drawing.drawImage(video, 0, 0)
-  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
-  video.currentTime = 0.9
-  await videoSources.get(video)!.completion
-  drawing.drawImage(video, 0, 0)
-  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
-  video.currentTime = 1.1
-  assert.equal(video.seeking, true)
-  await videoSources.get(video)!.completion
-  drawing.drawImage(video, 0, 0)
-  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [0, 0, 255, 255])
-  assert.equal(video.currentTime, 1.1)
-  assert.equal(video.seeking, false)
-  assert.deepEqual(events, [
-    'loadedmetadata',
-    'loadeddata',
-    'canplay',
-    'seeking',
-    'seeked',
-    'seeking',
-    'seeked',
-  ])
-})
+test(
+  'video loads real intrinsic pixels, never paints a deferred draw, and seeks to the frame at or before the requested time',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const video = window.document.createElement('video')
+    const drawing = new window.OffscreenCanvas(16, 16).getContext('2d')!
+    const events: string[] = []
+    for (const type of [
+      'loadedmetadata',
+      'loadeddata',
+      'canplay',
+      'seeking',
+      'seeked',
+      'error',
+    ])
+      video.addEventListener(type, () => {
+        events.push(type)
+      })
+    // Act
+    video.src = videoURL
+    drawing.drawImage(video, 0, 0)
+    assert.equal(drawing.createPattern(video, 'repeat'), null)
+    assert.equal(video.readyState, 0)
+    await videoSources.get(video)!.completion
+    // Assert
+    assert.deepEqual(
+      [
+        Reflect.get(video, 'videoWidth'),
+        Reflect.get(video, 'videoHeight'),
+        video.duration,
+        video.readyState,
+      ],
+      [16, 16, 2, 4],
+    )
+    assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 0, 0])
+    drawing.drawImage(video, 0, 0)
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
+    video.currentTime = 0.9
+    await videoSources.get(video)!.completion
+    drawing.drawImage(video, 0, 0)
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
+    video.currentTime = 1.1
+    assert.equal(video.seeking, true)
+    await videoSources.get(video)!.completion
+    drawing.drawImage(video, 0, 0)
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [0, 0, 255, 255])
+    assert.equal(video.currentTime, 1.1)
+    assert.equal(video.seeking, false)
+    assert.deepEqual(events, [
+      'loadedmetadata',
+      'loadeddata',
+      'canplay',
+      'seeking',
+      'seeked',
+      'seeking',
+      'seeked',
+    ])
+  },
+)
 
-test('a newer seek cancels the earlier decoder and closed Windows retain no usable video frame', async (context) => {
-  // Arrange
-  const { window, close } = await renderingWindow(context)
-  const video = window.document.createElement('video')
-  video.src = videoURL
-  await videoSources.get(video)!.completion
-  const seeked: number[] = []
-  video.onseeked = () => {
-    seeked.push(video.currentTime)
-  }
-  // Act
-  video.currentTime = 1.1
-  video.currentTime = 0.1
-  await videoSources.get(video)!.completion
-  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
-  drawing.drawImage(video, 0, 0)
-  // Assert
-  assert.deepEqual(seeked, [0.1])
-  assert.equal(video.error, null)
-  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
-  video.currentTime = 1.1
-  await close()
-  assert.equal(videoSources.get(video)!.native, null)
-})
+test(
+  'a newer seek cancels the earlier decoder and closed Windows retain no usable video frame',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { window, close } = await renderingWindow(context)
+    const video = window.document.createElement('video')
+    video.src = videoURL
+    await videoSources.get(video)!.completion
+    const seeked: number[] = []
+    video.onseeked = () => {
+      seeked.push(video.currentTime)
+    }
+    // Act
+    video.currentTime = 1.1
+    video.currentTime = 0.1
+    await videoSources.get(video)!.completion
+    const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
+    drawing.drawImage(video, 0, 0)
+    // Assert
+    assert.deepEqual(seeked, [0.1])
+    assert.equal(video.error, null)
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
+    video.currentTime = 1.1
+    await close()
+    assert.equal(videoSources.get(video)!.native, null)
+  },
+)
 
 test(
   'seeking during the first video decode publishes only the requested frame and completes initial readiness',
@@ -251,104 +368,116 @@ test(
   },
 )
 
-test('play advances real video frames and pause freezes the media clock', async (context) => {
-  // Arrange
-  const { window } = await renderingWindow(context)
-  const video = window.document.createElement('video')
-  video.src = videoURL
-  await videoSources.get(video)!.completion
-  video.currentTime = 0.95
-  await videoSources.get(video)!.completion
-  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
-  const playingFrame = new Promise<void>((resolve) => {
-    video.ontimeupdate = () => {
-      // A slow decoder can publish an older sample after the clock advances; wait for the actual blue frame.
-      drawing.drawImage(video, 0, 0)
-      if (drawing.getImageData(0, 0, 1, 1).data[2]! >= 253) resolve()
+test(
+  'play advances real video frames and pause freezes the media clock',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const video = window.document.createElement('video')
+    video.src = videoURL
+    await videoSources.get(video)!.completion
+    video.currentTime = 0.95
+    await videoSources.get(video)!.completion
+    const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
+    const playingFrame = new Promise<void>((resolve) => {
+      video.ontimeupdate = () => {
+        // A slow decoder can publish an older sample after the clock advances; wait for the actual blue frame.
+        drawing.drawImage(video, 0, 0)
+        if (drawing.getImageData(0, 0, 1, 1).data[2]! >= 253) resolve()
+      }
+    })
+    // Act
+    const playing = video.play()
+    assert.equal(playing instanceof window.Promise, true)
+    await playing
+    await playingFrame
+    video.pause()
+    await videoSources.get(video)!.completion
+    drawing.drawImage(video, 0, 0)
+    // Assert
+    assert.equal(video.paused, true)
+    const pausedTime = video.currentTime
+    await delay(30)
+    assert.equal(video.currentTime, pausedTime)
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [0, 0, 255, 255])
+  },
+)
+
+test(
+  'invalid video emits a recoverable media error and a later valid source decodes normally',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const video = window.document.createElement('video')
+    const errors: number[] = []
+    video.onerror = () => {
+      errors.push(video.error?.code ?? 0)
     }
-  })
-  // Act
-  const playing = video.play()
-  assert.equal(playing instanceof window.Promise, true)
-  await playing
-  await playingFrame
-  video.pause()
-  await videoSources.get(video)!.completion
-  drawing.drawImage(video, 0, 0)
-  // Assert
-  assert.equal(video.paused, true)
-  const pausedTime = video.currentTime
-  await delay(30)
-  assert.equal(video.currentTime, pausedTime)
-  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [0, 0, 255, 255])
-})
+    // Act
+    video.src = 'data:video/webm;base64,YmFk'
+    await assert.rejects(videoSources.get(video)!.completion)
+    await assert.rejects(video.play())
+    // Assert
+    assert.deepEqual(errors, [3])
+    assert.match(video.error?.message ?? '', /ffprobe/)
+    assert.equal(videoSources.get(video)!.native, null)
+    video.src = videoURL
+    await videoSources.get(video)!.completion
+    assert.equal(video.error, null)
+    assert.equal(video.readyState, 4)
+  },
+)
 
-test('invalid video emits a recoverable media error and a later valid source decodes normally', async (context) => {
-  // Arrange
-  const { window } = await renderingWindow(context)
-  const video = window.document.createElement('video')
-  const errors: number[] = []
-  video.onerror = () => {
-    errors.push(video.error?.code ?? 0)
-  }
-  // Act
-  video.src = 'data:video/webm;base64,YmFk'
-  await assert.rejects(videoSources.get(video)!.completion)
-  await assert.rejects(video.play())
-  // Assert
-  assert.deepEqual(errors, [3])
-  assert.match(video.error?.message ?? '', /ffprobe/)
-  assert.equal(videoSources.get(video)!.native, null)
-  video.src = videoURL
-  await videoSources.get(video)!.completion
-  assert.equal(video.error, null)
-  assert.equal(video.readyState, 4)
-})
-
-test('video HTTP requests preserve CORS taint and source replacement cancels stale network work', async (context) => {
-  // Arrange
-  const { origin, crossOrigin, servers } = await imageServers(
-    context,
-    videoBytes,
-  )
-  const { window } = await renderingWindow(context)
-  window.happyDOM.setURL(origin)
-  const video = window.document.createElement('video')
-  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
-  // Act
-  video.src = `${crossOrigin}/video.webm`
-  await videoSources.get(video)!.completion
-  drawing.drawImage(video, 0, 0)
-  // Assert
-  assert.throws(() => drawing.getImageData(0, 0, 1, 1), {
-    name: 'SecurityError',
-  })
-  video.crossOrigin = 'anonymous'
-  video.src = `${crossOrigin}/video.webm`
-  await assert.rejects(videoSources.get(video)!.completion, {
-    name: 'NetworkError',
-  })
-  assert.equal(video.error?.code, 2)
-  video.src = `${crossOrigin}/cors.webm`
-  await videoSources.get(video)!.completion
-  Reflect.set(drawing.canvas, 'width', 1)
-  drawing.drawImage(video, 0, 0)
-  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
-  const incoming = new Promise<ServerResponse>((resolve) =>
-    servers[0]!.once('request', (_request, response) => resolve(response)),
-  )
-  video.src = `${origin}/held.webm`
-  const stale = videoSources.get(video)!
-  const response = await incoming
-  const disconnected = once(response, 'close')
-  video.src = videoURL
-  await videoSources.get(video)!.completion
-  await disconnected
-  assert.equal(response.destroyed, true)
-  assert.equal(stale.native, null)
-  assert.equal(video.error, null)
-  assert.equal(video.readyState, 4)
-})
+test(
+  'video HTTP requests preserve CORS taint and source replacement cancels stale network work',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { origin, crossOrigin, servers } = await imageServers(
+      context,
+      videoBytes,
+    )
+    const { window } = await renderingWindow(context)
+    window.happyDOM.setURL(origin)
+    const video = window.document.createElement('video')
+    const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
+    // Act
+    video.src = `${crossOrigin}/video.webm`
+    await videoSources.get(video)!.completion
+    drawing.drawImage(video, 0, 0)
+    // Assert
+    assert.throws(() => drawing.getImageData(0, 0, 1, 1), {
+      name: 'SecurityError',
+    })
+    video.crossOrigin = 'anonymous'
+    video.src = `${crossOrigin}/video.webm`
+    await assert.rejects(videoSources.get(video)!.completion, {
+      name: 'NetworkError',
+    })
+    assert.equal(video.error?.code, 2)
+    video.src = `${crossOrigin}/cors.webm`
+    await videoSources.get(video)!.completion
+    Reflect.set(drawing.canvas, 'width', 1)
+    drawing.drawImage(video, 0, 0)
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
+    const incoming = new Promise<ServerResponse>((resolve) =>
+      servers[0]!.once('request', (_request, response) => resolve(response)),
+    )
+    video.src = `${origin}/held.webm`
+    const stale = videoSources.get(video)!
+    const response = await incoming
+    const disconnected = once(response, 'close')
+    video.src = videoURL
+    await videoSources.get(video)!.completion
+    await disconnected
+    assert.equal(response.destroyed, true)
+    assert.equal(stale.native, null)
+    assert.equal(video.error, null)
+    assert.equal(video.readyState, 4)
+  },
+)
 
 test(
   'Window close cancels never-resolving image and video interceptors and leaves their promises settled',
@@ -385,32 +514,39 @@ test(
   },
 )
 
-test('absent FFmpeg prerequisites fail explicitly and keep ordinary Canvas drawing usable', async (context) => {
-  // Arrange
-  const { window } = await renderingWindow(context)
-  const savedPath = process.env.PATH
-  const video = window.document.createElement('video')
-  // Act
-  try {
-    process.env.PATH = ''
-    video.src = videoURL
-    await assert.rejects(
-      videoSources.get(video)!.completion,
-      /ffprobe could not run/,
+test(
+  'absent FFmpeg prerequisites fail explicitly and keep ordinary Canvas drawing usable',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const savedPath = process.env.PATH
+    const video = window.document.createElement('video')
+    // Act
+    try {
+      process.env.PATH = ''
+      video.src = videoURL
+      await assert.rejects(
+        videoSources.get(video)!.completion,
+        /ffprobe could not run/,
+      )
+    } finally {
+      process.env.PATH = savedPath
+    }
+    // Assert
+    assert.match(
+      video.error?.message ?? '',
+      /requires ffmpeg and ffprobe on PATH/,
     )
-  } finally {
-    process.env.PATH = savedPath
-  }
-  // Assert
-  assert.match(
-    video.error?.message ?? '',
-    /requires ffmpeg and ffprobe on PATH/,
-  )
-  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
-  drawing.fillStyle = 'blue'
-  drawing.fillRect(0, 0, 1, 1)
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 255, 255])
-})
+    const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
+    drawing.fillStyle = 'blue'
+    drawing.fillRect(0, 0, 1, 1)
+    assert.deepEqual(
+      [...drawing.getImageData(0, 0, 1, 1).data],
+      [0, 0, 255, 255],
+    )
+  },
+)
 
 test(
   'concurrent play calls settle together and Happy DOM completion waits for the real final frame',

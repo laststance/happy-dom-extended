@@ -84,6 +84,7 @@ export function bindCanvasPort(
   let closed = false
   const markClosed = () => {
     closed = true
+    disposeAll([...pending])
   }
   port.once('close', markClosed)
   restorers.push(() => {
@@ -103,22 +104,28 @@ export function bindCanvasPort(
     if (message && typeof message === 'object' && decoded.has(message))
       return decoded.get(message)!
     try {
-      const envelope = portEnvelope(message, token)
-      if (!envelope) return { value: message, ports: [] }
-      const ports = [...envelope.ports.keys()]
-      let value: unknown
       try {
-        value = receiveCanvasTransfer(window, envelope)
+        const envelope = portEnvelope(message, token)
+        if (!envelope) return { value: message, ports: [] }
+        const ports = [...envelope.ports.keys()]
+        const value = receiveCanvasTransfer(window, envelope)
+        const result = { value, ports }
+        if (message && typeof message === 'object') decoded.set(message, result)
+        return result
       } finally {
-        const receipt: unknown = Array.isArray(message) ? message[2] : undefined
+        // Rejecting our header still acknowledges its reservation; ordinary payload ports belong to the caller.
+        const receipt: unknown =
+          Array.isArray(message) && message[0] === token
+            ? message[2]
+            : undefined
         if (receipt instanceof MessagePort) {
-          receipt.postMessage(null)
-          receipt.close()
+          try {
+            receipt.postMessage(null)
+          } finally {
+            receipt.close()
+          }
         }
       }
-      const result = { value, ports }
-      if (message && typeof message === 'object') decoded.set(message, result)
-      return result
     } catch {
       if (message && typeof message === 'object') decoded.set(message, null)
       port.dispatchEvent(new MessageEvent('messageerror'))
@@ -130,8 +137,11 @@ export function bindCanvasPort(
       replaceProperty(port, 'close', {
         writable: true,
         value(...argumentsList: unknown[]) {
-          markClosed()
-          return Reflect.apply(close, port, argumentsList)
+          try {
+            markClosed()
+          } finally {
+            Reflect.apply(close, port, argumentsList)
+          }
         },
       }),
     )

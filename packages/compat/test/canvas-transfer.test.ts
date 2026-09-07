@@ -2,12 +2,114 @@ import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { test } from 'node:test'
 import { setTimeout } from 'node:timers/promises'
-import { markAsUntransferable } from 'node:worker_threads'
+import {
+  markAsUntransferable,
+  MessageChannel as NativeMessageChannel,
+  MessagePort,
+} from 'node:worker_threads'
 import type { MessageChannel } from 'node:worker_threads'
 
 import { Canvas } from 'skia-canvas'
 
 import { renderingWindow } from './utils/rendering-window.ts'
+
+test(
+  'malformed Canvas envelopes release sender quotas and report messageerror',
+  { timeout: 4000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const nativePost = MessagePort.prototype.postMessage
+    const corrupt = context.mock.method(
+      MessagePort.prototype,
+      'postMessage',
+      function (
+        this: MessagePort,
+        ...argumentsList: Parameters<typeof nativePost>
+      ) {
+        const packet: unknown = argumentsList[0]
+        const envelope: unknown = Array.isArray(packet) ? packet[1] : undefined
+        if (
+          envelope &&
+          typeof envelope === 'object' &&
+          Reflect.get(envelope, 'records') instanceof Map
+        )
+          Reflect.set(envelope, 'records', null)
+        return Reflect.apply(nativePost, this, argumentsList)
+      },
+    )
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    const channel = new Constructor()
+    corrupt.mock.restore()
+    channel.port2.on('message', () => {})
+    let errors = 0
+    const decoded = new Promise<void>((resolve) => {
+      channel.port2.on('messageerror', () => {
+        if (++errors === 64) resolve()
+      })
+    })
+    const source = new window.OffscreenCanvas(1, 1)
+    source.getContext('2d')!.fillRect(0, 0, 1, 1)
+    const bitmap = source.transferToImageBitmap()
+    // Act
+    for (let index = 0; index < 64; index += 1)
+      channel.port1.postMessage(bitmap)
+    await decoded
+    let posted = false
+    const deadline = Date.now() + 3000
+    while (!posted && Date.now() < deadline) {
+      await setTimeout(1)
+      try {
+        channel.port1.postMessage(bitmap)
+        posted = true
+      } catch (error) {
+        assert.ok(
+          error instanceof window.DOMException &&
+            error.name === 'QuotaExceededError',
+        )
+      }
+    }
+    // Assert
+    assert.equal(posted, true)
+  },
+)
+
+test(
+  'ordinary native payload arrays keep their transferred ports usable',
+  { timeout: 4000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    const channel = new Constructor()
+    const transferred = new NativeMessageChannel()
+    context.after(() => {
+      transferred.port1.close()
+      transferred.port2.close()
+    })
+    const delivered = once(channel.port2, 'message')
+    // Act
+    MessagePort.prototype.postMessage.call(
+      channel.port1,
+      ['application-data', 7, transferred.port1],
+      [transferred.port1],
+    )
+    const [payload] = await delivered
+    assert.ok(payload[2] instanceof MessagePort)
+    const received: MessagePort = payload[2]
+    context.after(() => received.close())
+    const replied = once(transferred.port2, 'message')
+    received.postMessage('still open')
+    // Assert
+    assert.deepEqual(await replied, ['still open'])
+  },
+)
 
 test('synchronous clone allocation failures preserve both Bitmap and native buffer senders and release partial receivers', async (context) => {
   // Arrange

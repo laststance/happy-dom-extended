@@ -5,6 +5,21 @@ import type { ImageBitmap, ImageData } from 'happy-dom'
 
 import { renderingWindow } from './utils/rendering-window.ts'
 
+test('negative ImageData readback extents select the inverted rectangle without mirroring pixels', async (context) => {
+  // Arrange
+  const { window } = await renderingWindow(context)
+  const drawing = new window.OffscreenCanvas(2, 2).getContext('2d')!
+  drawing.fillStyle = 'red'
+  drawing.fillRect(0, 0, 1, 1)
+  drawing.fillStyle = 'blue'
+  drawing.fillRect(1, 1, 1, 1)
+  // Act
+  const pixels = drawing.getImageData(1, 1, -1, -1)
+  // Assert
+  assert.deepEqual([pixels.width, pixels.height], [1, 1])
+  assert.deepEqual([...pixels.data], [255, 0, 0, 255])
+})
+
 test('ImageData retains supplied subarrays, infers rows, and converts numeric dimensions before allocating Window pixels', async (context) => {
   // Arrange
   const { window } = await renderingWindow(context)
