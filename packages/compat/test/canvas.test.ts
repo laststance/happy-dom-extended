@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { TestContext } from 'node:test'
 
 import { CanvasAdapter } from '@happy-dom/node-canvas-adapter'
 import canvasModule, {
@@ -12,32 +11,9 @@ import canvasModule, {
 import { HTMLCanvasElement, PropertySymbol, Window } from 'happy-dom'
 import type { Blob, OffscreenCanvas } from 'happy-dom'
 
-import {
-  ExtendedCanvasAdapter,
-  disposeAll,
-  installCompatibility,
-} from '../src/index.ts'
+import type { ExtendedCanvasAdapter } from '../src/index.ts'
 
-/** Supplies a real rendering Window to regression tests and releases it after every assertion.
- * @returns The Window and its owned adapter.
- * @example const { window } = renderingWindow(context);
- */
-function renderingWindow(context: TestContext) {
-  const adapter = new ExtendedCanvasAdapter()
-  const window = new Window({
-    settings: { canvasAdapter: adapter, enableImageFileLoading: true },
-  })
-  const dispose = installCompatibility(window)
-  context.after(async () => {
-    try {
-      await adapter.drain()
-    } finally {
-      await window.happyDOM.close()
-      disposeAll([dispose, () => adapter.dispose()])
-    }
-  })
-  return { window, adapter }
-}
+import { renderingWindow } from './utils/rendering-window.ts'
 
 /** Resolves the output of either public Canvas API for non-empty image regression tests.
  * @returns The exported image Blob, rejecting unexpected encoding failure.
@@ -78,7 +54,7 @@ async function decodedImage(blob: Blob) {
 for (const kind of ['HTML', 'Offscreen']) {
   test(`${kind} Canvas draws distinct colors and preserves its owner and Window image types`, async (context) => {
     // Arrange
-    const { window } = renderingWindow(context)
+    const { window } = await renderingWindow(context)
     const canvas =
       kind === 'HTML'
         ? window.document.createElement('canvas')
@@ -109,9 +85,9 @@ for (const kind of ['HTML', 'Offscreen']) {
     assert.equal(canvas.getContext('webgl'), null)
   })
 
-  test(`${kind} Canvas resets pixels and drawing state even when assigning the same dimensions`, (context) => {
+  test(`${kind} Canvas resets pixels and drawing state even when assigning the same dimensions`, async (context) => {
     // Arrange
-    const { window } = renderingWindow(context)
+    const { window } = await renderingWindow(context)
     const canvas =
       kind === 'HTML'
         ? window.document.createElement('canvas')
@@ -143,7 +119,7 @@ for (const kind of ['HTML', 'Offscreen']) {
 
   test(`${kind} Canvas keeps each export's original pixels after redraw and resize`, async (context) => {
     // Arrange
-    const { window } = renderingWindow(context)
+    const { window } = await renderingWindow(context)
     const canvas =
       kind === 'HTML'
         ? window.document.createElement('canvas')
@@ -176,7 +152,7 @@ for (const kind of ['HTML', 'Offscreen']) {
 
   test(`${kind} Canvas exports PNG fallback and a decodable JPEG from actual pixels`, async (context) => {
     // Arrange
-    const { window } = renderingWindow(context)
+    const { window } = await renderingWindow(context)
     const canvas =
       kind === 'HTML'
         ? window.document.createElement('canvas')
@@ -207,9 +183,9 @@ for (const kind of ['HTML', 'Offscreen']) {
   })
 }
 
-test('Canvas attribute assignments and removals resize the existing drawing context', (context) => {
+test('Canvas attribute assignments and removals resize the existing drawing context', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 2
   canvas.height = 1
@@ -240,10 +216,10 @@ test('Canvas attribute assignments and removals resize the existing drawing cont
   )
 })
 
-test('Canvas draws resized source canvases and patterns using the source environment pixels', (context) => {
+test('Canvas draws resized source canvases and patterns using the source environment pixels', async (context) => {
   // Arrange
-  const first = renderingWindow(context)
-  const second = renderingWindow(context)
+  const first = await renderingWindow(context)
+  const second = await renderingWindow(context)
   const source = first.window.document.createElement('canvas')
   source.width = 1
   source.height = 1
@@ -273,7 +249,7 @@ test('Canvas draws resized source canvases and patterns using the source environ
 
 test('Canvas export before drawing preserves a later context choice and encodes transparent pixels', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -297,7 +273,7 @@ test('Canvas export before drawing preserves a later context choice and encodes 
 
 test('Empty HTML canvases notify asynchronously while empty Offscreen canvases reject with IndexSizeError', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 0
   let called = false
@@ -321,7 +297,7 @@ test('Empty HTML canvases notify asynchronously while empty Offscreen canvases r
 
 test('Happy DOM waits for native encoding and releases each temporary bitmap after its callback', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -350,7 +326,7 @@ test('Happy DOM waits for native encoding and releases each temporary bitmap aft
 
 test('Native encoding errors notify callers and leave no pending export or temporary bitmap', async (context) => {
   // Arrange
-  const { window, adapter } = renderingWindow(context)
+  const { window, adapter } = await renderingWindow(context)
   const snapshots: Canvas[] = []
   context.mock.method(Canvas.prototype, 'toBuffer', function (this: Canvas) {
     snapshots.push(this)
@@ -377,7 +353,7 @@ test('Native encoding errors notify callers and leave no pending export or tempo
 
 test('Callback errors release pending exports before the runner reports the original error', async (context) => {
   // Arrange
-  const { window, adapter } = renderingWindow(context)
+  const { window, adapter } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -392,9 +368,9 @@ test('Callback errors release pending exports before the runner reports the orig
   await adapter.drain()
 })
 
-test('Canvas initialization rolls back earlier instance patches when a later hook is locked', (context) => {
+test('Canvas initialization rolls back earlier instance patches when a later hook is locked', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   const original = canvas[PropertySymbol.onSetAttribute]
   Object.defineProperty(canvas, PropertySymbol.onRemoveAttribute, {
@@ -407,9 +383,9 @@ test('Canvas initialization rolls back earlier instance patches when a later hoo
   assert.equal(Object.hasOwn(canvas, PropertySymbol.onSetAttribute), false)
 })
 
-test('Synchronous encoding failure produces an empty data URL while retaining drawable pixels', (context) => {
+test('Synchronous encoding failure produces an empty data URL while retaining drawable pixels', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -425,7 +401,7 @@ test('Synchronous encoding failure produces an empty data URL while retaining dr
 
 test('Invalid output arguments register no asynchronous work and later exports still complete', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -450,7 +426,7 @@ test('Invalid output arguments register no asynchronous work and later exports s
 
 test('Failed snapshot drawing releases its temporary bitmap and a later export keeps the original pixels', async (context) => {
   // Arrange
-  const { window, adapter } = renderingWindow(context)
+  const { window, adapter } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -487,7 +463,7 @@ test('Failed snapshot drawing releases its temporary bitmap and a later export k
 
 test('Rejected output registration releases its snapshot without blocking a later export', async (context) => {
   // Arrange
-  const { window, adapter } = renderingWindow(context)
+  const { window, adapter } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -539,7 +515,7 @@ test('Rejected output registration releases its snapshot without blocking a late
 
 test('Output task cleanup errors release the image and pending export before drain reports the original failure', async (context) => {
   // Arrange
-  const { window, adapter } = renderingWindow(context)
+  const { window, adapter } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -593,7 +569,7 @@ test('Output task cleanup errors release the image and pending export before dra
 
 test('JPEG output forwards inclusive quality bounds and uses encoder defaults for invalid qualities', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 2
   canvas.height = 2
@@ -648,9 +624,9 @@ test('JPEG output forwards inclusive quality bounds and uses encoder defaults fo
   ])
 })
 
-test('Editing Canvas readback pixels changes the drawing only after putImageData copies them back', (context) => {
+test('Editing Canvas readback pixels changes the drawing only after putImageData copies them back', async (context) => {
   // Arrange
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const canvas = window.document.createElement('canvas')
   canvas.width = 1
   canvas.height = 1
@@ -669,10 +645,10 @@ test('Editing Canvas readback pixels changes the drawing only after putImageData
   assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 255, 255])
 })
 
-test('A locked Canvas hook still releases every owned bitmap and preserves rendering in another environment', (context) => {
+test('A locked Canvas hook still releases every owned bitmap and preserves rendering in another environment', async (context) => {
   // Arrange
-  const { window, adapter } = renderingWindow(context)
-  const survivor = renderingWindow(context)
+  const { window, adapter } = await renderingWindow(context)
+  const survivor = await renderingWindow(context)
   const bitmaps: Canvas[] = []
   const originalGetContext = Canvas.prototype.getContext
   context.mock.method(
@@ -718,13 +694,13 @@ test('A locked Canvas hook still releases every owned bitmap and preserves rende
   )
 })
 
-test('Canvas drawing and patterns retain pixels from a caller-owned official source adapter', (context) => {
+test('Canvas drawing and patterns retain pixels from a caller-owned official source adapter', async (context) => {
   // Arrange
   const sourceWindow = new Window({
     settings: { canvasAdapter: new CanvasAdapter() },
   })
   context.after(async () => sourceWindow.happyDOM.close())
-  const { window } = renderingWindow(context)
+  const { window } = await renderingWindow(context)
   const source = sourceWindow.document.createElement('canvas')
   source.width = 1
   source.height = 1
@@ -754,7 +730,7 @@ test(
   { timeout: 2000 },
   async (context) => {
     // Arrange
-    const { window, adapter } = renderingWindow(context)
+    const { window, adapter } = await renderingWindow(context)
     const jpegVersion = Object.getOwnPropertyDescriptor(
       canvasModule,
       'jpegVersion',
