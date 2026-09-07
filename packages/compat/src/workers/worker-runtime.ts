@@ -34,19 +34,39 @@ export async function startOwnedWorker(): Promise<void> {
   const dispose = installCompatibility(window, new URL(startup.bootstrap))
   const restorePort = bindCanvasPort(window, startup.messages, startup.token)
   let closing: Promise<void> | undefined
+  /** Joins child teardown once, reporting failures before closing the parent's control channel.
+   * @returns Cleanup completion, with teardown failures reported through an ErrorEvent.
+   * @example void close();
+   */
   const close = async (): Promise<void> =>
     (closing ??= (async () => {
+      const results = await Promise.allSettled([
+        window.happyDOM.close(),
+        adapter.drain(),
+      ])
+      const errors: unknown[] = results.flatMap((result) =>
+        result.status === 'rejected' ? [result.reason] : [],
+      )
       try {
-        await Promise.all([window.happyDOM.close(), adapter.drain()])
+        disposeAll(
+          [
+            restorePort,
+            dispose,
+            () => adapter.dispose(),
+            () => startup.messages.close(),
+            () => startup.requests.close(),
+          ],
+          errors,
+        )
+      } catch {
+        // Keep the first failure observable without crashing an otherwise fully closed thread.
+        startup.control.postMessage({
+          type: 'error',
+          message: String(errors[0]),
+          filename: startup.url,
+        })
       } finally {
-        disposeAll([
-          restorePort,
-          dispose,
-          () => adapter.dispose(),
-          () => startup.messages.close(),
-          () => startup.requests.close(),
-          () => startup.control.close(),
-        ])
+        startup.control.close()
       }
     })())
   const report = (error: unknown, filename = startup.url) => {

@@ -40,6 +40,8 @@ HTTP(S) classic entries, all imported classic scripts and all module scripts req
 
 Local file URLs, Node/bare-package imports, import attributes, nested Worker, SharedWorker and ServiceWorker are outside this dedicated-worker contract. The worker global has no document/window/process/require bindings; the V8 context is not a security sandbox. Startup/runtime errors dispatch parent Window ErrorEvents. `terminate()` suppresses further delivery immediately; environment close waits for actual thread exit and force-terminates a blocked script after two seconds.
 
+HTTP media and script endpoints remain supported, including credentialed same-origin requests. Cookie selection follows Happy DOM's cookie attributes and each request's credentials mode. The extension does not add browser mixed-content blocking or an HTTPS-only policy; use a real browser to verify those transport-security policies.
+
 ### Resource ceilings
 
 | Resource                                                                                  | Bound / behavior                                                                                            |

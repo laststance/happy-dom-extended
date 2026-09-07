@@ -7,8 +7,15 @@
     import { renderCanvasCases } from './render-cases.mjs'
 
     const font = new FontFace('Ahem', 'url(./Ahem.ttf)')
-    await font.load()
-    document.fonts.add(font)
+    try {
+      await font.load()
+      document.fonts.add(font)
+    } catch (error) {
+      // Failed reference captures must display the cause instead of remaining on the loading message.
+      document.querySelector('#result').textContent =
+        `Ahem failed to load: ${String(error)}`
+      throw error
+    }
     const cases = renderCanvasCases((width, height) => {
       const canvas = document.createElement('canvas')
       canvas.width = width

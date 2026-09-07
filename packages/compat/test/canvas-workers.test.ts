@@ -381,7 +381,7 @@ test(
 )
 
 test(
-  'Worker load, module import and uncaught startup errors dispatch Window ErrorEvents and release their real threads',
+  'Worker load, startup and teardown failures dispatch Window ErrorEvents and release their threads without crashing',
   { timeout: 8000 },
   async (context) => {
     // Arrange
@@ -399,6 +399,11 @@ test(
         'module',
         /Unsupported media URL protocol/,
       ],
+      [
+        `data:text/javascript,${encodeURIComponent("const channel = new MessageChannel(); Object.defineProperty(channel.port1, 'postMessage', { configurable: false }); close();")}`,
+        'classic',
+        /Cannot restore property: postMessage/,
+      ],
     ] as const
     for (const [url, type, expected] of cases) {
       const worker = new Constructor(url, { type })
@@ -411,10 +416,11 @@ test(
       )
       // Act
       const event = await failed
-      await exited
+      const [exitCode] = await exited
       // Assert
       assert.equal(event instanceof window.ErrorEvent, true)
       assert.match(event.message, expected)
+      assert.equal(exitCode, 0)
       assert.equal(thread.threadId, -1)
     }
   },

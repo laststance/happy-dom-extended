@@ -8,9 +8,9 @@ Local tests ran on macOS arm64 with Node.js 24.20.0. Test output, not a zero pro
 
 | Layer                               | Expected successful execution                                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Node source regressions             | 149 tests, including the implementation-review regressions                                                |
+| Node source regressions             | 166 tests, including the implementation and PR review regressions                                         |
 | Jest integration                    | 20 tests in 4 suites                                                                                      |
-| Installed consumer per Jest version | 10 lifecycle tests; 10 Jest tests in 3 suites in serial mode; the same 10 tests with two worker processes |
+| Installed consumer per Jest version | 11 lifecycle tests; 10 Jest tests in 3 suites in serial mode; the same 10 tests with two worker processes |
 | Public entry points                 | Shared ESM/CommonJS runtime, consistent Happy DOM class identity, removed `/canvas` rejected              |
 
 The isolated tarball is installed outside this checkout in a path containing spaces, with native install scripts enabled. The fixture does not install Canvas directly. PNG is independently decoded using pngjs; JPEG/WebP are decoded by FFmpeg and compared with documented tolerance. The private Worker bootstrap executes from the installed package, including Blob-based scripts. Setup records verify worker process identities, and Jest JSON reports verify every expected suite and test.
