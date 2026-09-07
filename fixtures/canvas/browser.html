@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <title>Canvas renderer reference</title>
+  <pre id="result">Loading Ahem…</pre>
+  <script type="module">
+    import { renderCanvasCases } from './render-cases.mjs'
+
+    const font = new FontFace('Ahem', 'url(./Ahem.ttf)')
+    await font.load()
+    document.fonts.add(font)
+    const cases = renderCanvasCases((width, height) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      return canvas
+    })
+    document.querySelector('#result').textContent = JSON.stringify(
+      {
+        userAgent: navigator.userAgent,
+        width: 16,
+        height: 16,
+        cases,
+      },
+      null,
+      2,
+    )
+  </script>
+</html>

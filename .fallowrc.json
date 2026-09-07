@@ -2,6 +2,8 @@
   "$schema": "./node_modules/fallow/schema.json",
   "entry": [
     "packages/*/src/index.ts",
+    "packages/*/src/worker.ts",
+    "packages/compat/src/workers/worker-bootstrap.ts",
     "packages/*/tsdown.config.ts",
     "packages/*/test/**/*.test.ts",
     "packages/compat/test/upstream-probe.ts",
@@ -27,13 +29,15 @@
   ],
   "usedClassMembers": [
     {
-      "extends": "CanvasAdapter",
+      "implements": "ICanvasAdapter",
       "members": ["getContext", "toDataURL", "toBlob"]
     }
   ],
   "ignoreDependencies": [
-    "@happy-dom/node-canvas-adapter",
-    "canvas",
-    "happy-dom"
+    "happy-dom",
+    "buffer-image-size",
+    "culori",
+    "skia-canvas",
+    "webidl-conversions"
   ]
 }

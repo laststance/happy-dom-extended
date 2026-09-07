@@ -7,6 +7,9 @@ import {
 
 import type { Window } from 'happy-dom'
 
+import { ExtendedCanvasAdapter } from './canvas/adapter.ts'
+import { bindCanvasPort } from './canvas/ports.ts'
+import { canvasPortInstallers } from './canvas/state.ts'
 import type { DisposeCompatibility } from './types.ts'
 import { disposeAll } from './utils/dispose-all.ts'
 import { replaceProperty } from './utils/replace-property.ts'
@@ -23,6 +26,18 @@ export function installMessaging(
 ): void {
   const channels = new Set<BroadcastChannel | MessagePort>()
   const namespace = `happy-dom-extended:${randomUUID()}:`
+  const ownsCanvas =
+    window.happyDOM.settings.canvasAdapter instanceof ExtendedCanvasAdapter
+  const installPort = (port: MessagePort, token: string) => {
+    channels.add(port)
+    restorers.push(bindCanvasPort(window, port, token))
+  }
+  if (ownsCanvas) {
+    canvasPortInstallers.set(window, installPort)
+    restorers.push(() => {
+      canvasPortInstallers.delete(window)
+    })
+  }
   restorers.push(() => {
     const closers = [...channels].map((channel) => () => channel.close())
     channels.clear()
@@ -69,6 +84,11 @@ export function installMessaging(
         super()
         channels.add(this.port1)
         channels.add(this.port2)
+        if (ownsCanvas) {
+          const token = randomUUID()
+          installPort(this.port1, token)
+          installPort(this.port2, token)
+        }
       }
     }
     // Port identity must match the ports returned by the native channel.

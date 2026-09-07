@@ -1,21 +1,20 @@
-import { Canvas, CanvasRenderingContext2D } from 'canvas'
-import { HTMLCanvasElement, ImageData, OffscreenCanvas } from 'happy-dom'
-import type { ICanvasAdapterCaller, ICanvasRenderingContext2D } from 'happy-dom'
+import type { ICanvasRenderingContext2D } from 'happy-dom'
 
-import { NATIVE_CANVAS } from './constants.ts'
+import { NATIVE_CANVAS, PIXEL_DRAWING_METHODS } from './constants.ts'
+import { invokeCanvasMethod } from './operations.ts'
+import { requestCanvasPresentation } from './presentation.ts'
+import { setCanvasProperty } from './properties.ts'
+import type { CanvasState } from './types.ts'
 
-/** Exposes the DOM owner and Window image types while retaining native method receivers for {@link ExtendedCanvasAdapter}.
- * @param caller - Window and DOM canvas requesting the context.
- * @param context - Official adapter context, whose native canvas property must stay writable.
- * @param bitmap - Native pixels used for drawing and encoding.
- * @returns A stable view that also permits normal consumer spies and method replacement.
- * @example createCanvasContext(caller, context, bitmap).canvas === caller.canvas;
+/** Exposes the DOM owner and Window image types while retaining native receivers for {@link ExtendedCanvasAdapter}.
+ * @param state - Canvas owner, renderer and lifetime being exposed.
+ * @returns A stable context that permits normal consumer spies and method replacement.
+ * @example canvas.getContext('2d').canvas === canvas;
  */
 export function createCanvasContext(
-  caller: ICanvasAdapterCaller,
-  context: ICanvasRenderingContext2D,
-  bitmap: Canvas,
+  state: CanvasState,
 ): ICanvasRenderingContext2D {
+  const { caller, nativeContext: context, bitmap } = state
   const methods = new Map<
     PropertyKey,
     { original: unknown; bound: (...argumentsList: unknown[]) => unknown }
@@ -47,7 +46,25 @@ export function createCanvasContext(
     return true
   }
 
-  return new Proxy(context, {
+  // Keep the adapter's existing own-method descriptors so descriptor-based spies can restore the original bindings.
+  for (const key of [
+    'createImageData',
+    'getImageData',
+    'putImageData',
+    'drawImage',
+  ]) {
+    Object.defineProperty(context, key, {
+      configurable: true,
+      writable: true,
+      value: Reflect.get(context, key),
+    })
+  }
+  Object.defineProperty(context, 'getContextAttributes', {
+    configurable: true,
+    writable: true,
+    value: () => ({ ...state.settings }),
+  })
+  const proxy = new Proxy(context, {
     get(target, key) {
       if (key === 'canvas') return caller.canvas
       if (key === NATIVE_CANVAS) return bitmap
@@ -59,47 +76,20 @@ export function createCanvasContext(
       if (cached && (cached.original === original || cached.bound === original))
         return cached.bound
       const bound = (...argumentsList: unknown[]): unknown => {
-        const [source] = argumentsList
+        const result = invokeCanvasMethod(state, key, original, argumentsList)
         if (
-          (key === 'drawImage' || key === 'createPattern') &&
-          (source instanceof HTMLCanvasElement ||
-            source instanceof OffscreenCanvas)
-        ) {
-          const sourceContext = source.getContext('2d')
-          const sourceBitmap: unknown =
-            sourceContext &&
-            (Reflect.get(sourceContext, NATIVE_CANVAS) ??
-              Reflect.get(sourceContext, 'canvas'))
-          if (sourceBitmap instanceof Canvas) {
-            // Resolve through the source owner so resized and other-environment canvases use their actual pixels.
-            return Reflect.apply(
-              CanvasRenderingContext2D.prototype[key],
-              target,
-              [sourceBitmap, ...argumentsList.slice(1)],
-            )
-          }
-        }
-        const result: unknown = Reflect.apply(original, target, argumentsList)
-        if (
-          (key === 'getImageData' || key === 'createImageData') &&
-          result instanceof ImageData
-        ) {
-          return new caller.window.ImageData(
-            new caller.window.Uint8ClampedArray(
-              result.data.buffer,
-              result.data.byteOffset,
-              result.data.length,
-            ),
-            result.width,
-            result.height,
-          )
-        }
+          PIXEL_DRAWING_METHODS.has(key) ||
+          ['drawImage', 'putImageData', 'reset'].includes(String(key))
+        )
+          requestCanvasPresentation(caller.canvas)
         return result
       }
       methods.set(key, { original, bound })
       return bound
     },
     set(target, key, value) {
+      const handled = setCanvasProperty(state, key, value)
+      if (handled !== undefined) return handled
       return updateReplacement(key, () =>
         Reflect.set(target, key, value, target),
       )
@@ -113,4 +103,6 @@ export function createCanvasContext(
       return updateReplacement(key, () => Reflect.deleteProperty(target, key))
     },
   })
+  // The proxy translates source/ImageData brands; Happy DOM's interface also includes optional Cairo-only extensions.
+  return proxy as unknown as ICanvasRenderingContext2D
 }

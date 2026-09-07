@@ -25,6 +25,19 @@ jobs:
       - uses: ./.github/actions/prepare
         with:
           node-version: ${{ matrix.node }}
+      - name: Install video decoders on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+      - name: Install video decoders on Windows
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+      - name: Verify video decoder prerequisites
+        shell: bash
+        run: |
+          ffmpeg -version
+          ffprobe -version
       - run: pnpm test:coverage
       - run: pnpm test:package
       - name: Upload coverage to Codecov

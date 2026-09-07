@@ -1,9 +1,11 @@
 import { HTMLCanvasElement, PropertySymbol } from 'happy-dom'
+import conversions from 'webidl-conversions'
 
 import { replaceProperty } from '../utils/replace-property.ts'
 
 import { CANVAS_DIMENSIONS } from './constants.ts'
 import type { CanvasState } from './types.ts'
+import { conversionOptions } from './utils/conversion-options.ts'
 
 /** Observes dimension assignments for {@link ExtendedCanvasAdapter}, including assignments that repeat the current size.
  * @param state - Canvas owner and its already allocated native bitmap.
@@ -27,7 +29,7 @@ export function installCanvasDimensions(state: CanvasState): void {
             if (attribute.namespaceURI !== null) return
             // Property setters and attribute changes meet here, including equal values and removals.
             if (attribute.name === 'width' || attribute.name === 'height') {
-              state.bitmap[attribute.name] = canvas[attribute.name]
+              state.reset()
             }
           },
         }),
@@ -41,9 +43,12 @@ export function installCanvasDimensions(state: CanvasState): void {
       replaceProperty(canvas, dimension, {
         enumerable: true,
         get: () => size,
-        set: (value: number): void => {
-          state.bitmap[dimension] = value
-          size = state.bitmap[dimension]
+        set: (value: unknown): void => {
+          size = conversions['unsigned long'](value, {
+            ...conversionOptions(state.caller.window),
+            enforceRange: true,
+          })
+          state.reset()
         },
       }),
     )

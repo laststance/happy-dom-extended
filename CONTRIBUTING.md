@@ -10,7 +10,7 @@ Implement working behavior. Fixed return values and application-specific mocks b
 
 ## Local setup
 
-Install Node.js 24.20.0 (see `.node-version`) and the pnpm 12.3.4 version pinned with integrity in `package.json`. Follow [pnpm's installation guide](https://pnpm.io/installation). Install the native dependencies described in the [package guide](packages/jest-happy-dom-extended/README.md#native-installation) if a prebuilt Canvas binary is unavailable.
+Install Node.js 24.20.0 (see `.node-version`) and the pnpm 12.3.4 version pinned with integrity in `package.json`. Follow [pnpm's installation guide](https://pnpm.io/installation). The test suite needs ffmpeg and ffprobe on PATH (`brew install ffmpeg`, `sudo apt-get install ffmpeg`, or `choco install ffmpeg --yes`). Verify both with `ffmpeg -version` and `ffprobe -version`. Skia's native install script must run; development also installs node-canvas for foreign-adapter regressions.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -39,7 +39,7 @@ Code and documentation use English. Test names use `test`, describe what breaks 
 - `pnpm health`, `pnpm dupes`, `pnpm dead-code`: Fallow checks. Run `pnpm test` first for health's measured coverage.
 - `pnpm check:package`: publint and Are the Types Wrong export/type validation.
 
-Fallow excludes test procedures from complexity and duplication scoring. It recognizes CanvasAdapter callbacks invoked by Happy DOM. Its three explicitly ignored dependency names (`canvas`, `happy-dom`, and `@happy-dom/node-canvas-adapter`) are runtime imports from the bundled private workspace; the public manifest must declare them even though static per-workspace analysis cannot follow that bundling. Isolated consumers verify their presence and shared Happy DOM class identity. Do not add ignore entries without equivalent evidence.
+Fallow excludes test procedures from complexity and duplication scoring. It recognizes callbacks implementing Happy DOM's ICanvasAdapter and the private Worker entry points. Its explicitly ignored dependency names (`happy-dom`, `buffer-image-size`, `culori`, `skia-canvas`, and `webidl-conversions`) are runtime imports from the bundled private workspace; the public manifest must declare them even though static per-workspace analysis cannot follow that bundling. Isolated consumers verify their presence and shared Happy DOM class identity. Do not add ignore entries without equivalent evidence.
 
 ## Releases
 

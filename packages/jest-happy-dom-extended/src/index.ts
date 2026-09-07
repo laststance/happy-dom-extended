@@ -37,7 +37,11 @@ export default class HappyDOMExtendedEnvironment extends HappyDOMBase {
     }
     this.#canvasAdapter = prepared.adapter
     try {
-      this.#disposeCompatibility = installCompatibility(this.window)
+      this.#disposeCompatibility = installCompatibility(
+        this.window,
+        // fallow-ignore-next-line unresolved-import -- tsdown emits this private bootstrap; installed-tarball tests execute it.
+        new URL('./worker.cjs', import.meta.url),
+      )
     } catch (error) {
       // Jest cannot tear down an environment whose constructor failed.
       void this.window.happyDOM.close().catch((cleanupError: unknown) => {

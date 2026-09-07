@@ -137,17 +137,17 @@ try {
       const results = JSON.parse(readFileSync(testReport, 'utf8'))
       if (
         !results.success ||
-        results.numTotalTests !== 6 ||
-        results.numPassedTests !== 6 ||
+        results.numTotalTests !== 10 ||
+        results.numPassedTests !== 10 ||
         results.numTotalTestSuites !== 3 ||
         results.numPassedTestSuites !== 3
       ) {
         throw new Error(
-          `Jest ${jestVersion} (${mode}) did not pass all six tests in three consumer suites.`,
+          `Jest ${jestVersion} (${mode}) did not pass all ten tests in three consumer suites.`,
         )
       }
       const expectedSuites = new Map([
-        ['package.test.cjs', 1],
+        ['package.test.cjs', 5],
         ['canvas.test.cjs', 3],
         ['offscreen.test.cjs', 2],
       ])

@@ -2,18 +2,19 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { CanvasAdapter } from '@happy-dom/node-canvas-adapter'
-import canvasModule, {
-  Canvas,
-  CanvasRenderingContext2D,
-  createCanvas,
-  loadImage,
-} from 'canvas'
+import canvasModule, { createCanvas, loadImage } from 'canvas'
 import { HTMLCanvasElement, PropertySymbol, Window } from 'happy-dom'
 import type { Blob, OffscreenCanvas } from 'happy-dom'
+import { Canvas } from 'skia-canvas'
+import type { CanvasRenderingContext2D } from 'skia-canvas'
 
 import type { ExtendedCanvasAdapter } from '../src/index.ts'
 
 import { renderingWindow } from './utils/rendering-window.ts'
+
+const nativeContextPrototype: CanvasRenderingContext2D = Object.getPrototypeOf(
+  new Canvas(0, 0).getContext('2d'),
+)
 
 /** Resolves the output of either public Canvas API for non-empty image regression tests.
  * @returns The exported image Blob, rejecting unexpected encoding failure.
@@ -407,7 +408,10 @@ test('Invalid output arguments register no asynchronous work and later exports s
   canvas.height = 1
   const failure = new Error('MIME conversion failed')
   // Act / Assert
-  assert.throws(() => Reflect.apply(canvas.toBlob, canvas, [null]), TypeError)
+  assert.throws(
+    () => Reflect.apply(canvas.toBlob, canvas, [null]),
+    window.TypeError,
+  )
   assert.throws(
     () =>
       Reflect.apply(canvas.toBlob, canvas, [
@@ -436,7 +440,7 @@ test('Failed snapshot drawing releases its temporary bitmap and a later export k
   const failure = new Error('Snapshot drawing failed')
   const snapshots: Canvas[] = []
   const drawImage = context.mock.method(
-    CanvasRenderingContext2D.prototype,
+    nativeContextPrototype,
     'drawImage',
     function (this: CanvasRenderingContext2D) {
       snapshots.push(this.canvas)
@@ -444,10 +448,15 @@ test('Failed snapshot drawing releases its temporary bitmap and a later export k
     },
   )
   // Act / Assert
-  assert.throws(
-    () => canvas.toBlob(() => {}),
-    (error) => error === failure,
+  let callbackRan = false
+  const output = new Promise((resolve) =>
+    canvas.toBlob((blob) => {
+      callbackRan = true
+      resolve(blob)
+    }),
   )
+  assert.equal(callbackRan, false)
+  assert.equal(await output, null)
   assert.deepEqual(
     snapshots.map((snapshot) => [snapshot.width, snapshot.height]),
     [[0, 0]],
@@ -472,9 +481,9 @@ test('Rejected output registration releases its snapshot without blocking a late
   drawing.fillRect(0, 0, 1, 1)
   const failure = new Error('Output registration failed')
   const snapshots: Canvas[] = []
-  const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage
+  const originalDrawImage = nativeContextPrototype.drawImage
   context.mock.method(
-    CanvasRenderingContext2D.prototype,
+    nativeContextPrototype,
     'drawImage',
     function (this: CanvasRenderingContext2D, ...argumentsList: unknown[]) {
       snapshots.push(this.canvas)
@@ -602,11 +611,11 @@ test('JPEG output forwards inclusive quality bounds and uses encoder defaults fo
     // Assert
     assert.match(dataURL, /^data:image\/jpeg;base64,/)
     assert.deepEqual(dataURLCalls.mock.calls.at(-1)?.arguments, [
-      'image/jpeg',
+      'jpeg',
       expectedQuality,
     ])
-    assert.deepEqual(bufferCalls.mock.calls.at(-1)?.arguments.slice(1), [
-      'image/jpeg',
+    assert.deepEqual(bufferCalls.mock.calls.at(-1)?.arguments, [
+      'jpeg',
       expectedOptions,
     ])
     assert.ok(blob)
@@ -618,8 +627,8 @@ test('JPEG output forwards inclusive quality bounds and uses encoder defaults fo
   // OffscreenCanvas passes its options through the same native quality contract.
   const offscreen = new window.OffscreenCanvas(1, 1)
   await offscreen.convertToBlob({ type: 'image/jpeg', quality: 0.75 })
-  assert.deepEqual(bufferCalls.mock.calls.at(-1)?.arguments.slice(1), [
-    'image/jpeg',
+  assert.deepEqual(bufferCalls.mock.calls.at(-1)?.arguments, [
+    'jpeg',
     { quality: 0.75 },
   ])
 })
@@ -675,7 +684,7 @@ test('A locked Canvas hook still releases every owned bitmap and preserves rende
   // Act / Assert
   assert.throws(() => adapter.dispose(), /Cannot restore property/)
   assert.deepEqual(
-    bitmaps.map((bitmap) => [bitmap.width, bitmap.height]),
+    [...new Set(bitmaps)].map((bitmap) => [bitmap.width, bitmap.height]),
     [
       [0, 0],
       [0, 0],
@@ -726,7 +735,7 @@ test('Canvas drawing and patterns retain pixels from a caller-owned official sou
 })
 
 test(
-  'Missing native JPEG support produces real PNG output with matching MIME types and completes every export',
+  'Bundled JPEG output completes independently of a foreign adapter codec configuration',
   { timeout: 2000 },
   async (context) => {
     // Arrange
@@ -756,18 +765,20 @@ test(
       const offscreenOutput = exportImage(offscreen, 'image/jpeg')
       await adapter.drain()
       // Assert
-      assert.match(dataURL, /^data:image\/png;base64,/)
+      assert.match(dataURL, /^data:image\/jpeg;base64,/)
       assert.deepEqual(
-        [...Buffer.from(dataURL.split(',')[1]!, 'base64').subarray(0, 8)],
-        [137, 80, 78, 71, 13, 10, 26, 10],
+        [...Buffer.from(dataURL.split(',')[1]!, 'base64').subarray(0, 3)],
+        [255, 216, 255],
       )
       for (const blob of [await htmlOutput, await offscreenOutput]) {
-        assert.equal(blob.type, 'image/png')
-        assert.deepEqual(await decodedImage(blob), {
-          width: 1,
-          height: 1,
-          pixels: [255, 0, 0, 255],
-        })
+        assert.equal(blob.type, 'image/jpeg')
+        const decoded = await decodedImage(blob)
+        assert.equal(decoded.width, 1)
+        assert.equal(decoded.height, 1)
+        assert.ok(decoded.pixels[0]! >= 253)
+        assert.ok(decoded.pixels[1]! <= 2)
+        assert.ok(decoded.pixels[2]! <= 2)
+        assert.equal(decoded.pixels[3], 255)
       }
       await window.happyDOM.waitUntilComplete()
     } finally {

@@ -9,10 +9,16 @@
   },
   "devDependencies": {
     "@happy-dom/node-canvas-adapter": "^20.14.0",
+    "@types/culori": "4.0.1",
     "@types/pngjs": "6.0.5",
+    "@types/webidl-conversions": "7.0.3",
+    "buffer-image-size": "0.6.4",
     "canvas": "^3.2.3",
+    "culori": "4.0.2",
     "fast-check": "4.9.0",
-    "happy-dom": "^20.14.0",
-    "pngjs": "7.0.0"
+    "happy-dom": "20.14.0",
+    "pngjs": "7.0.0",
+    "skia-canvas": "3.0.8",
+    "webidl-conversions": "8.0.1"
   }
 }
