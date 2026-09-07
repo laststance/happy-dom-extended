@@ -1,19 +1,19 @@
 # Verification
 
-The Issue #2 implementation replaces the Canvas stub with native drawing. The baseline is Happy DOM 20.14.0, canvas 3.2.3, and Jest 30.5.1, with installed consumers also checked against Jest 30.0.0.
+The current implementation owns Canvas semantics around CPU skia-canvas 3.0.8, including real image/video sources, origin-clean checks, ImageData color conversion, Bitmap transport and dedicated Workers. The runtime baseline is pinned Happy DOM 20.14.0 and Jest 30.5.1, with installed consumers also checked against Jest 30.0.0. The official node-canvas adapter remains a development-only interoperability fixture.
 
 ## Local evidence
 
 Local tests ran on macOS arm64 with Node.js 24.20.0. Test output, not a zero process exit alone, determines completion.
 
-| Layer                               | Expected successful execution                                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Node source regressions             | 53 tests: compatibility, real Canvas, and source environment failure paths                              |
-| Jest integration                    | 15 tests in 3 suites                                                                                    |
-| Installed consumer per Jest version | 10 lifecycle tests; 6 Jest tests in 3 suites in serial mode; the same 6 tests with two worker processes |
-| Public entry points                 | Shared ESM/CommonJS runtime, consistent Happy DOM class identity, removed `/canvas` rejected            |
+| Layer                               | Expected successful execution                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Node source regressions             | 166 tests, including the implementation and PR review regressions                                         |
+| Jest integration                    | 20 tests in 4 suites                                                                                      |
+| Installed consumer per Jest version | 11 lifecycle tests; 10 Jest tests in 3 suites in serial mode; the same 10 tests with two worker processes |
+| Public entry points                 | Shared ESM/CommonJS runtime, consistent Happy DOM class identity, removed `/canvas` rejected              |
 
-The isolated tarball is installed outside this checkout in a path containing spaces, with native install scripts enabled. The fixture does not install Canvas directly. PNG is independently decoded using pngjs; JPEG is decoded and compared with tolerance. Setup records verify worker process identities, and Jest JSON reports verify every expected suite and test.
+The isolated tarball is installed outside this checkout in a path containing spaces, with native install scripts enabled. The fixture does not install Canvas directly. PNG is independently decoded using pngjs; JPEG/WebP are decoded by FFmpeg and compared with documented tolerance. The private Worker bootstrap executes from the installed package, including Blob-based scripts. Setup records verify worker process identities, and Jest JSON reports verify every expected suite and test.
 
 Source tests cover actual red/blue/transparent pixels, Window ImageData types, same-value and attribute dimension resets, resized source canvases, image output before context creation, snapshot preservation during redraw/resize, Happy DOM waiting, callback and encoder failures, frozen configuration, and teardown with unrelated intervals. Mixed ESM/CommonJS environments retain Canvas and Blob behavior regardless of creation/closing order. Cleanup failures preserve the original error and attempt remaining restorations.
 
@@ -38,4 +38,4 @@ These workflow definitions describe the configured matrix. A local macOS pass do
 
 Jest 30.5.1 evaluates setup modules outside part of its teardown protection. Application setup that opens native channels must clean up if setup fails; preserving native references prevents silent early process exit. This runner boundary and rendering limitations are described in the [package guide](../packages/jest-happy-dom-extended/README.md#runtime-boundaries).
 
-A minor Changeset records the public Canvas change. The package has not yet been published to npm; `packages/compat` remains private and bundled, and the Vitest workspace remains a placeholder. See [Canvas research](research/canvas-rendering.md) for the repaired gaps and remaining upstream/backend boundaries.
+A minor Changeset records the public Canvas change. The package has not yet been published to npm; `packages/compat` remains private and bundled, and the Vitest workspace remains a placeholder. See [Canvas compatibility and verification](canvas-compatibility.md) for current guarantees, native prerequisites, selected WPT coverage and measured renderer differences. Earlier research documents are historical evidence, not the current support contract.

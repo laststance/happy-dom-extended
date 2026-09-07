@@ -1,9 +1,12 @@
-import { HTMLCanvasElement, PropertySymbol } from 'happy-dom'
+import { HTMLCanvasElement, OffscreenCanvas, PropertySymbol } from 'happy-dom'
+import conversions from 'webidl-conversions'
 
 import { replaceProperty } from '../utils/replace-property.ts'
 
 import { CANVAS_DIMENSIONS } from './constants.ts'
+import { offscreenDimensions } from './state.ts'
 import type { CanvasState } from './types.ts'
+import { conversionOptions } from './utils/conversion-options.ts'
 
 /** Observes dimension assignments for {@link ExtendedCanvasAdapter}, including assignments that repeat the current size.
  * @param state - Canvas owner and its already allocated native bitmap.
@@ -27,7 +30,7 @@ export function installCanvasDimensions(state: CanvasState): void {
             if (attribute.namespaceURI !== null) return
             // Property setters and attribute changes meet here, including equal values and removals.
             if (attribute.name === 'width' || attribute.name === 'height') {
-              state.bitmap[attribute.name] = canvas[attribute.name]
+              state.reset()
             }
           },
         }),
@@ -35,15 +38,21 @@ export function installCanvasDimensions(state: CanvasState): void {
     }
     return
   }
+  // Owned Offscreen accessors already reset pixels and publish size changes from one shared record.
+  if (canvas instanceof OffscreenCanvas && offscreenDimensions.has(canvas))
+    return
   for (const dimension of CANVAS_DIMENSIONS) {
     let size = canvas[dimension]
     state.restorers.push(
       replaceProperty(canvas, dimension, {
         enumerable: true,
         get: () => size,
-        set: (value: number): void => {
-          state.bitmap[dimension] = value
-          size = state.bitmap[dimension]
+        set: (value: unknown): void => {
+          size = conversions['unsigned long'](value, {
+            ...conversionOptions(state.caller.window),
+            enforceRange: true,
+          })
+          state.reset()
         },
       }),
     )

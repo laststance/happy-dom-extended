@@ -29,7 +29,11 @@ CI tests Node 22.18.0, 24.20.0, and 26.8.1 on Linux and Windows with Jest 30.0.0
 
 Use `test`, observable names, literal expected values, and Arrange/Act/Assert. Check actual RGBA pixels, dimensions, MIME type, and decoded output rather than object existence. Cover image snapshots during redraw/resize, same-value dimension assignments, setup ordering, simultaneous environments, and disposal after errors. Await asynchronous operations and close test-owned resources.
 
-Use fault injection only to reach real error paths (encoder failure, callback exception, locked descriptor). Do not replace rendering with fixed-result mocks. Ordinary CI checks temporary image release and surviving environments; it does not depend on GC timing or a fixed RSS limit. Use a browser for layout, WebGL, Workers, animation frames, and browser rendering comparisons outside the stated guarantees.
+Use fault injection only to reach real error paths (encoder failure, callback exception, locked descriptor). Do not replace rendering with fixed-result mocks. Ordinary CI checks temporary image release and surviving environments; it does not depend on GC timing or a fixed RSS limit. Dedicated Worker tests execute actual Node threads and installed bootstrap files. Use a browser for layout, WebGL and behavior outside the [stated Canvas/Worker guarantees](docs/canvas-compatibility.md).
+
+Image/video cancellation tests wait for a real HTTP request and keep its response open before replacing the source or closing the Window. Decoder cancellation tests hold an actual FFmpeg child's input open and observe its exit before a replacement decoder starts or teardown resolves. These barriers distinguish cancellation of running work from cancellation before an operation starts. Video tests need ffmpeg and ffprobe on PATH.
+
+Rendering comparisons share `fixtures/canvas/render-cases.mjs` with a real browser page and a licensed, pinned Ahem font. Alpha and premultiplied RGB differences use the measured ceilings in [Canvas verification](docs/canvas-compatibility.md#reproduce-the-rendering-comparison). PNGJS independently decodes PNG output; FFmpeg independently decodes JPEG/WebP. Do not regenerate reference pixels to conceal a regression.
 
 ## Generated compatibility properties
 

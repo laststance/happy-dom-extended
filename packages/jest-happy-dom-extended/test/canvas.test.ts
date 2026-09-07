@@ -1,5 +1,25 @@
 import { expect, jest, test } from '@jest/globals'
 
+test('P3 ImageData keeps Jest VM arrays and real colors through readback and pixel replacement', () => {
+  // Arrange
+  const drawing = new OffscreenCanvas(1, 1).getContext('2d')!
+  drawing.fillStyle = 'red'
+  drawing.fillRect(0, 0, 1, 1)
+  // Act
+  const pixels = drawing.getImageData(0, 0, 1, 1, { colorSpace: 'display-p3' })
+  const blank = new ImageData(1, 1)
+  drawing.putImageData(pixels, 0, 0)
+  // Assert
+  expect(pixels).toBeInstanceOf(ImageData)
+  expect(pixels.data).toBeInstanceOf(Uint8ClampedArray)
+  expect(blank.data).toBeInstanceOf(Uint8ClampedArray)
+  expect(pixels.colorSpace).toBe('display-p3')
+  expect([...pixels.data]).toEqual([234, 51, 35, 255])
+  expect([...blank.data]).toEqual([0, 0, 0, 0])
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
+  expect(() => new ImageData(new Uint8ClampedArray(3), 1)).toThrow(DOMException)
+})
+
 test('Canvas draws ImageData from Jest VM subarrays and returns the same Window image family', () => {
   // Arrange
   const canvas = document.createElement('canvas')
@@ -111,4 +131,60 @@ test('Restoring Canvas method descriptors preserves Window ImageData and source 
   const restored = drawing.createImageData
   drawing.createImageData = restored
   expect(drawing.createImageData).toBe(restored)
+})
+
+test('bitmap creation, decoded Blob URLs and binding failures retain the Jest Window realm', async () => {
+  // Arrange
+  const pixels = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1)
+  const pending = createImageBitmap(pixels)
+  const drawing = new OffscreenCanvas(1, 1).getContext('2d')!
+  // Act
+  const bitmap = await pending
+  drawing.drawImage(bitmap, 0, 0)
+  const blob = await drawing.canvas.convertToBlob()
+  const url = URL.createObjectURL(blob)
+  const image = new Image()
+  image.src = url
+  const decoded = image.decode()
+  await decoded
+  drawing.drawImage(image, 0, 0)
+  // Assert
+  expect(pending).toBeInstanceOf(Promise)
+  expect(decoded).toBeInstanceOf(Promise)
+  expect(bitmap).toBeInstanceOf(ImageBitmap)
+  expect(drawing.getTransform()).toBeInstanceOf(DOMMatrix)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
+  expect(() =>
+    Reflect.apply(drawing.fillRect, drawing, [Symbol(), 0, 1, 1]),
+  ).toThrow(TypeError)
+  await expect(
+    createImageBitmap(pixels, { resizeWidth: -1 }),
+  ).rejects.toBeInstanceOf(TypeError)
+  bitmap.close()
+  URL.revokeObjectURL(url)
+})
+
+test('structured Canvas transfers keep Jest Window brands and detach the original canvas and bitmap', () => {
+  // Arrange
+  const source = new OffscreenCanvas(1, 1)
+  // Act
+  const receiver = structuredClone(source, { transfer: [source] })
+  const drawing = receiver.getContext('2d')!
+  drawing.fillStyle = 'red'
+  drawing.fillRect(0, 0, 1, 1)
+  const bitmap = receiver.transferToImageBitmap()
+  const moved = structuredClone(
+    { bitmap, alias: bitmap },
+    { transfer: [bitmap] },
+  )
+  drawing.drawImage(moved.bitmap, 0, 0)
+  // Assert
+  expect(receiver).toBeInstanceOf(OffscreenCanvas)
+  expect(moved.bitmap).toBeInstanceOf(ImageBitmap)
+  expect(moved.alias).toBe(moved.bitmap)
+  expect(source.width).toBe(0)
+  expect(bitmap.width).toBe(0)
+  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255])
+  expect(() => structuredClone(bitmap)).toThrow(DOMException)
+  moved.bitmap.close()
 })

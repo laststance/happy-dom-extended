@@ -2,6 +2,8 @@ import { types } from 'node:util'
 
 import type { Window } from 'happy-dom'
 
+import { imageDataArguments } from './canvas/image-data-arguments.ts'
+import { imageDataColorSpaces } from './canvas/state.ts'
 import { PROBE_IMAGE_WIDTH_PX, RGBA_CHANNEL_COUNT } from './constants.ts'
 import type { DisposeCompatibility } from './types.ts'
 import { replaceProperty } from './utils/replace-property.ts'
@@ -32,10 +34,45 @@ function needsImageDataBridge(window: Window): boolean {
 export function installImageData(
   window: Window,
   restorers: DisposeCompatibility[],
+  ownedCanvas = false,
 ): void {
-  if (!needsImageDataBridge(window)) return
+  if (!ownedCanvas && !needsImageDataBridge(window)) return
   const implementation = new Proxy(window.ImageData, {
     construct(target, argumentsList: unknown[], newTarget) {
+      if (ownedCanvas) {
+        const { pixels, width, height, colorSpace } = imageDataArguments(
+          window,
+          argumentsList,
+        )
+        const image = Reflect.construct(
+          target,
+          [
+            new Uint8ClampedArray(
+              pixels.buffer,
+              pixels.byteOffset,
+              pixels.length,
+            ),
+            width,
+            height,
+          ],
+          newTarget,
+        )
+        Object.defineProperties(image, {
+          data: { configurable: true, enumerable: true, get: () => pixels },
+          colorSpace: {
+            configurable: true,
+            enumerable: true,
+            get: () => colorSpace,
+          },
+          pixelFormat: {
+            configurable: true,
+            enumerable: true,
+            get: () => 'rgba-unorm8',
+          },
+        })
+        imageDataColorSpaces.set(image, colorSpace)
+        return image
+      }
       const [pixels, ...dimensions] = argumentsList
       if (
         !types.isUint8ClampedArray(pixels) ||

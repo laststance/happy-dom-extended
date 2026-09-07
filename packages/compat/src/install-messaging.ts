@@ -7,6 +7,9 @@ import {
 
 import type { Window } from 'happy-dom'
 
+import { ExtendedCanvasAdapter } from './canvas/adapter.ts'
+import { bindCanvasPort } from './canvas/ports.ts'
+import { canvasPortInstallers } from './canvas/state.ts'
 import type { DisposeCompatibility } from './types.ts'
 import { disposeAll } from './utils/dispose-all.ts'
 import { replaceProperty } from './utils/replace-property.ts'
@@ -23,6 +26,35 @@ export function installMessaging(
 ): void {
   const channels = new Set<BroadcastChannel | MessagePort>()
   const namespace = `happy-dom-extended:${randomUUID()}:`
+  const ownsCanvas =
+    window.happyDOM.settings.canvasAdapter instanceof ExtendedCanvasAdapter
+  const portRestorers = new WeakMap<MessagePort, DisposeCompatibility>()
+  const ports = new Set<WeakRef<MessagePort>>()
+  const collectedPorts = new FinalizationRegistry<WeakRef<MessagePort>>(
+    (reference) => ports.delete(reference),
+  )
+  /** Tracks live native handles without retaining a port after its close event.
+   * @returns Nothing; the Window retains only active channels strongly.
+   * @example trackPort(channel.port1);
+   */
+  const trackPort = (port: MessagePort): void => {
+    channels.add(port)
+    port.once('close', () => channels.delete(port))
+  }
+  const installPort = (port: MessagePort, token: string) => {
+    if (portRestorers.has(port)) return
+    trackPort(port)
+    portRestorers.set(port, bindCanvasPort(window, port, token))
+    const reference = new WeakRef(port)
+    ports.add(reference)
+    collectedPorts.register(port, reference, reference)
+  }
+  if (ownsCanvas) {
+    canvasPortInstallers.set(window, installPort)
+    restorers.push(() => {
+      canvasPortInstallers.delete(window)
+    })
+  }
   restorers.push(() => {
     const closers = [...channels].map((channel) => () => channel.close())
     channels.clear()
@@ -67,8 +99,14 @@ export function installMessaging(
        */
       constructor() {
         super()
-        channels.add(this.port1)
-        channels.add(this.port2)
+        if (ownsCanvas) {
+          const token = randomUUID()
+          installPort(this.port1, token)
+          installPort(this.port2, token)
+        } else {
+          trackPort(this.port1)
+          trackPort(this.port2)
+        }
       }
     }
     // Port identity must match the ports returned by the native channel.
@@ -85,4 +123,18 @@ export function installMessaging(
       }),
     )
   }
+  restorers.push(() => {
+    // Retained closed ports still restore on teardown; discarded ones must not keep their Window alive.
+    const releases = [...ports].map((reference) => () => {
+      collectedPorts.unregister(reference)
+      const port = reference.deref()
+      if (port) {
+        const restore = portRestorers.get(port)
+        portRestorers.delete(port)
+        restore?.()
+      }
+    })
+    ports.clear()
+    disposeAll(releases)
+  })
 }

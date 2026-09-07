@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { test } from 'node:test'
+import { pathToFileURL } from 'node:url'
 
 import ESMEnvironment from 'jest-happy-dom-extended'
 
@@ -15,6 +16,71 @@ const configuration = {
     rootDir: process.cwd(),
   },
 }
+
+test('Canvas accepts its environment inputs and rejects constructors from a separate Happy DOM module copy', async () => {
+  // Arrange: Node caches distinct module URLs separately, even when their installed version matches.
+  const packageRequire = createRequire(
+    require.resolve('jest-happy-dom-extended/package.json'),
+  )
+  const happyDOMEntry = pathToFileURL(packageRequire.resolve('happy-dom'))
+  const { default: ForeignBlob } = await import(
+    new URL('./file/Blob.js?separate-copy', happyDOMEntry).href
+  )
+  const { default: ForeignImageData } = await import(
+    new URL('./canvas/ImageData.js?separate-copy', happyDOMEntry).href
+  )
+  const environment = new ESMEnvironment(configuration, { console })
+  const bitmaps = []
+  try {
+    const window = environment.window
+    const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')
+    const pixels = new window.ImageData(
+      new Uint8ClampedArray([255, 0, 0, 255]),
+      1,
+      1,
+    )
+    const foreignPixels = new ForeignImageData(
+      new Uint8ClampedArray([255, 0, 0, 255]),
+      1,
+      1,
+    )
+    // Act / Assert
+    drawing.putImageData(pixels, 0, 0)
+    assert.deepEqual(
+      [...drawing.getImageData(0, 0, 1, 1).data],
+      [255, 0, 0, 255],
+    )
+    assert.equal(drawing.createImageData(pixels).width, 1)
+    bitmaps.push(await window.createImageBitmap(pixels))
+    const blob = await drawing.canvas.convertToBlob()
+    bitmaps.push(await window.createImageBitmap(blob))
+    for (const bitmap of bitmaps) {
+      drawing.drawImage(bitmap, 0, 0)
+      assert.deepEqual(
+        [...drawing.getImageData(0, 0, 1, 1).data],
+        [255, 0, 0, 255],
+      )
+    }
+    await assert.rejects(
+      window.createImageBitmap(
+        new ForeignBlob([await blob.arrayBuffer()], { type: 'image/png' }),
+      ),
+      { name: 'TypeError' },
+    )
+    await assert.rejects(window.createImageBitmap(foreignPixels), {
+      name: 'TypeError',
+    })
+    assert.throws(() => drawing.createImageData(foreignPixels), {
+      name: 'TypeError',
+    })
+    assert.throws(() => drawing.putImageData(foreignPixels, 0, 0), {
+      name: 'TypeError',
+    })
+  } finally {
+    for (const bitmap of bitmaps) bitmap.close()
+    await environment.teardown()
+  }
+})
 
 for (const { label, constructors } of [
   { label: 'ESM first', constructors: [ESMEnvironment, CommonJSEnvironment] },
