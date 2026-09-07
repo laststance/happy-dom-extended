@@ -14,4 +14,4 @@ If the private reporting form is unavailable, use the contact options on the [ma
 
 This package runs test code inside Node.js and uses native Canvas libraries. It is not a security sandbox for untrusted JavaScript, images, URLs, or HTML. Happy DOM image loading is enabled by default; disable it explicitly when the test should not load image files. Restrict inputs and network access at the runner or operating-system boundary as appropriate for your application.
 
-CI uses CodeQL, dependency review, a production dependency audit, and OpenSSF Scorecard. These checks help identify problems; they do not establish that the project is vulnerability-free. Keep native dependencies, Node.js, and the package manager updated.
+CI uses CodeQL, dependency review, a production dependency audit, Socket dependency scanning, and OpenSSF Scorecard. Socket requires a configured API token and skips fork PRs; see [CI setup](README.md#contribute). These checks help identify problems; they do not establish that the project is vulnerability-free. Keep native dependencies, Node.js, and the package manager updated.
