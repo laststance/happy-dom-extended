@@ -1,8 +1,15 @@
 # happy-dom-extended
 
-[![CI](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml/badge.svg)](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml)
+[![Test](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml)
+[![Build](https://github.com/laststance/happy-dom-extended/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/build.yml)
+[![Lint](https://github.com/laststance/happy-dom-extended/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/lint.yml)
+[![Format](https://github.com/laststance/happy-dom-extended/actions/workflows/format.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/format.yml)
+[![TypeCheck](https://github.com/laststance/happy-dom-extended/actions/workflows/typecheck.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/typecheck.yml)
+[![Fallow](https://github.com/laststance/happy-dom-extended/actions/workflows/fallow.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/fallow.yml)
+[![Security](https://github.com/laststance/happy-dom-extended/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/security.yml)
+[![OpenSSF Scorecard](https://github.com/laststance/happy-dom-extended/actions/workflows/scorecard.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/scorecard.yml)
+[![Socket](https://github.com/laststance/happy-dom-extended/actions/workflows/socket.yml/badge.svg?branch=main)](https://github.com/laststance/happy-dom-extended/actions/workflows/socket.yml)
 [![Codecov](https://codecov.io/gh/laststance/happy-dom-extended/branch/main/graph/badge.svg)](https://codecov.io/gh/laststance/happy-dom-extended)
-[![Security](https://github.com/laststance/happy-dom-extended/actions/workflows/security.yml/badge.svg)](https://github.com/laststance/happy-dom-extended/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Run browser application tests in Node.js with Happy DOM, additional Web APIs, and real Canvas drawing.**
