@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 import { test } from 'node:test'
 import { setTimeout } from 'node:timers/promises'
@@ -7,6 +8,73 @@ import { MessagePort } from 'node:worker_threads'
 import { PNG } from 'pngjs'
 
 import { renderingWindow } from './utils/rendering-window.ts'
+
+test(
+  'queued placeholder drawing survives garbage collection after its source is discarded',
+  { timeout: 10_000 },
+  () => {
+    // Arrange: hold the real presentation task in a GC-enabled child, without retaining its source.
+    const helper = new URL('./utils/rendering-window.ts', import.meta.url).href
+    const source = `
+      import timers from 'node:timers';
+      import { syncBuiltinESMExports } from 'node:module';
+      import { setTimeout as delay } from 'node:timers/promises';
+      import { renderingWindow } from ${JSON.stringify(helper)};
+      const { window, close } = await renderingWindow();
+      const nativeImmediate = timers.setImmediate;
+      const callbacks = [];
+      timers.setImmediate = (callback, ...args) => {
+        if (callback.name === 'presentCanvasFrame') {
+          callbacks.push(callback);
+          return null;
+        }
+        return nativeImmediate(callback, ...args);
+      };
+      syncBuiltinESMExports();
+      try {
+        const html = window.document.createElement('canvas');
+        html.width = 1; html.height = 1;
+        const reference = (() => {
+          const canvas = html.transferControlToOffscreen();
+          const drawing = canvas.getContext('2d');
+          drawing.fillStyle = 'blue'; drawing.fillRect(0, 0, 1, 1);
+          return new WeakRef(canvas);
+        })();
+        const blank = html.toDataURL();
+        for (let attempt = 0; attempt < 5; attempt++) {
+          await delay(1); global.gc();
+        }
+        const retained = reference.deref() !== undefined;
+        callbacks.shift()();
+        const deadline = Date.now() + 2000;
+        while (Date.now() < deadline) {
+          await delay(1);
+          if (html.toDataURL() !== blank) break;
+        }
+        console.log(JSON.stringify({ retained, png: html.toDataURL() }));
+      } finally {
+        timers.setImmediate = nativeImmediate;
+        syncBuiltinESMExports();
+        await close();
+      }
+    `
+    // Act
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        ['--expose-gc', '--input-type=module', '-e', source],
+        {
+          encoding: 'utf8',
+          timeout: 8000,
+        },
+      ),
+    )
+    // Assert
+    assert.equal(result.retained, true)
+    const png = PNG.sync.read(Buffer.from(result.png.split(',')[1], 'base64'))
+    assert.deepEqual([...png.data], [0, 0, 255, 255])
+  },
+)
 
 test(
   'failed placeholder setup closes both ports and the same HTML canvas can present pixels on retry',

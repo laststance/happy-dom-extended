@@ -65,15 +65,17 @@ export function bindCanvasPresenter(
   offscreenPresenters.set(canvas, port)
   let scheduled = false
   let pending = false
-  let dirty = false
+  // Unsent drawing must survive GC until its pixels reach the presentation channel.
+  let dirty: OffscreenCanvas | undefined
   let release = () => {}
   const update = () => {
-    dirty = true
+    dirty = reference.deref()
     if (scheduled || pending) return
     scheduled = true
     setImmediate(function presentCanvasFrame() {
       scheduled = false
-      const owner = reference.deref()
+      const owner = dirty
+      dirty = undefined
       if (
         !owner ||
         detachedOffscreens.has(owner) ||
@@ -98,7 +100,6 @@ export function bindCanvasPresenter(
             'Presentation pixels must own transferable storage.',
           )
         pending = true
-        dirty = false
         port.postMessage(
           {
             width: owner.width,
@@ -133,6 +134,7 @@ export function bindCanvasPresenter(
     if (dirty) update()
   })
   trackPresentationPort(window, port, () => {
+    dirty = undefined
     release()
     const owner = reference.deref()
     if (owner && offscreenPresenters.get(owner) === port) {
