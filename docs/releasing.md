@@ -87,7 +87,7 @@ Switch to a clean consumer project directory in that same shell, then install th
 ```sh
 set -eu
 : "${release_version:?Run the build-and-inspect block in this shell first.}"
-npm install --save-dev jest@30 "jest-happy-dom-extended@${release_version}"
+npm install --save-dev jest@30 "jest-happy-dom-extended@${release_version}" --registry=https://registry.npmjs.org
 ```
 
 Apply the same npm 12 approval and rebuild steps in that clean consumer before running the README's Jest example.
