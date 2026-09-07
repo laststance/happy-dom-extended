@@ -18,6 +18,23 @@ const videoBytes = await readFile(
 )
 const videoURL = `data:video/webm;base64,${videoBytes.toString('base64')}`
 
+/** Allows measured FFmpeg RGB rounding when video tests check their selected solid-color frame.
+ * @returns Nothing; wrong frames, changed alpha or RGB errors beyond two byte levels fail.
+ * @example assertVideoPixel(pixel, [255, 0, 0, 255]);
+ */
+function assertVideoPixel(
+  actual: ArrayLike<number>,
+  expected: readonly [number, number, number, number],
+): void {
+  assert.equal(actual.length, 4)
+  // CI decoders round YUV-to-RGB one level below macOS; opacity must still match exactly.
+  for (const [index, value] of expected.entries())
+    assert.ok(
+      Math.abs(actual[index]! - value) <= (index === 3 ? 0 : 2),
+      `Channel ${index}: expected ${value}, got ${actual[index]}`,
+    )
+}
+
 test('video loads real intrinsic pixels, never paints a deferred draw, and seeks to the frame at or before the requested time', async (context) => {
   // Arrange
   const { window } = await renderingWindow(context)
@@ -53,16 +70,16 @@ test('video loads real intrinsic pixels, never paints a deferred draw, and seeks
   )
   assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 0, 0])
   drawing.drawImage(video, 0, 0)
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [254, 0, 0, 255])
+  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
   video.currentTime = 0.9
   await videoSources.get(video)!.completion
   drawing.drawImage(video, 0, 0)
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [254, 0, 0, 255])
+  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
   video.currentTime = 1.1
   assert.equal(video.seeking, true)
   await videoSources.get(video)!.completion
   drawing.drawImage(video, 0, 0)
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 255, 255])
+  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [0, 0, 255, 255])
   assert.equal(video.currentTime, 1.1)
   assert.equal(video.seeking, false)
   assert.deepEqual(events, [
@@ -95,7 +112,7 @@ test('a newer seek cancels the earlier decoder and closed Windows retain no usab
   // Assert
   assert.deepEqual(seeked, [0.1])
   assert.equal(video.error, null)
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [254, 0, 0, 255])
+  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
   video.currentTime = 1.1
   await close()
   assert.equal(videoSources.get(video)!.native, null)
@@ -154,7 +171,8 @@ test(
     await exited
     // Assert
     assert.equal(discarded.killed, true)
-    assert.deepEqual(frames, [[0, 0, 255, 255]])
+    assert.equal(frames.length, 1)
+    assertVideoPixel(frames[0]!, [0, 0, 255, 255])
     assert.deepEqual(events, [
       'loadeddata',
       'canplay',
@@ -260,7 +278,7 @@ test('play advances real video frames and pause freezes the media clock', async 
   const pausedTime = video.currentTime
   await delay(30)
   assert.equal(video.currentTime, pausedTime)
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 255, 255])
+  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [0, 0, 255, 255])
 })
 
 test('invalid video emits a recoverable media error and a later valid source decodes normally', async (context) => {
@@ -313,7 +331,7 @@ test('video HTTP requests preserve CORS taint and source replacement cancels sta
   await videoSources.get(video)!.completion
   Reflect.set(drawing.canvas, 'width', 1)
   drawing.drawImage(video, 0, 0)
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [254, 0, 0, 255])
+  assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
   const incoming = new Promise<ServerResponse>((resolve) =>
     servers[0]!.once('request', (_request, response) => resolve(response)),
   )
@@ -412,10 +430,7 @@ test(
     assert.equal(video.paused, true)
     const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
     drawing.drawImage(video, 0, 0)
-    assert.deepEqual(
-      [...drawing.getImageData(0, 0, 1, 1).data],
-      [0, 0, 255, 255],
-    )
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [0, 0, 255, 255])
   },
 )
 
@@ -477,10 +492,7 @@ test(
     assert.equal(video.error, null)
     const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
     drawing.drawImage(video, 0, 0)
-    assert.deepEqual(
-      [...drawing.getImageData(0, 0, 1, 1).data],
-      [254, 0, 0, 255],
-    )
+    assertVideoPixel(drawing.getImageData(0, 0, 1, 1).data, [255, 0, 0, 255])
     holdNext = true
     const restarting = new Promise<ChildProcess>((resolve) => {
       notify = resolve

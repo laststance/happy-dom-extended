@@ -91,7 +91,12 @@ test('installed npm package decodes and seeks actual Blob video frames with Wind
   expect([video.videoWidth, video.videoHeight, video.currentTime]).toEqual([
     16, 16, 1.1,
   ])
-  expect([...drawing.getImageData(0, 0, 1, 1).data]).toEqual([0, 0, 255, 255])
+  const pixel = drawing.getImageData(0, 0, 1, 1).data
+  // FFmpeg builds vary by up to two RGB byte levels; frame color and opacity remain observable.
+  for (const [index, expected] of [0, 0, 255, 255].entries())
+    expect(Math.abs(pixel[index] - expected)).toBeLessThanOrEqual(
+      index === 3 ? 0 : 2,
+    )
   const playing = video.play()
   expect(playing).toBeInstanceOf(Promise)
   await playing

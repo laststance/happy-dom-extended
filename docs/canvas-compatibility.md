@@ -26,7 +26,7 @@ Only the 2D context is implemented. WebGL, WebGPU, `bitmaprenderer`, a public Wi
 
 Video Canvas sources require **ffmpeg and ffprobe on PATH**. They decode real frames using CPU subprocesses; they are not needed for ordinary Canvas/image users. Missing executables or invalid media produce a recoverable media error. CI installs both executables on Ubuntu and Windows.
 
-The selected frame is the most recent presentation timestamp at or before the requested time. Source replacement and newer seeks cancel/join older operations. Playback follows a monotonic clock and presents at most 20 frames per second; audio playback and browser media scheduling are outside the contract. Supported media formats depend on the installed FFmpeg build. The committed VP9 fixture has explicit color metadata so decoder defaults cannot change its expected colors.
+The selected frame is the most recent presentation timestamp at or before the requested time. Source replacement and newer seeks cancel/join older operations. Playback follows a monotonic clock and presents at most 20 frames per second; audio playback and browser media scheduling are outside the contract. Supported media formats depend on the installed FFmpeg build. The committed VP9 fixture has explicit color metadata, but YUV-to-RGB integer rounding differs by build: macOS produced red 254 and blue 255, while Linux/Windows CI produced red 253 and blue 254. Video checks allow at most two RGB byte levels from the original solid red/blue input and require exact alpha; frame selection, readiness and event assertions remain exact.
 
 ### Dedicated Workers
 
