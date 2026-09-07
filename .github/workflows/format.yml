@@ -1,4 +1,4 @@
-name: Lint
+name: Format
 on:
   push:
     branches: [main]
@@ -7,10 +7,10 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: lint-${{ github.ref }}
+  group: format-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  lint:
+  format:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -18,6 +18,4 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/prepare
-      - run: pnpm build
-      - run: pnpm sherif
-      - run: pnpm lint
+      - run: pnpm format:check
