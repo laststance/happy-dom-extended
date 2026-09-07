@@ -102,8 +102,12 @@ for (const storage of ['ArrayBuffer', 'SharedArrayBuffer'] as const) {
               expect(output).toBeInstanceOf(ImageData)
               expect(output.data).toBeInstanceOf(Uint8ClampedArray)
               expect([...output.data]).toEqual(expected)
-              expect(drawing.createImageData(width, height)).toBeInstanceOf(
-                ImageData,
+              const blank = drawing.createImageData(width, height)
+              expect(blank).toBeInstanceOf(ImageData)
+              expect(blank.width).toBe(width)
+              expect(blank.height).toBe(height)
+              expect([...blank.data]).toEqual(
+                Array(width * height * RGBA_CHANNELS).fill(0),
               )
             } finally {
               // Each case and shrink releases its native bitmap before the next allocation.

@@ -64,7 +64,7 @@ test(
         }),
         async ({ bufferBytes, viewBytes, prefix, suffix, start, end }) => {
           // Arrange: expected bytes come from generated inputs, never production conversions.
-          const environment = renderingWindow()
+          const environment = await renderingWindow()
           const { window } = environment
           try {
             const padded = new window.Uint8Array([
@@ -162,7 +162,7 @@ for (const kind of ['HTML', 'Offscreen'] as const) {
           ),
           async ({ width, height }, color, changes) => {
             // Arrange
-            const environment = renderingWindow()
+            const environment = await renderingWindow()
             const { window } = environment
             const canvas =
               kind === 'HTML'
@@ -265,7 +265,7 @@ for (const kind of ['HTML', 'Offscreen'] as const) {
           }),
           async ({ width, height }, colors) => {
             // Arrange
-            const environment = renderingWindow()
+            const environment = await renderingWindow()
             const { window } = environment
             const canvas =
               kind === 'HTML'
@@ -355,7 +355,7 @@ for (const kind of ['HTML', 'Offscreen'] as const) {
           fc.constantFrom('width', 'height'),
           async ({ width, height }, dimension) => {
             // Arrange
-            const environment = renderingWindow()
+            const environment = await renderingWindow()
             const { window } = environment
             const canvas =
               kind === 'HTML'

@@ -9,12 +9,23 @@ export const RGBA_CHANNELS = 4
 export const MAX_CHANNEL_VALUE = 255
 export const MAX_SLICE_BOUNDARY_BYTES = MAX_BINARY_BYTES * 4
 
+const rawSeed = process.env.FC_SEED
+const seed = rawSeed === undefined ? undefined : Number(rawSeed)
+// Fail before generating unrelated cases when a replay command is mistyped.
+if (
+  rawSeed !== undefined &&
+  (rawSeed.trim() === '' || !Number.isFinite(seed))
+) {
+  throw new Error('FC_SEED must be a non-empty, finite number.')
+}
+if (process.env.FC_PATH !== undefined && seed === undefined) {
+  throw new Error('FC_PATH requires FC_SEED from the same failure report.')
+}
+
 // Ordinary runs choose a fresh seed; a reported path replays only its minimized failure.
 export const PROPERTY_PARAMETERS = {
   numRuns: PROPERTY_RUNS,
-  ...(process.env.FC_SEED === undefined
-    ? {}
-    : { seed: Number(process.env.FC_SEED) }),
+  ...(seed === undefined ? {} : { seed }),
   ...(process.env.FC_PATH === undefined
     ? {}
     : { path: process.env.FC_PATH, endOnFailure: true }),

@@ -63,7 +63,7 @@ FC_SEED=123 FC_PATH='0:1' pnpm test:jest \
   --testNamePattern='^generated Jest VM ImageData retains ArrayBuffer'
 ```
 
-The Jest seed/path above are placeholders; replace them with the failing report. `FC_PATH` enables `endOnFailure` for exact counterexample replay. Do not set either variable in ordinary CI or permanently fix a seed. On Windows PowerShell, assign `$env:FC_SEED` and `$env:FC_PATH` before the same command, then remove them afterward.
+The Jest seed/path above are placeholders; replace them with the failing report. `FC_PATH` enables `endOnFailure` for exact counterexample replay and requires the matching `FC_SEED`. Blank, non-numeric and non-finite seeds fail before generation instead of silently selecting a different case. Do not set either variable in ordinary CI or permanently fix a seed. On Windows PowerShell, assign `$env:FC_SEED` and `$env:FC_PATH` before the same command, then remove them afterward.
 
 The Blob example was verified by temporarily asserting that a nonempty File has one byte less than its actual size. fast-check minimized it to an empty buffer part plus a one-byte `[0]` view inside `[0]` prefix/suffix padding. The original run closed all 21 created environments, and replay executed and closed exactly one environment with the identical counterexample. The intentional error and temporary counters were removed before commit; the correct property passes. This exercise proves shrinking/replay, not a library defect.
 

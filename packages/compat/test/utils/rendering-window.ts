@@ -10,15 +10,35 @@ import {
 
 /** Gives regressions and each generated case a real Window with complete, repeatable cleanup.
  * @param context - Optional Node test lifecycle; properties instead await close in their own finally block.
- * @returns The Window, adapter, and asynchronous close operation.
- * @example const environment = renderingWindow(); await environment.close();
+ * @returns The initialized Window, adapter, and asynchronous close operation.
+ * @example const environment = await renderingWindow(); await environment.close();
  */
-export function renderingWindow(context?: TestContext) {
+export async function renderingWindow(context?: TestContext) {
   const adapter = new ExtendedCanvasAdapter()
-  const window = new Window({
-    settings: { canvasAdapter: adapter, enableImageFileLoading: true },
-  })
-  const dispose = installCompatibility(window)
+  let window: Window
+  try {
+    window = new Window({
+      settings: { canvasAdapter: adapter, enableImageFileLoading: true },
+    })
+  } catch (error) {
+    // A failed constructor still leaves the already created adapter to release.
+    disposeAll([() => adapter.dispose()], [error])
+    throw error
+  }
+  let dispose: ReturnType<typeof installCompatibility>
+  try {
+    dispose = installCompatibility(window)
+  } catch (error) {
+    const errors = [error]
+    try {
+      await window.happyDOM.close()
+    } catch (cleanupError) {
+      errors.push(cleanupError)
+    }
+    // Keep the setup error alongside any Window or adapter cleanup failures.
+    disposeAll([() => adapter.dispose()], errors)
+    throw error
+  }
   const close = async (): Promise<void> => {
     try {
       await adapter.drain()
