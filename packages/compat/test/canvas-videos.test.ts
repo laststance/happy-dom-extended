@@ -259,9 +259,12 @@ test('play advances real video frames and pause freezes the media clock', async 
   await videoSources.get(video)!.completion
   video.currentTime = 0.95
   await videoSources.get(video)!.completion
+  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
   const playingFrame = new Promise<void>((resolve) => {
     video.ontimeupdate = () => {
-      if (video.currentTime > 1.05) resolve()
+      // A slow decoder can publish an older sample after the clock advances; wait for the actual blue frame.
+      drawing.drawImage(video, 0, 0)
+      if (drawing.getImageData(0, 0, 1, 1).data[2]! >= 253) resolve()
     }
   })
   // Act
@@ -271,7 +274,6 @@ test('play advances real video frames and pause freezes the media clock', async 
   await playingFrame
   video.pause()
   await videoSources.get(video)!.completion
-  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
   drawing.drawImage(video, 0, 0)
   // Assert
   assert.equal(video.paused, true)
