@@ -136,3 +136,41 @@ for (const cleanupFails of [false, true]) {
     assert.equal(adapterDisposed, true)
   })
 }
+
+test('property teardown reports drain and Window errors alongside adapter disposal failures', async (context) => {
+  // Arrange: each stage releases its real resources before reporting a failure.
+  const environment = await renderingWindow()
+  const drainError = new Error('Output drain failed')
+  const windowError = new Error('Window cleanup failed')
+  const adapterError = new Error('Adapter cleanup failed')
+  const drain = environment.adapter.drain.bind(environment.adapter)
+  const closeWindow = environment.window.happyDOM.close.bind(
+    environment.window.happyDOM,
+  )
+  const disposeAdapter = environment.adapter.dispose.bind(environment.adapter)
+  const completed: string[] = []
+  context.mock.method(environment.adapter, 'drain', async () => {
+    await drain()
+    completed.push('drain')
+    throw drainError
+  })
+  context.mock.method(environment.window.happyDOM, 'close', async () => {
+    await closeWindow()
+    completed.push('window')
+    throw windowError
+  })
+  context.mock.method(environment.adapter, 'dispose', () => {
+    disposeAdapter()
+    completed.push('adapter')
+    throw adapterError
+  })
+
+  // Act / Assert
+  await assert.rejects(environment.close(), (error: unknown) => {
+    assert.ok(error instanceof AggregateError)
+    assert.equal(error.cause, drainError)
+    assert.deepEqual(error.errors, [drainError, windowError, adapterError])
+    return true
+  })
+  assert.deepEqual(completed, ['drain', 'window', 'adapter'])
+})

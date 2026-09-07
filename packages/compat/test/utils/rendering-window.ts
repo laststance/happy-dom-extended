@@ -40,16 +40,19 @@ export async function renderingWindow(context?: TestContext) {
     throw error
   }
   const close = async (): Promise<void> => {
+    const errors: unknown[] = []
     try {
       await adapter.drain()
-    } finally {
-      try {
-        await window.happyDOM.close()
-      } finally {
-        // Restoration must also run when native output or Window shutdown fails.
-        disposeAll([dispose, () => adapter.dispose()])
-      }
+    } catch (error) {
+      errors.push(error)
     }
+    try {
+      await window.happyDOM.close()
+    } catch (error) {
+      errors.push(error)
+    }
+    // Every stage runs, and later cleanup errors must not hide the first failure.
+    disposeAll([dispose, () => adapter.dispose()], errors)
   }
   context?.after(close)
   return { window, adapter, close }
