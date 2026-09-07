@@ -121,6 +121,7 @@ export async function startOwnedWorker(): Promise<void> {
       }),
   })
 
+  let nextRequestId = 0
   /** Uses the parent request pipeline, including cookies/interceptors, while classic importScripts waits in this child only.
    * @returns Validated script text and its redirect-resolved URL.
    * @example const resource = source('https://example.test/worker.js');
@@ -128,18 +129,32 @@ export async function startOwnedWorker(): Promise<void> {
   function source(url: string): { source: string; url: string } {
     if (closing)
       throw new window.DOMException('The worker is closing.', 'AbortError')
-    Atomics.store(startup.wake, 0, 0)
-    startup.requests.postMessage({ url })
-    if (
-      Atomics.wait(startup.wake, 0, 0, WORKER_LOAD_TIMEOUT_MS) === 'timed-out'
-    )
-      throw new window.DOMException(
-        'Worker script loading timed out.',
-        'TimeoutError',
+    const requestId = ++nextRequestId
+    const deadline = performance.now() + WORKER_LOAD_TIMEOUT_MS
+    startup.requests.postMessage({ requestId, url })
+    let response: unknown
+    while (true) {
+      // Capture before draining so a reply between the drain and wait cannot lose its wake-up.
+      const version = Atomics.load(startup.wake, 0)
+      response = receiveMessageOnPort(startup.requests)?.message
+      if (
+        response &&
+        typeof response === 'object' &&
+        Reflect.get(response, 'requestId') === requestId
       )
-    const response: unknown = receiveMessageOnPort(startup.requests)?.message
-    if (!response || typeof response !== 'object')
-      throw new window.TypeError('Missing worker script response.')
+        break
+      // Drain obsolete replies before waiting; their source must never run under a newer URL.
+      if (response !== undefined) continue
+      const remaining = deadline - performance.now()
+      if (
+        remaining <= 0 ||
+        Atomics.wait(startup.wake, 0, version, remaining) === 'timed-out'
+      )
+        throw new window.DOMException(
+          'Worker script loading timed out.',
+          'TimeoutError',
+        )
+    }
     if (Reflect.has(response, 'error'))
       throw new window.DOMException(
         String(Reflect.get(response, 'error')),

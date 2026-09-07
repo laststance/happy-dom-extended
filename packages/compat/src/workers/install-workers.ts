@@ -32,6 +32,7 @@ export function installWorkers(
   if (Reflect.get(window, 'Worker') !== undefined) return
   const children = new Set<() => Promise<void>>()
   restorers.push(() => {
+    // Emergency synchronous restoration requests stops; normal runner teardown joins them through Window close first.
     for (const stop of children) void stop()
   })
   registerWindowClose(

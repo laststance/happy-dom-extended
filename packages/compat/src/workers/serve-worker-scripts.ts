@@ -21,10 +21,16 @@ export function serveWorkerScripts(
   let entryRequest = true
   port.on('message', async function serveWorkerScript(request: unknown) {
     let release = () => {}
+    let requestId: unknown
     // The bootstrap requests its entry before V8 linking or user importScripts can request dependencies.
     const isEntry = entryRequest
     entryRequest = false
     try {
+      if (!request || typeof request !== 'object')
+        throw new window.TypeError('Invalid worker script request.')
+      requestId = Reflect.get(request, 'requestId')
+      if (!Number.isSafeInteger(requestId))
+        throw new window.TypeError('Invalid worker script request.')
       if (
         window.happyDOM.settings.disableJavaScriptFileLoading ||
         window.happyDOM.settings.disableJavaScriptEvaluation
@@ -33,8 +39,6 @@ export function serveWorkerScripts(
           'Worker script execution is disabled by the Window settings.',
           'NetworkError',
         )
-      if (!request || typeof request !== 'object')
-        throw new window.TypeError('Invalid worker script request.')
       const url: unknown = Reflect.get(request, 'url')
       if (typeof url !== 'string')
         throw new window.TypeError('Invalid worker script URL.')
@@ -69,14 +73,15 @@ export function serveWorkerScripts(
           'NetworkError',
         )
       port.postMessage({
+        requestId,
         source: resource.buffer.toString('utf8'),
         url: resource.url,
       })
     } catch (error) {
-      port.postMessage({ error: String(error) })
+      port.postMessage({ requestId, error: String(error) })
     } finally {
       release()
-      Atomics.store(wake, 0, 1)
+      Atomics.add(wake, 0, 1)
       Atomics.notify(wake, 0)
     }
   })

@@ -140,7 +140,8 @@ test(
     })
     await consumed
     let posted = false
-    for (let attempt = 0; attempt < 100 && !posted; attempt += 1) {
+    const deadline = Date.now() + 3000
+    while (!posted && Date.now() < deadline) {
       await setTimeout(1)
       try {
         channel.port1.postMessage(bitmap)
@@ -318,6 +319,34 @@ test('Error causes preserve Canvas aliases and transfer bypasses consumer close 
   assert.equal(copied.error.cause, copied.bitmap)
   assert.equal(copied.bitmap instanceof window.ImageBitmap, true)
   assert.equal(bitmap.width, 0)
+})
+
+test('cloning DOMExceptions from another Window preserves names, messages, aliases and the receiver brand', async (context) => {
+  // Arrange
+  const first = await renderingWindow(context)
+  const second = await renderingWindow(context)
+  const exception = new first.window.DOMException(
+    'Canvas unavailable',
+    'InvalidStateError',
+  )
+  const native = new DOMException('Aborted', 'AbortError')
+  const clone = Reflect.get(second.window, 'structuredClone')
+  // Act
+  const copied = clone({
+    exception,
+    alias: exception,
+    wrapped: new Error('outer', { cause: exception }),
+    native,
+  })
+  // Assert
+  assert.ok(copied.exception instanceof second.window.DOMException)
+  assert.equal(copied.exception.name, 'InvalidStateError')
+  assert.equal(copied.exception.message, 'Canvas unavailable')
+  assert.equal(copied.exception, copied.alias)
+  assert.equal(copied.exception, copied.wrapped.cause)
+  assert.ok(copied.native instanceof second.window.DOMException)
+  assert.equal(copied.native.name, 'AbortError')
+  assert.equal(copied.native.message, 'Aborted')
 })
 
 test('getters that select an Offscreen context invalidate transfer before native buffers detach', async (context) => {

@@ -237,6 +237,18 @@ test('style setters coerce once and preserve accepted values for invalid numeric
   assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [255, 0, 0, 127])
 })
 
+test('Canvas context properties can override inherited object keys without entering enum conversion', async (context) => {
+  // Arrange
+  const { window } = await renderingWindow(context)
+  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
+  for (const key of ['toString', 'constructor', 'hasOwnProperty']) {
+    // Act
+    Reflect.set(drawing, key, 'consumer value')
+    // Assert
+    assert.equal(Reflect.get(drawing, key), 'consumer value')
+  }
+})
+
 test('image overload conversion precedes readiness and drawing an untouched Canvas preserves its first context settings', async (context) => {
   // Arrange
   const { window } = await renderingWindow(context)

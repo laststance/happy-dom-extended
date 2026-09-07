@@ -7,6 +7,38 @@ import { PNG } from 'pngjs'
 import { renderingWindow } from './utils/rendering-window.ts'
 
 test(
+  'resizing an Offscreen placeholder publishes blank pixels without requiring another draw',
+  { timeout: 4000 },
+  async (context) => {
+    // Arrange
+    const { window, close } = await renderingWindow(context)
+    const html = window.document.createElement('canvas')
+    html.width = 1
+    html.height = 1
+    const offscreen = html.transferControlToOffscreen()
+    const drawing = offscreen.getContext('2d')!
+    // Act
+    Reflect.set(offscreen, 'width', 2)
+    let png = PNG.sync.read(
+      Buffer.from(html.toDataURL().split(',')[1]!, 'base64'),
+    )
+    const deadline = Date.now() + 3000
+    while (png.width !== 2 && Date.now() < deadline) {
+      await setTimeout(10)
+      png = PNG.sync.read(
+        Buffer.from(html.toDataURL().split(',')[1]!, 'base64'),
+      )
+    }
+    // Assert
+    assert.equal(png.width, 2)
+    assert.deepEqual([...png.data], [0, 0, 0, 0, 0, 0, 0, 0])
+    assert.equal(offscreen.getContext('2d'), drawing)
+    await close()
+    assert.equal(offscreen.width, 2)
+  },
+)
+
+test(
   'an HTML placeholder presents actual Offscreen pixels and preserves its attribute dimensions independently of the bitmap',
   { timeout: 4000 },
   async (context) => {
@@ -69,6 +101,7 @@ test(
     const worker = new Constructor(
       `data:text/javascript,${encodeURIComponent(source)}`,
     )
+    context.after(() => worker.terminate())
     const drawn = new Promise<void>((resolve, reject) => {
       worker.onmessage = () => resolve()
       worker.onerror = (event: { message: string }) =>
@@ -94,6 +127,5 @@ test(
     assert.equal(offscreen.width, 0)
     assert.deepEqual([...png.data], [0, 0, 255, 255])
     assert.throws(() => html.getContext('2d'), { name: 'InvalidStateError' })
-    worker.terminate()
   },
 )

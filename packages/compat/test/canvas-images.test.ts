@@ -3,10 +3,124 @@ import { once } from 'node:events'
 import type { ServerResponse } from 'node:http'
 import { test } from 'node:test'
 
+import { Window } from 'happy-dom'
 import { Image } from 'skia-canvas'
+
+import { fetchCanvasResource } from '../src/canvas/resource-fetch.ts'
 
 import { imageServers } from './utils/image-servers.ts'
 import { renderingWindow } from './utils/rendering-window.ts'
+
+test('foreign decoded image bytes without verified origin metadata taint Canvas exports and patterns', async (context) => {
+  // Arrange
+  const { origin, crossOrigin } = await imageServers(context)
+  const foreign = new Window({
+    url: crossOrigin,
+    settings: { enableImageFileLoading: true },
+  })
+  context.after(async () => foreign.happyDOM.close())
+  const { window } = await renderingWindow(context)
+  window.happyDOM.setURL(origin)
+  const image = new foreign.Image()
+  const loaded = new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve()
+    image.onerror = () => reject(new Error('Foreign image did not load'))
+  })
+  image.src = `${crossOrigin}/red.png`
+  await loaded
+  const canvas = window.document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const drawing = canvas.getContext('2d')!
+  // Act
+  drawing.drawImage(image, 0, 0)
+  const patterned = new window.OffscreenCanvas(1, 1)
+  const patternContext = patterned.getContext('2d')!
+  patternContext.fillStyle = patternContext.createPattern(image, 'repeat')!
+  // Assert
+  assert.equal(image.naturalWidth, 1)
+  assert.throws(() => drawing.getImageData(0, 0, 1, 1), {
+    name: 'SecurityError',
+  })
+  assert.throws(() => canvas.toDataURL(), { name: 'SecurityError' })
+  await assert.rejects(patterned.convertToBlob(), { name: 'SecurityError' })
+})
+
+test('undefined image and video CORS settings remove the attribute and restore the no-CORS mode', async (context) => {
+  // Arrange
+  const { window } = await renderingWindow(context)
+  for (const media of [
+    new window.Image(),
+    window.document.createElement('video'),
+  ]) {
+    media.crossOrigin = 'anonymous'
+    // Act
+    Reflect.set(media, 'crossOrigin', undefined)
+    // Assert
+    assert.equal(media.hasAttribute('crossorigin'), false)
+    assert.equal(media.crossOrigin, null)
+  }
+})
+
+test('rejecting response cancellation preserves media status, byte-limit, CORS and redirect errors', async (context) => {
+  // Arrange
+  const { window } = await renderingWindow(context)
+  window.happyDOM.setURL('https://media.test')
+  const cases = [
+    {
+      status: 503,
+      headers: {},
+      crossOrigin: null,
+      name: 'NetworkError',
+      message: 'The media request failed.',
+    },
+    {
+      status: 200,
+      headers: { 'content-length': '67108865' },
+      crossOrigin: null,
+      name: 'RangeError',
+      message: 'Media input exceeds the byte limit.',
+    },
+    {
+      status: 200,
+      headers: {},
+      crossOrigin: 'anonymous',
+      name: 'NetworkError',
+      message: 'The media response failed its CORS check.',
+    },
+    {
+      status: 302,
+      headers: {},
+      crossOrigin: null,
+      name: 'NetworkError',
+      message: 'The media redirect has no location.',
+    },
+  ]
+  let cancellations = 0
+  for (const { status, headers, crossOrigin, name, message } of cases) {
+    const body = new window.ReadableStream({
+      cancel() {
+        cancellations += 1
+        throw new Error('Cancellation failed')
+      },
+    })
+    window.happyDOM.settings.fetch.interceptor = {
+      beforeAsyncRequest: async () =>
+        new window.Response(body, { status, headers }),
+    }
+    // Act / Assert
+    await assert.rejects(
+      fetchCanvasResource(
+        window,
+        'https://other.test/image.png',
+        crossOrigin,
+        new window.AbortController().signal,
+      ),
+      { name, message },
+    )
+  }
+  assert.equal(cancellations, 4)
+})
 
 test('a loading image never paints later and decoded intrinsic pixels ignore HTML width and height attributes', async (context) => {
   // Arrange

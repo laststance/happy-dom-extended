@@ -595,7 +595,8 @@ export function installCanvasVideos(
           originalCORS.set!.call(this, value)
           return
         }
-        if (value === null) this.removeAttribute('crossorigin')
+        if (value === null || value === undefined)
+          this.removeAttribute('crossorigin')
         else
           this.setAttribute(
             'crossorigin',

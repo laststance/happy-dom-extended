@@ -21,10 +21,10 @@ export type { DisposeCompatibility } from './types.ts'
 export { ExtendedCanvasAdapter } from './canvas/adapter.ts'
 export { disposeAll } from './utils/dispose-all.ts'
 
-/** Installs verified Web API extensions for a runner and owns their complete teardown.
+/** Installs verified Web API extensions; runners first await Window close to join asynchronous resources, then restore patches.
  * @param window - Happy DOM window created by Jest or a future runner adapter.
- * @returns An idempotent disposer that closes resources and restores patched properties.
- * @example const dispose = installCompatibility(window); dispose();
+ * @returns An idempotent synchronous disposer that requests cancellation and restores properties; it does not join child threads.
+ * @example const dispose = installCompatibility(window); await window.happyDOM.close(); dispose();
  */
 export function installCompatibility(
   window: Window,

@@ -22,6 +22,8 @@ Rasterization and installed system fonts can differ from a browser. The pinned A
 
 Only the 2D context is implemented. WebGL, WebGPU, `bitmaprenderer`, a public Window.Path2D constructor, CanvasFilter objects, HDR/float surfaces and full browser text/layout behavior are not provided. The Canvas transfer extension handles ImageBitmap and OffscreenCanvas; it does not turn every Happy DOM class into a native structured-clone type. Browser-specific structured-clone realm behavior for ordinary Node values is not promised.
 
+DOMException transport preserves its name, message and receiving Window brand. Other Error subclasses follow the standard error-name fallback; AggregateError's `errors` array is not preserved. Decoded image bytes supplied by an unpatched Window without recorded origin/CORS metadata are treated as origin-tainted, including when used in patterns or copied to another Canvas.
+
 ### Video
 
 Video Canvas sources require **ffmpeg and ffprobe on PATH**. They decode real frames using CPU subprocesses; they are not needed for ordinary Canvas/image users. Missing executables or invalid media produce a recoverable media error. CI installs both executables on Ubuntu and Windows.

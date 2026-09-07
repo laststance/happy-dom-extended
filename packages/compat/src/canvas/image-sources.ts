@@ -195,7 +195,8 @@ export function sourceOriginClean(source: unknown): boolean {
   if (source instanceof HTMLCanvasElement)
     source = htmlPlaceholders.get(source) ?? source
   if (source instanceof HTMLImageElement)
-    return imageSources.get(source)?.originClean ?? true
+    // Foreign decoded bytes carry no validated origin metadata, so readback must remain protected.
+    return imageSources.get(source)?.originClean ?? false
   if (source instanceof HTMLVideoElement)
     return videoSources.get(source)?.originClean ?? true
   if (source instanceof HTMLCanvasElement || source instanceof OffscreenCanvas)

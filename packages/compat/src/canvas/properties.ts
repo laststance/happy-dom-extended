@@ -47,6 +47,9 @@ export function setCanvasProperty(
 ): boolean | undefined {
   const name = String(key)
   const window = state.caller.window
+  const enumValues = Object.hasOwn(CANVAS_ENUM_PROPERTIES, name)
+    ? CANVAS_ENUM_PROPERTIES[name]
+    : undefined
   let converted: unknown = value
   if (CANVAS_NUMERIC_PROPERTIES.has(name)) {
     converted = conversions['unrestricted double'](
@@ -58,16 +61,9 @@ export function setCanvasProperty(
     converted = Boolean(value)
   } else if (['fillStyle', 'strokeStyle', 'shadowColor'].includes(name)) {
     return setCanvasStyle(state, name, value)
-  } else if (
-    CANVAS_STRING_PROPERTIES.has(name) ||
-    CANVAS_ENUM_PROPERTIES[name]
-  ) {
+  } else if (CANVAS_STRING_PROPERTIES.has(name) || enumValues) {
     const text = conversions.DOMString(value, conversionOptions(window))
-    if (
-      CANVAS_ENUM_PROPERTIES[name] &&
-      !CANVAS_ENUM_PROPERTIES[name].includes(text)
-    )
-      return true
+    if (enumValues && !enumValues.includes(text)) return true
     converted = text
   } else {
     return undefined

@@ -100,6 +100,7 @@ function mapCanvasGraph(
   value: unknown,
   replace: (value: object) => object | undefined,
   seen = new Map<object, unknown>(),
+  receiver?: ICanvasAdapterCaller['window'],
 ): unknown {
   if (value === null || typeof value !== 'object') return value
   if (seen.has(value)) return seen.get(value)
@@ -110,17 +111,20 @@ function mapCanvasGraph(
   }
   // Native typed storage/errors/ports retain their own serialization rules; proxies must reach the native rejection path intact.
   if (nativeStructuredValue(value)) return value
-  if (types.isNativeError(value))
-    return mapError(value, seen, (entry) =>
-      mapCanvasGraph(entry, replace, seen),
+  if (types.isNativeError(value) || value instanceof DOMException)
+    return mapError(
+      value,
+      seen,
+      (entry) => mapCanvasGraph(entry, replace, seen, receiver),
+      receiver,
     )
   if (types.isMap(value)) {
     const mapped = new Map<unknown, unknown>()
     seen.set(value, mapped)
     Map.prototype.forEach.call(value, (entry: unknown, key: unknown) => {
       mapped.set(
-        mapCanvasGraph(key, replace, seen),
-        mapCanvasGraph(entry, replace, seen),
+        mapCanvasGraph(key, replace, seen, receiver),
+        mapCanvasGraph(entry, replace, seen, receiver),
       )
     })
     return mapped
@@ -129,7 +133,7 @@ function mapCanvasGraph(
     const mapped = new Set<unknown>()
     seen.set(value, mapped)
     for (const entry of Set.prototype.values.call(value))
-      mapped.add(mapCanvasGraph(entry, replace, seen))
+      mapped.add(mapCanvasGraph(entry, replace, seen, receiver))
     return mapped
   }
   const mapped: object = Array.isArray(value) ? new Array(value.length) : {}
@@ -141,7 +145,7 @@ function mapCanvasGraph(
       configurable: true,
       enumerable: true,
       writable: true,
-      value: mapCanvasGraph(Reflect.get(value, key), replace, seen),
+      value: mapCanvasGraph(Reflect.get(value, key), replace, seen, receiver),
     })
   }
   return mapped
@@ -373,7 +377,12 @@ export function receiveCanvasTransfer(
       if (result instanceof OffscreenCanvas && presentation)
         bindCanvasPresenter(result, presentation)
     }
-    return mapCanvasGraph(envelope.value, (marker) => replacements?.get(marker))
+    return mapCanvasGraph(
+      envelope.value,
+      (marker) => replacements?.get(marker),
+      new Map(),
+      window,
+    )
   } catch (error) {
     if (replacements) {
       const allocated = replacements

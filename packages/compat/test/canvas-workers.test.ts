@@ -1,12 +1,134 @@
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { test } from 'node:test'
-import { threadId } from 'node:worker_threads'
+import {
+  MessagePort,
+  Worker as NativeWorker,
+  threadId,
+} from 'node:worker_threads'
 
 import { workerThreads } from '../src/workers/state.ts'
 
 import { imageServers } from './utils/image-servers.ts'
 import { renderingWindow } from './utils/rendering-window.ts'
+
+test(
+  'early packaged Worker bootstrap failures emit a native error even when unhandled rejections only warn',
+  { timeout: 8000 },
+  async (context) => {
+    // Arrange
+    const worker = new NativeWorker(
+      new URL('../../jest-happy-dom-extended/src/worker.ts', import.meta.url),
+      {
+        workerData: null,
+        execArgv: ['--experimental-vm-modules', '--unhandled-rejections=warn'],
+      },
+    )
+    context.after(async () => {
+      await worker.terminate()
+    })
+    const failed = new Promise<Error>((resolve) =>
+      worker.once('error', resolve),
+    )
+    const exited = new Promise<number>((resolve) =>
+      worker.once('exit', resolve),
+    )
+    // Act
+    const [error, exitCode] = await Promise.all([failed, exited])
+    // Assert
+    assert.ok(error instanceof TypeError)
+    assert.equal(exitCode, 1)
+    assert.equal(worker.threadId, -1)
+  },
+)
+
+test(
+  'a timed-out importScripts response cannot execute as the next requested script',
+  { timeout: 45_000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    window.happyDOM.setURL('https://worker.test')
+    let releaseStale!: (response: InstanceType<typeof window.Response>) => void
+    const stale = new Promise<InstanceType<typeof window.Response>>(
+      (resolve) => {
+        releaseStale = resolve
+      },
+    )
+    let releaseFresh!: (response: InstanceType<typeof window.Response>) => void
+    const fresh = new Promise<InstanceType<typeof window.Response>>(
+      (resolve) => {
+        releaseFresh = resolve
+      },
+    )
+    let markRequested!: () => void
+    const requested = new Promise<void>((resolve) => {
+      markRequested = resolve
+    })
+    let markStaleReplied!: () => void
+    const staleReplied = new Promise<void>((resolve) => {
+      markStaleReplied = resolve
+    })
+    let markFinished!: () => void
+    const finished = new Promise<void>((resolve) => {
+      markFinished = resolve
+    })
+    const messages: unknown[] = []
+    const original = MessagePort.prototype.postMessage
+    context.mock.method(
+      MessagePort.prototype,
+      'postMessage',
+      function (this: MessagePort, ...argumentsList: unknown[]) {
+        const result = Reflect.apply(original, this, argumentsList)
+        const message = argumentsList[0]
+        if (
+          message &&
+          typeof message === 'object' &&
+          Reflect.get(message, 'url') === 'https://worker.test/stale.js'
+        )
+          markStaleReplied()
+        return result
+      },
+    )
+    window.happyDOM.settings.fetch.interceptor = {
+      beforeAsyncRequest: async ({ request }) => {
+        const path = new URL(request.url).pathname
+        if (path === '/stale.js') return stale
+        if (path === '/fresh.js') {
+          markRequested()
+          return fresh
+        }
+        return new window.Response(
+          "try { importScripts('/stale.js') } catch (error) { postMessage(error.name) } importScripts('/fresh.js'); postMessage(marker)",
+          { headers: { 'content-type': 'text/javascript' } },
+        )
+      },
+    }
+    const Constructor = Reflect.get(window, 'Worker')
+    const worker = new Constructor('/entry.js')
+    context.after(() => worker.terminate())
+    worker.onmessage = ({ data }: { data: unknown }) => {
+      messages.push(data)
+      if (data !== 'TimeoutError') markFinished()
+    }
+    // Act: release the expired request first, after the child has actually requested its replacement.
+    await requested
+    releaseStale(
+      new window.Response("self.marker = 'stale'", {
+        headers: { 'content-type': 'text/javascript' },
+      }),
+    )
+    await staleReplied
+    releaseFresh(
+      new window.Response("self.marker = 'fresh'", {
+        headers: { 'content-type': 'text/javascript' },
+      }),
+    )
+    await finished
+    // Assert
+    assert.deepEqual(messages, ['TimeoutError', 'fresh'])
+  },
+)
 
 test(
   'classic Worker entry scripts execute Blob and data URLs without requiring an HTTP JavaScript MIME type',
@@ -206,12 +328,15 @@ test(
       'session=worker',
     )
     worker.terminate()
-    for (const url of ['/redirect.js', '/denied.js']) {
+    for (const { url, expected } of [
+      { url: '/redirect.js', expected: /crossed origins/ },
+      { url: '/denied.js', expected: /CORS check/ },
+    ]) {
       const blocked = new Constructor(url, { type: 'module' })
       const failed = new Promise<{ message: string }>((resolve) => {
         blocked.onerror = resolve
       })
-      assert.match((await failed).message, /crossed origins|CORS check/)
+      assert.match((await failed).message, expected)
     }
     assert.equal(
       requests.some(({ path }) => path === '/foreign.js'),

@@ -1,9 +1,10 @@
-import { HTMLCanvasElement, PropertySymbol } from 'happy-dom'
+import { HTMLCanvasElement, OffscreenCanvas, PropertySymbol } from 'happy-dom'
 import conversions from 'webidl-conversions'
 
 import { replaceProperty } from '../utils/replace-property.ts'
 
 import { CANVAS_DIMENSIONS } from './constants.ts'
+import { offscreenDimensions } from './state.ts'
 import type { CanvasState } from './types.ts'
 import { conversionOptions } from './utils/conversion-options.ts'
 
@@ -37,6 +38,9 @@ export function installCanvasDimensions(state: CanvasState): void {
     }
     return
   }
+  // Owned Offscreen accessors already reset pixels and publish size changes from one shared record.
+  if (canvas instanceof OffscreenCanvas && offscreenDimensions.has(canvas))
+    return
   for (const dimension of CANVAS_DIMENSIONS) {
     let size = canvas[dimension]
     state.restorers.push(

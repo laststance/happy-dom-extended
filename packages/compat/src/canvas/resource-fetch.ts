@@ -27,6 +27,7 @@ import {
 } from './happy-dom-internals.ts'
 import { canvasWindows } from './state.ts'
 import { abortableMedia } from './utils/abortable-media.ts'
+import { cancelMediaBody } from './utils/cancel-media-body.ts'
 
 const requestOrigins = new WeakMap<Request, string | null>()
 const responseCookies = new WeakMap<URL, boolean>()
@@ -153,7 +154,7 @@ async function mediaResponseBytes(
   signal: AbortSignal,
 ) {
   if (!response.ok) {
-    await response.body?.cancel()
+    await cancelMediaBody(response.body)
     throw new window.DOMException('The media request failed.', 'NetworkError')
   }
   const reader = response.body?.getReader()
@@ -181,7 +182,7 @@ async function mediaResponseBytes(
       throw error
     }
   } catch (error) {
-    await reader?.cancel(error)
+    await cancelMediaBody(reader, error)
     throw error
   } finally {
     disposeAll([() => reader?.releaseLock(), ...releases])
@@ -257,7 +258,7 @@ async function mediaRequest(
   }
   const response = await fetch.send()
   if (failures.length) {
-    await response.body?.cancel()
+    await cancelMediaBody(response.body)
     throw failures[0]
   }
   return response
@@ -317,7 +318,7 @@ async function validateCorsResponse(
     (credentialed &&
       response.headers.get('access-control-allow-credentials') !== 'true')
   ) {
-    await response.body?.cancel()
+    await cancelMediaBody(response.body)
     throw new window.DOMException(
       'The media response failed its CORS check.',
       'NetworkError',
@@ -385,7 +386,7 @@ async function redirectURL(
   url: URL,
 ): Promise<URL> {
   const location = response.headers.get('location')
-  await response.body?.cancel()
+  await cancelMediaBody(response.body)
   if (!location)
     throw new window.DOMException(
       'The media redirect has no location.',
