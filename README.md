@@ -11,18 +11,59 @@
 
 **A Jest environment for running browser JavaScript tests in Node.js with Happy DOM, real 2D Canvas rendering, and additional working Web APIs.**
 
-Install the public package and select it as your Jest environment:
+## Installation
+
+Requires **Node.js >=22.18.0** and **Jest 30**. Choose your package manager below.
+
+`skia-canvas` is a required dependency. Its installation script downloads the native binary for your platform. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported Linux, Windows and macOS builds and source-build requirements.
+
+### npm
 
 ```sh
 npm install --save-dev jest@30 jest-happy-dom-extended
 ```
 
-With npm 12, approve and run Skia's native installation script before running Jest:
+With npm 12, [approve](https://docs.npmjs.com/cli/v12/commands/npm-approve-scripts/) and run Skia's native installation script after installation:
 
 ```sh
 npm approve-scripts skia-canvas
 npm rebuild skia-canvas
 ```
+
+### pnpm
+
+```sh
+pnpm add -D jest@30 jest-happy-dom-extended
+pnpm approve-builds
+```
+
+In the approval prompt, select **skia-canvas** and your project's other required native scripts. Jest 30 also lists **@parcel/watcher** and **unrs-resolver**. [pnpm saves these approvals](https://pnpm.io/cli/approve-builds) in `pnpm-workspace.yaml`.
+
+For a non-interactive installation with pnpm 12, merge this into `pnpm-workspace.yaml` before running `pnpm add`:
+
+```yaml
+allowBuilds:
+  skia-canvas: true
+  '@parcel/watcher': true
+  unrs-resolver: true
+```
+
+### Bun
+
+```sh
+bun add --dev jest@30 jest-happy-dom-extended
+bun pm trust skia-canvas
+```
+
+[`bun pm trust`](https://bun.sh/docs/pm/cli/pm#trust) runs Skia's installation script and saves the package in `trustedDependencies`. Use Bun to install dependencies; run Jest with Node.js as shown below.
+
+### Video support
+
+**Drawing video frames also requires `ffmpeg` and `ffprobe` on PATH.** Ordinary Canvas drawing and image loading do not use these executables. Supported video formats depend on your FFmpeg build.
+
+## Configure Jest
+
+Select the installed package as your Jest environment:
 
 ```js
 // jest.config.mjs
@@ -36,9 +77,7 @@ export default {
 npx jest
 ```
 
-Requires **Node.js >=22.18.0** and **Jest 30**. CommonJS projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal Jest configuration. Extensions are available before `setupFiles` and `setupFilesAfterEnv` run.
-
-Before the first npm publication, or when trying an unreleased commit, use a [locally built tarball](docs/releasing.md#build-and-inspect-the-package). Publishing is a maintainer action; CI only validates packages.
+CommonJS projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal Jest configuration. Extensions are available before `setupFiles` and `setupFilesAfterEnv` run.
 
 ## What this library provides
 
@@ -56,30 +95,6 @@ Happy DOM supplies the DOM and browser object families. This package builds on i
 | Events, animation and XHR     | CompositionEvent text, observable animation cancellation rejection and XHR instance constants                                                                                   |
 
 Application-specific mocks and fixtures stay in your tests. Real browsers remain necessary for layout, WebGL/WebGPU, browser-specific scheduling and exact browser rendering. The [package guide](packages/jest-happy-dom-extended/README.md) explains configuration and lifecycle behavior; the [Canvas compatibility contract](docs/canvas-compatibility.md) records precise supported APIs, limits and comparison evidence.
-
-## Native installation
-
-The package includes `skia-canvas` as a required runtime dependency. Its installation must be allowed to obtain the platform-native binary. Supported builds are available for Linux, Windows and macOS; see the [Skia installation guide](https://skia-canvas.org/getting-started) for architecture, system-library and source-build requirements.
-
-For pnpm:
-
-```sh
-pnpm add -D jest@30 jest-happy-dom-extended
-pnpm approve-builds
-```
-
-Approve **skia-canvas** and the native scripts required by your project. Jest 30 also lists **@parcel/watcher** and **unrs-resolver**. With pnpm 12, a non-interactive project can merge this into `pnpm-workspace.yaml` before installation:
-
-```yaml
-allowBuilds:
-  skia-canvas: true
-  '@parcel/watcher': true
-  unrs-resolver: true
-```
-
-Use the build-approval setting supported by your pnpm version. Ordinary consumers do not need the official node-canvas adapter or Cairo/Pango.
-
-**Video input also requires `ffmpeg` and `ffprobe` on PATH.** These executables are used only for video; image loading and ordinary Canvas drawing do not start them. CI installs and verifies both on Linux and Windows.
 
 ## Draw and inspect real pixels
 
