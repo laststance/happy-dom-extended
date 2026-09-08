@@ -11,6 +11,51 @@ import { fetchCanvasResource } from '../src/canvas/resource-fetch.ts'
 import { imageServers } from './utils/image-servers.ts'
 import { renderingWindow } from './utils/rendering-window.ts'
 
+test('disabled image file loading leaves placeholder URLs pending without errors or stale pixels while data URLs still render', async (context) => {
+  // Arrange
+  const { origin, redPng, requests } = await imageServers(context)
+  const { window } = await renderingWindow(context)
+  window.happyDOM.settings.enableImageFileLoading = false
+  const image = new window.Image()
+  const events: string[] = []
+  image.addEventListener('load', () => events.push('load'))
+  image.addEventListener('error', () => events.push('error'))
+
+  // Act: disabled network loading must leave fixture URLs available for UI assertions.
+  image.src = `${origin}/red.png`
+  await assert.rejects(image.decode(), { name: 'EncodingError' })
+  await window.happyDOM.waitUntilComplete()
+
+  // Assert
+  assert.deepEqual(events, [])
+  assert.equal(requests.length, 0)
+  assert.equal(image.complete, false)
+
+  // Act: embedded pixels remain usable when network loading is disabled.
+  image.src = `data:image/png;base64,${redPng.toString('base64')}`
+  await image.decode()
+  const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
+  drawing.drawImage(image, 0, 0)
+
+  // Assert
+  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [255, 0, 0, 255])
+  assert.deepEqual(events, ['load'])
+
+  // Act: replacing decoded pixels with a disabled URL discards the old image.
+  image.src = `${origin}/blue.png`
+  await assert.rejects(image.decode(), { name: 'EncodingError' })
+  await window.happyDOM.waitUntilComplete()
+  drawing.clearRect(0, 0, 1, 1)
+  drawing.drawImage(image, 0, 0)
+
+  // Assert
+  assert.deepEqual(events, ['load'])
+  assert.equal(requests.length, 0)
+  assert.equal(image.complete, false)
+  assert.deepEqual([image.naturalWidth, image.naturalHeight], [0, 0])
+  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [0, 0, 0, 0])
+})
+
 test('foreign decoded image bytes without verified origin metadata taint Canvas exports and patterns', async (context) => {
   // Arrange
   const { origin, crossOrigin } = await imageServers(context)

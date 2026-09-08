@@ -115,6 +115,20 @@ function loadCanvasImage(image: HTMLImageElement): void {
   const environment = environments.get(window)
   if (!environment) return
   imageSources.get(image)?.dispose()
+  image[PropertySymbol.complete] = false
+  image[PropertySymbol.buffer] = null
+  image[PropertySymbol.naturalWidth] = 0
+  image[PropertySymbol.naturalHeight] = 0
+  const source = image.src
+  // Disabled requests stay pending, matching Happy DOM without sending UI error events.
+  if (
+    source &&
+    !source.startsWith('data:') &&
+    !new WindowBrowserContext(window).getSettings()?.enableImageFileLoading
+  ) {
+    imageSources.delete(image)
+    return
+  }
   const controller = new window.AbortController()
   let releasePixels = () => {}
   const state: ImageSourceState = {
@@ -134,10 +148,6 @@ function loadCanvasImage(image: HTMLImageElement): void {
   imageSources.set(image, state)
   const reference = new WeakRef(state)
   environment.sources.add(reference)
-  image[PropertySymbol.complete] = false
-  image[PropertySymbol.buffer] = null
-  image[PropertySymbol.naturalWidth] = 0
-  image[PropertySymbol.naturalHeight] = 0
   const manager = new WindowBrowserContext(window).getAsyncTaskManager()
   const task = manager?.startTask(() => state.dispose())
   const timer = setTimeout(
@@ -183,7 +193,6 @@ function loadCanvasImage(image: HTMLImageElement): void {
     })
   }
   try {
-    const source = image.src
     if (!source)
       throw new window.DOMException('The image has no source.', 'EncodingError')
     if (source.startsWith('data:')) {
@@ -202,13 +211,6 @@ function loadCanvasImage(image: HTMLImageElement): void {
       }
       accept({ buffer, originClean: true })
     } else {
-      if (
-        !new WindowBrowserContext(window).getSettings()?.enableImageFileLoading
-      )
-        throw new window.DOMException(
-          'Image file loading is disabled.',
-          'EncodingError',
-        )
       state.completion = fetchCanvasResource(
         window,
         source,
