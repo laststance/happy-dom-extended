@@ -18,11 +18,16 @@ import { disposeAll } from './utils/dispose-all.ts'
 import { installWorkers } from './workers/install-workers.ts'
 
 export type { DisposeCompatibility } from './types.ts'
+export type {
+  PreparedOwnedCanvasSettings,
+  PrepareOwnedCanvasSettingsErrors,
+} from './prepare-owned-canvas-settings.ts'
 export { ExtendedCanvasAdapter } from './canvas/adapter.ts'
 export { disposeAll } from './utils/dispose-all.ts'
+export { prepareOwnedCanvasSettings } from './prepare-owned-canvas-settings.ts'
 
 /** Installs verified Web API extensions; runners first await Window close to join asynchronous resources, then restore patches.
- * @param window - Happy DOM window created by Jest or a future runner adapter.
+ * @param window - Happy DOM window created by {@link HappyDOMExtendedEnvironment} or {@link createHappyDomExtendedEnvironment}.
  * @returns An idempotent synchronous disposer that requests cancellation and restores properties; it does not join child threads.
  * @example const dispose = installCompatibility(window); await window.happyDOM.close(); dispose();
  */

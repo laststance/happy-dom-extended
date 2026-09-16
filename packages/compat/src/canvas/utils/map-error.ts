@@ -1,6 +1,8 @@
 import { DOMException as HappyDOMException } from 'happy-dom'
 import type { ICanvasAdapterCaller } from 'happy-dom'
 
+import { isNativeDOMException } from '../../utils/is-native-dom-exception.ts'
+
 /** Maps Error causes and DOMException brands for Canvas cloning without changing native Error-subclass serialization.
  * @param source - Original error before or after native serialization.
  * @param seen - Existing graph aliases.
@@ -15,9 +17,9 @@ export function mapError(
   mapValue: (value: unknown) => unknown,
   receiver?: ICanvasAdapterCaller['window'],
 ): Error {
-  if (source instanceof DOMException || source instanceof HappyDOMException) {
+  if (isNativeDOMException(source) || source instanceof HappyDOMException) {
     // Native serialization preserves these fields; restore the public brand only in the receiving Window.
-    const Constructor = receiver?.DOMException ?? DOMException
+    const Constructor = receiver?.DOMException ?? globalThis.DOMException
     const mapped =
       source instanceof Constructor
         ? source

@@ -9,6 +9,7 @@ import { WindowBrowserContext } from '../canvas/happy-dom-internals.ts'
 import { bindCanvasPort } from '../canvas/ports.ts'
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
+import { isNativeMessageEvent } from '../utils/is-native-message-event.ts'
 import { registerWindowClose } from '../utils/register-window-close.ts'
 import { replaceProperty } from '../utils/replace-property.ts'
 
@@ -124,7 +125,7 @@ export function installWorkers(
           },
         )
         this.#messages.port1.addEventListener('message', (event) => {
-          if (!this.#stopped && event instanceof MessageEvent)
+          if (!this.#stopped && isNativeMessageEvent(event))
             this.dispatchEvent(workerMessageEvent(window, event))
         })
         this.#messages.port1.addEventListener('messageerror', () => {

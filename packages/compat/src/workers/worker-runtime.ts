@@ -10,6 +10,7 @@ import {
   installCompatibility,
   disposeAll,
 } from '../index.ts'
+import { isNativeMessageEvent } from '../utils/is-native-message-event.ts'
 
 import {
   WORKER_GLOBALS,
@@ -263,7 +264,7 @@ export async function startOwnedWorker(): Promise<void> {
     }
   })
   const messages = (event: Event) => {
-    if (!closing && event instanceof MessageEvent)
+    if (!closing && isNativeMessageEvent(event))
       scope.dispatchEvent(workerMessageEvent(window, event))
   }
   try {

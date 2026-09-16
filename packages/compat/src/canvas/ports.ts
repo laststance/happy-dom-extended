@@ -4,6 +4,8 @@ import type { ICanvasAdapterCaller } from 'happy-dom'
 
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
+import { isNativeDOMException } from '../utils/is-native-dom-exception.ts'
+import { isNativeMessageEvent } from '../utils/is-native-message-event.ts'
 import { replaceProperty } from '../utils/replace-property.ts'
 
 import { MAX_PENDING_CANVAS_MESSAGES } from './constants.ts'
@@ -193,7 +195,7 @@ export function bindCanvasPort(
             sent = true
           } catch (error) {
             if (
-              error instanceof DOMException &&
+              isNativeDOMException(error) &&
               error.name === 'DataCloneError'
             )
               throw new window.DOMException(error.message, 'DataCloneError')
@@ -205,6 +207,64 @@ export function bindCanvasPort(
         },
       }),
     )
+    /** Decodes Canvas envelopes before a consumer listener sees the message.
+     * @returns The native EventTarget listener installed on this port.
+     * @example wrapMessageListener(listener)
+     */
+    const ownedWrappers = new WeakSet<object>()
+    const wrapMessageListener = (listener: object | Function) => {
+      // Node's onmessage setter re-enters patched addEventListener with this wrapper.
+      if (ownedWrappers.has(listener)) {
+        return listener as (input: unknown) => void
+      }
+      let wrapped = wrappers.get(listener)
+      if (!wrapped) {
+        wrapped = function receiveCanvasMessage(input: unknown) {
+          const nativeEvent = isNativeMessageEvent(input) ? input : null
+          const result = decode(nativeEvent ? nativeEvent.data : input)
+          if (!result) return
+          let delivered = result.value
+          if (nativeEvent) {
+            let event = events.get(nativeEvent)
+            if (!event) {
+              // Keep native event propagation and target getters while replacing only the decoded message fields.
+              event = new Proxy(nativeEvent, {
+                get(target, key) {
+                  if (key === 'data') return result.value
+                  if (key === 'ports') {
+                    if (result.ports.length > 0) return result.ports
+                    // Ordinary transfers keep Node's ports; hide the private Canvas receipt.
+                    const packet: unknown = target.data
+                    const receipt =
+                      Array.isArray(packet) && packet[0] === token
+                        ? packet[2]
+                        : undefined
+                    return [...target.ports].filter((port) => port !== receipt)
+                  }
+                  const value: unknown = Reflect.get(target, key, target)
+                  return typeof value === 'function'
+                    ? value.bind(target)
+                    : value
+                },
+              })
+              events.set(nativeEvent, event)
+            }
+            delivered = event
+          }
+          if (typeof listener === 'function')
+            Reflect.apply(listener, port, [delivered])
+          else {
+            const handler: unknown = Reflect.get(listener, 'handleEvent')
+            if (typeof handler === 'function')
+              Reflect.apply(handler, listener, [delivered])
+          }
+        }
+        wrappers.set(listener, wrapped)
+        ownedWrappers.add(wrapped)
+        registered.add(new WeakRef(wrapped))
+      }
+      return wrapped
+    }
     restorers.push(
       replaceProperty(port, 'addEventListener', {
         writable: true,
@@ -215,43 +275,11 @@ export function bindCanvasPort(
             (typeof listener !== 'function' && typeof listener !== 'object')
           )
             return Reflect.apply(add, port, [type, listener, options])
-          let wrapped = wrappers.get(listener)
-          if (!wrapped) {
-            wrapped = function receiveCanvasMessage(input: unknown) {
-              const nativeEvent = input instanceof MessageEvent ? input : null
-              const result = decode(nativeEvent ? nativeEvent.data : input)
-              if (!result) return
-              let delivered = result.value
-              if (nativeEvent) {
-                let event = events.get(nativeEvent)
-                if (!event) {
-                  // Keep native event propagation and target getters while replacing only the decoded message fields.
-                  event = new Proxy(nativeEvent, {
-                    get(target, key) {
-                      if (key === 'data') return result.value
-                      if (key === 'ports') return result.ports
-                      const value: unknown = Reflect.get(target, key, target)
-                      return typeof value === 'function'
-                        ? value.bind(target)
-                        : value
-                    },
-                  })
-                  events.set(nativeEvent, event)
-                }
-                delivered = event
-              }
-              if (typeof listener === 'function')
-                Reflect.apply(listener, port, [delivered])
-              else {
-                const handler: unknown = Reflect.get(listener, 'handleEvent')
-                if (typeof handler === 'function')
-                  Reflect.apply(handler, listener, [delivered])
-              }
-            }
-            wrappers.set(listener, wrapped)
-            registered.add(new WeakRef(wrapped))
-          }
-          return Reflect.apply(add, port, [type, wrapped, options])
+          return Reflect.apply(add, port, [
+            type,
+            wrapMessageListener(listener),
+            options,
+          ])
         },
       }),
     )
@@ -270,6 +298,31 @@ export function bindCanvasPort(
             wrapper ?? listener,
             options,
           ])
+        },
+      }),
+    )
+    const originalOnmessage = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(port),
+      'onmessage',
+    )
+    let messageHandler: ((event: MessageEvent) => unknown) | null = null
+    restorers.push(
+      replaceProperty(port, 'onmessage', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          // Identity matches the assigned handler; Node dispatch uses the wrapped setter registration.
+          return messageHandler
+        },
+        set(listener: unknown) {
+          messageHandler =
+            typeof listener === 'function'
+              ? (listener as (event: MessageEvent) => unknown)
+              : null
+          originalOnmessage?.set?.call(
+            port,
+            messageHandler ? wrapMessageListener(messageHandler) : null,
+          )
         },
       }),
     )
