@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@happy-dom-extended/compat", "vitest-happy-dom-extended"]
+  "ignore": ["@happy-dom-extended/compat"]
 }

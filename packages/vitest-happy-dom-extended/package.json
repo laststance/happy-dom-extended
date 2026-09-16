@@ -1,8 +1,61 @@
 {
-  "name": "vitest-happy-dom-extended",
+  "name": "vitest-environment-happy-dom-extended",
   "version": "0.0.0",
-  "private": true,
+  "description": "A Happy DOM Vitest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
   "type": "module",
   "license": "MIT",
-  "description": "Reserved workspace for a future Vitest adapter."
+  "author": "ryota-murakami",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laststance/happy-dom-extended.git",
+    "directory": "packages/vitest-happy-dom-extended"
+  },
+  "homepage": "https://github.com/laststance/happy-dom-extended/tree/main/packages/vitest-happy-dom-extended#readme",
+  "bugs": {
+    "url": "https://github.com/laststance/happy-dom-extended/issues"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check:package": "publint && attw --pack --profile esm-only",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "buffer-image-size": "0.6.4",
+    "culori": "4.0.2",
+    "happy-dom": "20.14.0",
+    "skia-canvas": "3.0.8",
+    "webidl-conversions": "8.0.1"
+  },
+  "peerDependencies": {
+    "vitest": "^4.0.0"
+  },
+  "devDependencies": {
+    "@happy-dom-extended/compat": "workspace:*",
+    "fast-check": "4.9.0",
+    "vitest": "4.1.6"
+  }
 }
