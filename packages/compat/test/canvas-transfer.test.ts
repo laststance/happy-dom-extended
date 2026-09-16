@@ -639,7 +639,16 @@ test(
     // Assert: decoded Canvas ports used to replace the entire list and drop the native extra port.
     assert.equal(event.data.bitmap instanceof window.ImageBitmap, true)
     assert.ok(event.ports.length >= 2)
-    for (const port of event.ports) context.after(() => port.close())
+    const replied = once(extra.port2, 'message')
+    for (const port of event.ports) {
+      context.after(() => port.close())
+      try {
+        port.postMessage('mixed-native')
+      } catch {
+        // Only extra's twin delivers; other transferred ports are not that channel.
+      }
+    }
+    assert.deepEqual(await replied, ['mixed-native'])
   },
 )
 

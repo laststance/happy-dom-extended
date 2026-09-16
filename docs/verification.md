@@ -4,7 +4,7 @@ The current implementation owns Canvas semantics around CPU skia-canvas 3.0.8, i
 
 ## Local evidence
 
-The full local gate ran on macOS arm64 with Node.js 24.20.0, pnpm 12.3.4 and npm 11.19.0. Source integration used Jest 30.5.1; installed consumers used Jest 30.0.0 and 30.5.1. Both consumer versions also passed independently with npm 12.0.2 on Node 24.20.0 after their generated manifests explicitly approved Skia installation. Test output, not a zero process exit alone, determines completion.
+The full local gate ran on macOS arm64 with Node.js 24.20.0, pnpm 12.3.4 and npm 11.19.0. Source integration used Jest 30.5.1; installed consumers used Jest 30.0.0 and 30.5.1 plus Vitest 4.0.0 and 4.1.6. Both Jest consumer versions also passed independently with npm 12.0.2 on Node 24.20.0 after their generated manifests explicitly approved Skia installation. Test output, not a zero process exit alone, determines completion.
 
 The README Canvas/PNG example additionally passed as one actual Jest 30.5.1 test in each clean external consumer using npm 12.0.2 and pnpm 12.3.4, both on Node 24.20.0. npm approval alone left the Skia binary absent; the documented rebuild installed it.
 
@@ -36,7 +36,7 @@ Coverage is source-mapped V8 coverage from the source tests and the Jest and Vit
 
 The [Test workflow](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml) runs Node 22.18.0 / 24.20.0 / 26.8.1 on Linux and Windows. The [other workflows](https://github.com/laststance/happy-dom-extended/actions) cover lint, types, package build, Fallow, CodeQL, dependency review, audit, and Scorecard. Codecov receives the Linux Node 24 source report.
 
-Recorded execution: the [successful PR #10 Test run](https://github.com/laststance/happy-dom-extended/actions/runs/34156732310) ran all six Linux/Windows combinations on commit `d86b89644ce93dfe7b9b8ad9713730c46088e95f`. Its setup logs report these exact versions on both operating systems; all jobs used pnpm 12.3.4, Jest 30.5.1 integration and Jest 30.0.0/30.5.1 installed consumers:
+Recorded execution: the [successful PR #10 Test run](https://github.com/laststance/happy-dom-extended/actions/runs/34156732310) ran all six Linux/Windows combinations on commit `d86b89644ce93dfe7b9b8ad9713730c46088e95f`. Its setup logs report these exact versions on both operating systems; all jobs used pnpm 12.3.4, Jest 30.5.1 integration and Jest 30.0.0/30.5.1 installed consumers. Configured CI Test jobs on this branch also install Vitest 4.0.0 and the current pin 4.1.6 in each matrix cell; inspect the PR commit's Test run for those consumer logs:
 
 | Node.js | npm     |
 | ------- | ------- |

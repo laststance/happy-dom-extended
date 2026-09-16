@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import Environment, {
   createHappyDomExtendedEnvironment,
@@ -18,7 +19,7 @@ const happyDomEntry = packageRequire.resolve('happy-dom')
 const environmentHappyDom = packageRequire('happy-dom')
 assert.equal(
   environmentHappyDom.HTMLCanvasElement,
-  (await import(happyDomEntry)).HTMLCanvasElement,
+  (await import(pathToFileURL(happyDomEntry).href)).HTMLCanvasElement,
 )
 const dependencies = packageRequire('./package.json').dependencies
 assert.equal(dependencies['skia-canvas'], '3.0.8')

@@ -18,6 +18,10 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const temporary = mkdtempSync(
   path.join(tmpdir(), 'happy-dom-extended consumer-'),
 )
+// npm 10 on Node 22 can fail arborist walks when the cache path contains spaces.
+const npmCacheRoot = mkdtempSync(
+  path.join(tmpdir(), 'happy-dom-extended-npm-cache-'),
+)
 const rootManifest = JSON.parse(
   readFileSync(path.join(root, 'package.json'), 'utf8'),
 )
@@ -66,15 +70,32 @@ function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'))
 }
 
+/** True when a setupFile JSON record names a positive integer process id.
+ * {@link readWorkerRecords} rejects empty objects so they cannot count as a second PID.
+ * @example if (!isWorkerRecord(worker)) throw new Error(name)
+ */
+function isWorkerRecord(worker) {
+  return (
+    worker !== null &&
+    typeof worker === 'object' &&
+    Number.isInteger(worker.pid) &&
+    worker.pid > 0
+  )
+}
+
 /** Loads `{ pid }` records written by consumer setupFiles.
  * @param workerRecords - Directory of JSON files.
  * @returns Parsed worker records.
  * @example const workers = readWorkerRecords(directory)
  */
 function readWorkerRecords(workerRecords) {
-  return readdirSync(workerRecords).map((name) =>
-    readJson(path.join(workerRecords, name)),
-  )
+  return readdirSync(workerRecords).map((name) => {
+    const worker = readJson(path.join(workerRecords, name))
+    if (!isWorkerRecord(worker)) {
+      throw new Error(`Invalid worker record: ${name}`)
+    }
+    return worker
+  })
 }
 
 /** Confirms parallel setup ran in at least two worker processes.
@@ -93,13 +114,6 @@ function assertParallelWorkerRecords(workerRecords) {
   }
 }
 
-/** Confirms serial setup recorded a worker, and optionally that it is the CLI PID.
- * @param workerRecords - Directory of `{ pid }` JSON files written by setupFiles.
- * @param runnerPid - Parent CLI PID; Jest `--runInBand` must match it.
- * @param requireRunnerPid - When true, serial mode must be exactly one process and match the CLI PID.
- * @returns Nothing; throws when the recorded workers do not match serial mode.
- * @example assertSerialWorkerRecords(directory, pid, true)
- */
 /** Confirms serial Jest recorded exactly the CLI PID.
  * {@link assertSerialWorkerRecords} calls this when `requireRunnerPid` is true.
  * @example assertExactRunnerPid(workers, runnerPid)
@@ -114,6 +128,13 @@ function assertExactRunnerPid(workers, runnerPid) {
   }
 }
 
+/** Confirms serial setup recorded a worker, and optionally that it is the CLI PID.
+ * @param workerRecords - Directory of `{ pid }` JSON files written by setupFiles.
+ * @param runnerPid - Parent CLI PID; Jest `--runInBand` must match it.
+ * @param requireRunnerPid - When true, serial mode must be exactly one process and match the CLI PID.
+ * @returns Nothing; throws when the recorded workers do not match serial mode.
+ * @example assertSerialWorkerRecords(directory, pid, true)
+ */
 function assertSerialWorkerRecords(workerRecords, runnerPid, requireRunnerPid) {
   const workers = readWorkerRecords(workerRecords)
   if (workers.length === 0) {
@@ -123,13 +144,6 @@ function assertSerialWorkerRecords(workerRecords, runnerPid, requireRunnerPid) {
   if (requireRunnerPid) assertExactRunnerPid(workers, runnerPid)
 }
 
-/** Confirms every expected consumer suite ran with the advertised assertion count.
- * @param testResults - Jest-compatible or Vitest JSON `testResults` array.
- * @param expectedSuites - Basename to assertion count.
- * @param label - Failure prefix that names the runner and version.
- * @returns Nothing; throws when a suite is missing or has the wrong assertion count.
- * @example assertExpectedSuites(results.testResults, suites, 'Jest 30.5.1 (serial)')
- */
 /** Removes one report suite from the expected map or throws on a name/count mismatch.
  * {@link assertExpectedSuites} calls this for each `testResults` entry.
  * @example consumeExpectedSuite(remaining, suite)
@@ -142,6 +156,10 @@ function consumeExpectedSuite(remaining, suite) {
   remaining.delete(name)
 }
 
+/** Confirms every expected consumer suite ran with the advertised assertion count.
+ * {@link assertConsumerReport} calls this after the ten-test totals match.
+ * @example assertExpectedSuites(results.testResults, suites, 'Jest 30.5.1 (serial)')
+ */
 function assertExpectedSuites(testResults, expectedSuites, label) {
   const remaining = new Map(expectedSuites)
   for (const suite of testResults) consumeExpectedSuite(remaining, suite)
@@ -183,7 +201,7 @@ function installConsumer(consumer) {
     consumer,
     {
       ...process.env,
-      npm_config_cache: path.join(consumer, '.npm-cache'),
+      npm_config_cache: path.join(npmCacheRoot, path.basename(consumer)),
     },
   )
 }
@@ -363,4 +381,5 @@ try {
 } finally {
   // This unique directory contains only fixtures created by this invocation.
   rmSync(temporary, { recursive: true, force: true })
+  rmSync(npmCacheRoot, { recursive: true, force: true })
 }

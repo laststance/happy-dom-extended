@@ -177,7 +177,7 @@ async function recoverFailedPopulate(
     dispose: DisposeCompatibility
   },
   error: unknown,
-) {
+): Promise<never> {
   const errors = [error]
   try {
     restoreOwnProperties(global, globalSnapshot)
@@ -190,6 +190,7 @@ async function recoverFailedPopulate(
     errors.push(cleanupError)
   }
   throwCollectedErrors(errors, 'Environment setup failed.')
+  throw new Error('Environment setup failed.')
 }
 
 /** Joins the Window then restores populateGlobal writes so a second setup does not see leftover Window keys.
