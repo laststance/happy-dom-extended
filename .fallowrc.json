@@ -9,7 +9,9 @@
     "packages/compat/test/upstream-probe.ts",
     "fixtures/consumer/*.cjs",
     "fixtures/consumer/*.mjs",
-    "packages/*/test-node/*.test.mjs"
+    "fixtures/consumer-vitest/*.mjs",
+    "packages/*/test-node/*.test.mjs",
+    "packages/*/vitest.config.ts"
   ],
   "ignorePatterns": [".artifacts/**"],
   "health": {

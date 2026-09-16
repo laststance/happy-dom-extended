@@ -1,6 +1,15 @@
 # Manual npm release
 
-The publishable package is `jest-happy-dom-extended` in `packages/jest-happy-dom-extended`. The repository root, compatibility workspace and reserved Vitest workspace are private. GitHub Actions validate changes and never publish them.
+The publishable packages are `jest-happy-dom-extended` and `vitest-environment-happy-dom-extended`. The repository root and compatibility workspace are private. GitHub Actions validate every change. After the Test workflow succeeds on a `main` push, the Release workflow either opens a Version Packages PR or publishes pending versions to npm with OIDC trusted publishing.
+
+## Automated release
+
+1. Merge a reviewed PR that includes Changeset files.
+2. Wait for Test on `main`.
+3. Review and merge the Version Packages PR that Release opens.
+4. Wait for Test on that merge. Release then runs `changeset publish` with npm provenance.
+
+Configure each public package on npmjs.com as a trusted publisher for `laststance/happy-dom-extended`, workflow `release.yml` (filename only, exact case), environment none. The first `vitest-environment-happy-dom-extended` version needs that publisher before step 4. Do not set `NODE_AUTH_TOKEN` or `NPM_TOKEN` on the Release job.
 
 ## Prepare a version
 
@@ -18,7 +27,7 @@ pnpm install --lockfile-only
 pnpm check
 ```
 
-If the version/changelog changes are already included in the reviewed commit, skip the version command and run `pnpm check`. Confirm that the selected name/version has not already been published; npm cannot reuse an existing name/version. The version in `packages/jest-happy-dom-extended/package.json` determines the artifact name.
+If the version/changelog changes are already included in the reviewed commit, skip the version command and run `pnpm check`. Confirm that the selected name/version has not already been published; npm cannot reuse an existing name/version. The version in each public package's `package.json` determines that artifact name. Repeat the pack/inspect/publish block for `packages/vitest-happy-dom-extended` when releasing the Vitest environment.
 
 ## Build and inspect the package
 
@@ -42,7 +51,7 @@ The block stops on a failed build or a missing archive before inspecting or dry-
 
 Expect `dist/index.cjs`, `dist/index.d.cts`, `dist/worker.cjs`, their build chunks, README, CHANGELOG, LICENSE and package.json. Repository tests, fixtures, local artifacts, credentials and workspace source directories must not appear. Distribution source maps may contain the public source used to build the package.
 
-`pnpm check:package` checks package exports and type resolution. `pnpm test:package` installs a tarball outside the repository and runs both supported Jest versions, setup files, ESM/CommonJS lifetimes and actual Worker/video use in serial and two-process modes. `pnpm check` includes both commands.
+`pnpm check:package` checks package exports and type resolution (Jest uses attw `node16`; the ESM-only Vitest environment uses `esm-only`). `pnpm test:package` installs tarballs outside the repository and runs both supported Jest and Vitest versions, setup files, environment lifetimes and actual Worker/video use in serial and two-process modes. `pnpm check` includes both commands.
 
 To try a prepared artifact in an application before registry publication:
 
@@ -72,7 +81,7 @@ test -f "$release_tarball"
 npm publish "$release_tarball" --access public --registry=https://registry.npmjs.org
 ```
 
-Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal. This local manual workflow does not enable CI provenance; configure trusted publishing separately if automated releases become a requirement.
+Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal. Prefer the Release workflow for registry publication. Configure npm trusted publishing for `laststance/happy-dom-extended` on each public package, including the first `vitest-environment-happy-dom-extended` release, before merging a Version Packages PR. The local commands remain a fallback when CI cannot publish.
 
 After publication, verify the registry version in the same shell:
 

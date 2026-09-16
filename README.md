@@ -9,11 +9,11 @@
 
 # happy-dom-extended
 
-**A Jest environment for running browser JavaScript tests in Node.js with Happy DOM, real 2D Canvas rendering, and additional working Web APIs.**
+**Jest and Vitest environments for running browser JavaScript tests in Node.js with Happy DOM, real 2D Canvas rendering, and additional working Web APIs.**
 
 ## Installation
 
-Requires **Node.js >=22.18.0** and **Jest 30**. Choose your package manager below.
+Requires **Node.js >=22.18.0** and **Jest 30** or **Vitest 4**. Choose your package manager below.
 
 `skia-canvas` is a required dependency. Its installation script downloads the native binary for your platform. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported Linux, Windows and macOS builds and source-build requirements.
 
@@ -21,6 +21,8 @@ Requires **Node.js >=22.18.0** and **Jest 30**. Choose your package manager belo
 
 ```sh
 npm install --save-dev jest@30 jest-happy-dom-extended
+# or
+npm install --save-dev vitest@4 vitest-environment-happy-dom-extended
 ```
 
 With npm 12, [approve](https://docs.npmjs.com/cli/v12/commands/npm-approve-scripts/) and run Skia's native installation script after installation:
@@ -34,6 +36,8 @@ npm rebuild skia-canvas
 
 ```sh
 pnpm add -D jest@30 jest-happy-dom-extended
+# or
+pnpm add -D vitest@4 vitest-environment-happy-dom-extended
 pnpm approve-builds
 ```
 
@@ -52,6 +56,8 @@ allowBuilds:
 
 ```sh
 bun add --dev jest@30 jest-happy-dom-extended
+# or
+bun add --dev vitest@4 vitest-environment-happy-dom-extended
 bun pm trust skia-canvas
 ```
 
@@ -61,9 +67,9 @@ bun pm trust skia-canvas
 
 **Drawing video frames also requires `ffmpeg` and `ffprobe` on PATH.** Ordinary Canvas drawing and image loading do not use these executables. Supported video formats depend on your FFmpeg build.
 
-## Configure Jest
+## Configure Jest or Vitest
 
-Select the installed package as your Jest environment:
+Select the installed package as your test environment:
 
 ```js
 // jest.config.mjs
@@ -73,15 +79,28 @@ export default {
 }
 ```
 
-```sh
-npx jest
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    environment: 'happy-dom-extended',
+    environmentOptions: { happyDOM: { url: 'https://example.test/' } },
+  },
+})
 ```
 
-CommonJS projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal Jest configuration. Extensions are available before `setupFiles` and `setupFilesAfterEnv` run.
+```sh
+npx jest
+npx vitest run
+```
+
+CommonJS Jest projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal runner configuration. Jest extensions are available before `setupFiles` and `setupFilesAfterEnv` run. Vitest resolves `environment: 'happy-dom-extended'` to `vitest-environment-happy-dom-extended`. The default Vitest pool is `forks`; `vmForks` is not claimed in 0.1.0.
 
 ## What this library provides
 
-Happy DOM supplies the DOM and browser object families. This package builds on its official Jest environment, adds missing Node-backed APIs, repairs verified compatibility gaps across Jest's VM boundary, and owns the Canvas behavior listed below. One environment setting supplies these capabilities to every test file.
+Happy DOM supplies the DOM and browser object families. The public packages add missing Node-backed APIs, repair verified compatibility gaps across the runner boundary, and own the Canvas behavior listed below. One environment setting supplies these capabilities to every test file. The [Jest package guide](packages/jest-happy-dom-extended/README.md) and [Vitest package guide](packages/vitest-happy-dom-extended/README.md) cover runner-specific configuration.
 
 | Capability                    | Included behavior                                                                                                                                                               |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,7 +113,7 @@ Happy DOM supplies the DOM and browser object families. This package builds on i
 | Streams and messaging         | Encoding/compression streams, native structuredClone, MessagePort and environment-isolated BroadcastChannel                                                                     |
 | Events, animation and XHR     | CompositionEvent text, observable animation cancellation rejection and XHR instance constants                                                                                   |
 
-Application-specific mocks and fixtures stay in your tests. Real browsers remain necessary for layout, WebGL/WebGPU, browser-specific scheduling and exact browser rendering. The [package guide](packages/jest-happy-dom-extended/README.md) explains configuration and lifecycle behavior; the [Canvas compatibility contract](docs/canvas-compatibility.md) records precise supported APIs, limits and comparison evidence.
+Application-specific mocks and fixtures stay in your tests. Real browsers remain necessary for layout, WebGL/WebGPU, browser-specific scheduling and exact browser rendering. The [Canvas compatibility contract](docs/canvas-compatibility.md) records precise supported APIs, limits and comparison evidence.
 
 ## Draw and inspect real pixels
 
@@ -121,11 +140,11 @@ test('draws a red pixel and exports PNG', async () => {
 
 OffscreenCanvas offers the same 2D drawing with `await canvas.convertToBlob()` for output. Asynchronous exports preserve the pixels present when requested, including when a test immediately redraws or resizes. Environment teardown drains its own pending exports and releases owned media, ports and Workers.
 
-Image loading is enabled by default. Disable it with `testEnvironmentOptions.settings.enableImageFileLoading: false`. Custom Canvas adapters can still be supplied programmatically; ownership remains with the caller. No extra Canvas setup import is required.
+Image loading is enabled by default. Disable it with Happy DOM `settings.enableImageFileLoading: false`. Custom Canvas adapters can still be supplied programmatically; ownership remains with the caller. No extra Canvas setup import is required.
 
 ## Compatibility and verification
 
-The runtime pair is pinned to **Happy DOM 20.14.0**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**, including installed consumers using Jest **30.0.0 and 30.5.1**, serial execution and two worker processes.
+The runtime pair is pinned to **Happy DOM 20.14.0**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**, including installed consumers using Jest **30.0.0 and 30.5.1** and Vitest **4.0.0 plus the current pin**, serial execution and two worker processes.
 
 The tests check real pixels and encoded images, actual HTTP/decoder/Worker cancellation, ownership transfer, failure recovery and teardown. Shared browser fixtures measure renderer-dependent differences with explicit tolerances. This is selected conformance evidence, not a complete Web Platform Tests run. See [verification](docs/verification.md) and the [Canvas contract](docs/canvas-compatibility.md).
 
@@ -138,19 +157,19 @@ pnpm install --frozen-lockfile
 pnpm check
 ```
 
-Use the pnpm version pinned in the root package manifest. `pnpm check` runs source/Jest tests with coverage, lint, format, types, Sherif, Fallow, package export/type checks and isolated tarball consumers. Maintainers can follow the [manual npm release guide](docs/releasing.md) to inspect and publish the validated tarball.
+Use the pnpm version pinned in the root package manifest. `pnpm check` runs source/Jest/Vitest tests with coverage, lint, format, types, Sherif, Fallow, package export/type checks and isolated tarball consumers. Maintainers can follow the [manual npm release guide](docs/releasing.md) to inspect and publish the validated tarball.
 
 Workflows are separated into [Test](.github/workflows/test.yml), [Lint](.github/workflows/lint.yml), [Format](.github/workflows/format.yml), [TypeCheck](.github/workflows/typecheck.yml), [Build](.github/workflows/build.yml), [Fallow](.github/workflows/fallow.yml), [Security](.github/workflows/security.yml), [Socket](.github/workflows/socket.yml) and [OpenSSF Scorecard](.github/workflows/scorecard.yml). Security includes CodeQL, dependency review and a production dependency audit. Codecov receives the Linux Node 24 coverage report.
 
 Socket scans same-repository PRs, pushes to main, its weekly schedule and manual runs, using the `SOCKET_SECURITY_API_TOKEN` Actions secret. Fork PRs skip that secret-dependent workflow. See [Socket token setup](https://docs.socket.dev/docs/create-socket-api-key-for-cicd) for maintainer configuration.
 
-| Workspace                          | Purpose                                                          |
-| ---------------------------------- | ---------------------------------------------------------------- |
-| packages/jest-happy-dom-extended   | Public Jest environment distributed on npm                       |
-| packages/compat                    | Private implementation bundled into the Jest package             |
-| packages/vitest-happy-dom-extended | Reserved workspace; no usable Vitest environment is provided yet |
+| Workspace                          | Purpose                                                             |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| packages/jest-happy-dom-extended   | Public Jest environment (`jest-happy-dom-extended`)                 |
+| packages/vitest-happy-dom-extended | Public Vitest environment (`vitest-environment-happy-dom-extended`) |
+| packages/compat                    | Private implementation bundled into both public packages            |
 
-This is an independent [Laststance](https://github.com/laststance) project. It is not an official Happy DOM or Jest package. Report vulnerabilities through [SECURITY.md](SECURITY.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+This is an independent [Laststance](https://github.com/laststance) project. It is not an official Happy DOM, Jest, or Vitest package. Report vulnerabilities through [SECURITY.md](SECURITY.md) and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
