@@ -57,39 +57,95 @@ function packWorkspace(packageDirectory) {
   return path.join(destination, tarball)
 }
 
-/** Confirms setupFiles recorded the expected worker process identities.
- * @param workerRecords - Directory of `{ pid }` JSON files written by setupFiles.
- * @param mode - `serial` expects setup to run; `parallel` expects at least two distinct PIDs.
- * @param runnerPid - Parent CLI PID; Jest `--runInBand` must match it, Vitest forks must not require that.
- * @param requireRunnerPid - When true, serial mode must be exactly one process and match the CLI PID.
- * @returns Nothing; throws when the recorded workers do not match the mode.
- * @example assertWorkerRecords(directory, 'parallel', pid, false)
+/** Reads a JSON file written by a consumer runner or setupFile.
+ * @param file - Absolute path to a JSON document.
+ * @returns The parsed value.
+ * @example const results = readJson(testReport)
  */
-function assertWorkerRecords(workerRecords, mode, runnerPid, requireRunnerPid) {
-  const workers = readdirSync(workerRecords).map((name) =>
-    JSON.parse(readFileSync(path.join(workerRecords, name), 'utf8')),
+function readJson(file) {
+  return JSON.parse(readFileSync(file, 'utf8'))
+}
+
+/** Loads `{ pid }` records written by consumer setupFiles.
+ * @param workerRecords - Directory of JSON files.
+ * @returns Parsed worker records.
+ * @example const workers = readWorkerRecords(directory)
+ */
+function readWorkerRecords(workerRecords) {
+  return readdirSync(workerRecords).map((name) =>
+    readJson(path.join(workerRecords, name)),
   )
-  const pids = new Set(workers.map((worker) => worker.pid))
-  if (mode === 'parallel') {
-    if (pids.size < 2) {
-      throw new Error(
-        'Parallel verification did not run setup in at least two separate worker processes.',
-      )
-    }
-    return
+}
+
+/** Confirms parallel setup ran in at least two worker processes.
+ * @param workerRecords - Directory of `{ pid }` JSON files written by setupFiles.
+ * @returns Nothing; throws when fewer than two PIDs were recorded.
+ * @example assertParallelWorkerRecords(directory)
+ */
+function assertParallelWorkerRecords(workerRecords) {
+  const pids = new Set(
+    readWorkerRecords(workerRecords).map((worker) => worker.pid),
+  )
+  if (pids.size < 2) {
+    throw new Error(
+      'Parallel verification did not run setup in at least two separate worker processes.',
+    )
   }
-  if (pids.size === 0) {
+}
+
+/** Confirms serial setup recorded a worker, and optionally that it is the CLI PID.
+ * @param workerRecords - Directory of `{ pid }` JSON files written by setupFiles.
+ * @param runnerPid - Parent CLI PID; Jest `--runInBand` must match it.
+ * @param requireRunnerPid - When true, serial mode must be exactly one process and match the CLI PID.
+ * @returns Nothing; throws when the recorded workers do not match serial mode.
+ * @example assertSerialWorkerRecords(directory, pid, true)
+ */
+/** Confirms serial Jest recorded exactly the CLI PID.
+ * {@link assertSerialWorkerRecords} calls this when `requireRunnerPid` is true.
+ * @example assertExactRunnerPid(workers, runnerPid)
+ */
+function assertExactRunnerPid(workers, runnerPid) {
+  const pids = new Set(workers.map((worker) => worker.pid))
+  if (pids.size !== 1) {
+    throw new Error('Serial verification did not record exactly one worker.')
+  }
+  if (workers[0]?.pid !== runnerPid) {
+    throw new Error('Serial verification unexpectedly used a worker process.')
+  }
+}
+
+function assertSerialWorkerRecords(workerRecords, runnerPid, requireRunnerPid) {
+  const workers = readWorkerRecords(workerRecords)
+  if (workers.length === 0) {
     throw new Error('Serial verification did not record a worker.')
   }
   // Vitest forks+isolate starts a child per file even with `--maxWorkers=1`.
-  if (requireRunnerPid) {
-    if (pids.size !== 1) {
-      throw new Error('Serial verification did not record exactly one worker.')
-    }
-    if (workers[0]?.pid !== runnerPid) {
-      throw new Error('Serial verification unexpectedly used a worker process.')
-    }
+  if (requireRunnerPid) assertExactRunnerPid(workers, runnerPid)
+}
+
+/** Confirms every expected consumer suite ran with the advertised assertion count.
+ * @param testResults - Jest-compatible or Vitest JSON `testResults` array.
+ * @param expectedSuites - Basename to assertion count.
+ * @param label - Failure prefix that names the runner and version.
+ * @returns Nothing; throws when a suite is missing or has the wrong assertion count.
+ * @example assertExpectedSuites(results.testResults, suites, 'Jest 30.5.1 (serial)')
+ */
+/** Removes one report suite from the expected map or throws on a name/count mismatch.
+ * {@link assertExpectedSuites} calls this for each `testResults` entry.
+ * @example consumeExpectedSuite(remaining, suite)
+ */
+function consumeExpectedSuite(remaining, suite) {
+  const name = path.basename(suite.name)
+  if (remaining.get(name) !== suite.assertionResults?.length) {
+    throw new Error(`Unexpected consumer suite or assertion count: ${name}`)
   }
+  remaining.delete(name)
+}
+
+function assertExpectedSuites(testResults, expectedSuites, label) {
+  const remaining = new Map(expectedSuites)
+  for (const suite of testResults) consumeExpectedSuite(remaining, suite)
+  if (remaining.size) throw new Error(`${label} skipped a consumer suite.`)
 }
 
 /** Confirms a runner JSON report executed every expected consumer suite.
@@ -100,21 +156,52 @@ function assertWorkerRecords(workerRecords, mode, runnerPid, requireRunnerPid) {
  * @example assertConsumerReport(results, suites, 'Jest 30.5.1 (serial)')
  */
 function assertConsumerReport(results, expectedSuites, label) {
-  const total = results.numTotalTests
-  const passed = results.numPassedTests
-  if (!results.success || total !== 10 || passed !== 10) {
+  if (
+    !results.success ||
+    results.numTotalTests !== 10 ||
+    results.numPassedTests !== 10
+  ) {
     throw new Error(`${label} did not pass all ten consumer tests.`)
   }
-  const remaining = new Map(expectedSuites)
-  for (const suite of results.testResults) {
-    const name = path.basename(suite.name)
-    const assertions = suite.assertionResults?.length
-    if (remaining.get(name) !== assertions) {
-      throw new Error(`Unexpected consumer suite or assertion count: ${name}`)
-    }
-    remaining.delete(name)
-  }
-  if (remaining.size) throw new Error(`${label} skipped a consumer suite.`)
+  assertExpectedSuites(results.testResults, expectedSuites, label)
+}
+
+/** Installs an isolated consumer with its own npm cache so a second version cannot reuse a broken arborist graph.
+ * @param consumer - Isolated working directory.
+ * @returns Nothing; throws when npm install fails.
+ * @example installConsumer(consumer)
+ */
+function installConsumer(consumer) {
+  run(
+    'npm',
+    [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      '--registry=https://registry.npmjs.org',
+    ],
+    consumer,
+    {
+      ...process.env,
+      npm_config_cache: path.join(consumer, '.npm-cache'),
+    },
+  )
+}
+
+/** Runs installed Vitest through `process.execPath` so Windows does not treat a drive-letter shim as an ESM URL.
+ * @param consumer - Isolated working directory.
+ * @param argumentsList - Vitest CLI arguments after the entry file.
+ * @param environment - Child environment, including worker-record directory.
+ * @returns The child PID on success.
+ * @example runVitest(consumer, ['run'], env)
+ */
+function runVitest(consumer, argumentsList, environment) {
+  return run(
+    process.execPath,
+    [path.join(consumer, 'node_modules/vitest/vitest.mjs'), ...argumentsList],
+    consumer,
+    environment,
+  )
 }
 
 try {
@@ -150,16 +237,7 @@ try {
         2,
       ),
     )
-    run(
-      'npm',
-      [
-        'install',
-        '--no-audit',
-        '--no-fund',
-        '--registry=https://registry.npmjs.org',
-      ],
-      consumer,
-    )
+    installConsumer(consumer)
     run(process.execPath, ['esm.mjs'], consumer)
     run(
       process.execPath,
@@ -187,9 +265,10 @@ try {
         consumer,
         { ...process.env, HAPPY_DOM_WORKER_RECORD_DIRECTORY: workerRecords },
       )
-      assertWorkerRecords(workerRecords, mode, runnerPid, true)
+      if (mode === 'parallel') assertParallelWorkerRecords(workerRecords)
+      else assertSerialWorkerRecords(workerRecords, runnerPid, true)
       // A process exiting successfully before asynchronous setup finishes must still fail verification.
-      const results = JSON.parse(readFileSync(testReport, 'utf8'))
+      const results = readJson(testReport)
       if (
         results.numTotalTestSuites !== 3 ||
         results.numPassedTestSuites !== 3
@@ -243,16 +322,7 @@ try {
         2,
       ),
     )
-    run(
-      'npm',
-      [
-        'install',
-        '--no-audit',
-        '--no-fund',
-        '--registry=https://registry.npmjs.org',
-      ],
-      consumer,
-    )
+    installConsumer(consumer)
     run(process.execPath, ['esm.mjs'], consumer)
     run(
       process.execPath,
@@ -263,8 +333,8 @@ try {
       const testReport = path.join(consumer, `vitest-results-${mode}.json`)
       const workerRecords = path.join(consumer, `workers-${mode}`)
       mkdirSync(workerRecords)
-      const runnerPid = run(
-        path.join(consumer, 'node_modules/.bin/vitest'),
+      const runnerPid = runVitest(
+        consumer,
         [
           'run',
           ...(mode === 'serial'
@@ -273,12 +343,12 @@ try {
           '--reporter=json',
           `--outputFile=${testReport}`,
         ],
-        consumer,
         { ...process.env, HAPPY_DOM_WORKER_RECORD_DIRECTORY: workerRecords },
       )
       // Vitest's default forks pool always uses a child even with one worker.
-      assertWorkerRecords(workerRecords, mode, runnerPid, false)
-      const results = JSON.parse(readFileSync(testReport, 'utf8'))
+      if (mode === 'parallel') assertParallelWorkerRecords(workerRecords)
+      else assertSerialWorkerRecords(workerRecords, runnerPid, false)
+      const results = readJson(testReport)
       assertConsumerReport(
         results,
         new Map([

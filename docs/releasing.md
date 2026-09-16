@@ -27,7 +27,7 @@ pnpm install --lockfile-only
 pnpm check
 ```
 
-If the version/changelog changes are already included in the reviewed commit, skip the version command and run `pnpm check`. Confirm that the selected name/version has not already been published; npm cannot reuse an existing name/version. The version in each public package's `package.json` determines that artifact name. Repeat the pack/inspect/publish block for `packages/vitest-happy-dom-extended` when releasing the Vitest environment.
+If the version/changelog changes are already included in the reviewed commit, skip the version command and run `pnpm check`. Confirm that the selected name/version has not already been published; npm cannot reuse an existing name/version. The version in each public package's `package.json` determines that artifact name. Run both pack/inspect blocks below when releasing both packages.
 
 ## Build and inspect the package
 
@@ -40,6 +40,20 @@ mkdir -p .artifacts/release
 release_directory="$(mktemp -d "$(pwd)/.artifacts/release/pack.XXXXXX")"
 release_tarball="$release_directory/jest-happy-dom-extended-${release_version}.tgz"
 pnpm --filter jest-happy-dom-extended pack --pack-destination "$release_directory"
+test -f "$release_tarball"
+tar -tzf "$release_tarball"
+npm publish "$release_tarball" --dry-run --access public --registry=https://registry.npmjs.org
+```
+
+Repeat the same inspect for the Vitest environment. The published name is `vitest-environment-happy-dom-extended`:
+
+```sh
+set -eu
+release_version="$(node -p "require('./packages/vitest-happy-dom-extended/package.json').version")"
+mkdir -p .artifacts/release
+release_directory="$(mktemp -d "$(pwd)/.artifacts/release/pack.XXXXXX")"
+release_tarball="$release_directory/vitest-environment-happy-dom-extended-${release_version}.tgz"
+pnpm --filter vitest-environment-happy-dom-extended pack --pack-destination "$release_directory"
 test -f "$release_tarball"
 tar -tzf "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --registry=https://registry.npmjs.org

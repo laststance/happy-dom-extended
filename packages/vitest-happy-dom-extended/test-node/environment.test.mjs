@@ -98,17 +98,25 @@ test('structuredClone and postMessage throw the Window DOMException after popula
   const result = await environment.setup(sandbox, {})
   try {
     // Act / Assert
-    assert.throws(() => sandbox.structuredClone(() => {}), (error) => {
-      return (
-        error instanceof sandbox.DOMException && error.name === 'DataCloneError'
-      )
-    })
+    assert.throws(
+      () => sandbox.structuredClone(() => {}),
+      (error) => {
+        return (
+          error instanceof sandbox.DOMException &&
+          error.name === 'DataCloneError'
+        )
+      },
+    )
     const channel = new sandbox.MessageChannel()
-    assert.throws(() => channel.port1.postMessage(() => {}), (error) => {
-      return (
-        error instanceof sandbox.DOMException && error.name === 'DataCloneError'
-      )
-    })
+    assert.throws(
+      () => channel.port1.postMessage(() => {}),
+      (error) => {
+        return (
+          error instanceof sandbox.DOMException &&
+          error.name === 'DataCloneError'
+        )
+      },
+    )
   } finally {
     await result.teardown(sandbox)
   }
@@ -364,6 +372,28 @@ test('File-path settings-only options still disable image file loading', async (
   } finally {
     await result.teardown(sandbox)
   }
+})
+
+test('A factory adapter does not replace array settings', async () => {
+  // Arrange
+  const created = createHappyDomExtendedEnvironment({
+    canvasAdapter: {
+      getContext() {
+        return null
+      },
+      toDataURL() {
+        return ''
+      },
+      toBlob(_caller, callback) {
+        callback(null)
+      },
+    },
+  })
+  const sandbox = createSandbox()
+  // Act / Assert: arrays are objects; merge must not hide the settings TypeError.
+  await assert.rejects(() => created.setup(sandbox, { settings: [] }), {
+    message: 'environmentOptions.settings must be an object.',
+  })
 })
 
 test('A factory adapter does not replace invalid non-object settings', async () => {

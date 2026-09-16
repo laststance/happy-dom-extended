@@ -8,13 +8,13 @@ The full local gate ran on macOS arm64 with Node.js 24.20.0, pnpm 12.3.4 and npm
 
 The README Canvas/PNG example additionally passed as one actual Jest 30.5.1 test in each clean external consumer using npm 12.0.2 and pnpm 12.3.4, both on Node 24.20.0. npm approval alone left the Skia binary absent; the documented rebuild installed it.
 
-| Layer                                 | Expected successful execution                                                                             |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Node source regressions               | 182 tests, including the implementation and PR review regressions                                         |
-| Jest integration                      | 20 tests in 4 suites                                                                                      |
-| Vitest integration                    | 26 tests in 7 files across `forks`, `vmThreads`, and `isolate: false`                                     |
-| Installed consumer per Jest version   | 11 lifecycle tests; 10 Jest tests in 3 suites in serial mode; the same 10 tests with two worker processes |
-| Installed consumer per Vitest version | 7 lifecycle tests; 10 Vitest tests in 3 files in serial mode; the same 10 tests with two worker processes |
+| Layer                                 | Expected successful execution                                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Node source regressions               | 182 tests, including the implementation and PR review regressions                                                        |
+| Jest integration                      | 20 tests in 4 suites                                                                                                     |
+| Vitest integration                    | 26 tests in 7 files across `forks`, `vmThreads`, and `isolate: false`                                                    |
+| Installed consumer per Jest version   | 11 lifecycle tests; 10 Jest tests in 3 suites in serial mode; the same 10 tests with two worker processes                |
+| Installed consumer per Vitest version | 7 lifecycle tests; 10 Vitest tests in 3 files in serial mode; the same 10 tests with two worker processes                |
 | Public entry points                   | Jest shared ESM/CommonJS runtime; Vitest ESM-only entry; consistent Happy DOM class identity; removed `/canvas` rejected |
 
 The isolated tarball is installed outside this checkout in a path containing spaces, with native install scripts enabled. The fixture does not install Canvas directly. PNG is independently decoded using pngjs; JPEG/WebP are decoded by FFmpeg and compared with documented tolerance. The private Worker bootstrap executes from the installed package, including Blob-based scripts. Setup records verify worker process identities, and Jest JSON reports verify every expected suite and test.

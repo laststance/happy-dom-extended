@@ -45,9 +45,7 @@ function isFilePathWrappedOptions(key: string, value: unknown): boolean {
  * @returns Flat Happy DOM Window options without the runner wrapper keys.
  * @example resolveHappyDomOptions({ 'happy-dom-extended': { url: 'https://example.test/' } })
  */
-function resolveHappyDomOptions(
-  options: unknown,
-): Record<string, unknown> {
+function resolveHappyDomOptions(options: unknown): Record<string, unknown> {
   const record = isRecord(options) ? options : {}
   const named = isRecord(record['happy-dom-extended'])
     ? record['happy-dom-extended']
@@ -89,10 +87,11 @@ export function prepareEnvironment(
     if (
       suppliedSettings === undefined ||
       suppliedSettings === null ||
-      typeof suppliedSettings === 'object'
+      isRecord(suppliedSettings)
     ) {
+      // Arrays are objects; spreading them would skip {@link prepareOwnedCanvasSettings}'s TypeError.
       suppliedSettings = {
-        ...(suppliedSettings as object | undefined),
+        ...suppliedSettings,
         canvasAdapter: factoryOptions.canvasAdapter,
       }
     }

@@ -28,7 +28,7 @@ test('isNativeMessageEvent still recognizes a native event after a runner replac
     data = null
   }
   // Act
-  globalThis.MessageEvent = WindowMessageEvent as typeof MessageEvent
+  globalThis.MessageEvent = WindowMessageEvent as unknown as typeof MessageEvent
   try {
     // Assert: instanceof the replacement constructor fails; the captured native constructor still matches.
     assert.equal(native instanceof globalThis.MessageEvent, false)

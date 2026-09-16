@@ -59,6 +59,59 @@ function portEnvelope(
   return { value: Reflect.get(envelope, 'value'), records, ports }
 }
 
+/** Reads the private Canvas receipt port from a token-prefixed native packet.
+ * {@link collectDeliveredPorts} hides this port from consumer `event.ports`.
+ * @example const receipt = canvasReceipt(nativeEvent.data, token)
+ */
+function canvasReceipt(data: unknown, token: string) {
+  if (!Array.isArray(data) || data[0] !== token) return undefined
+  return data[2]
+}
+
+/** Deduplicates MessagePorts by identity after merging decoded and native lists.
+ * {@link collectDeliveredPorts} uses this so reconstructed Canvas ports are not listed twice.
+ * @example uniqueMessagePorts([...decoded, ...native])
+ */
+function uniqueMessagePorts(ports: MessagePort[]) {
+  return [...new Set(ports)]
+}
+
+/** Combines decoded Canvas ports with ordinary native ports and hides the private receipt.
+ * MessageEvent proxy `ports` getter calls this so mixed transfers keep both lists.
+ * @example collectDeliveredPorts(result.ports, nativeEvent, token)
+ */
+function collectDeliveredPorts(
+  decodedPorts: MessagePort[],
+  nativeEvent: MessageEvent,
+  token: string,
+): MessagePort[] {
+  const receipt = canvasReceipt(nativeEvent.data, token)
+  const nativePorts = [...nativeEvent.ports].filter(
+    (port) => port !== receipt,
+  ) as unknown as MessagePort[]
+  return uniqueMessagePorts([...decodedPorts, ...nativePorts])
+}
+
+/** Replaces only `data`/`ports` on a native MessageEvent so listeners keep target and bubbling getters.
+ * {@link bindCanvasPort} caches the proxy per native event.
+ * @example const event = decodedMessageEvent(nativeEvent, result, token)
+ */
+function decodedMessageEvent(
+  nativeEvent: MessageEvent,
+  result: { value: unknown; ports: MessagePort[] },
+  token: string,
+): MessageEvent {
+  return new Proxy(nativeEvent, {
+    get(target, key) {
+      if (key === 'data') return result.value
+      if (key === 'ports')
+        return collectDeliveredPorts(result.ports, target, token)
+      const value: unknown = Reflect.get(target, key, target)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
 /** Adds Canvas serialization to an actual native MessagePort, retaining its identity and both Node/EventTarget listener APIs.
  * @returns A disposer restoring instance methods and removing owned listener wrappers on Window teardown.
  * @example const restore = bindCanvasPort(window, channel.port1, token);
@@ -194,10 +247,7 @@ export function bindCanvasPort(
             prepared.commit()
             sent = true
           } catch (error) {
-            if (
-              isNativeDOMException(error) &&
-              error.name === 'DataCloneError'
-            )
+            if (isNativeDOMException(error) && error.name === 'DataCloneError')
               throw new window.DOMException(error.message, 'DataCloneError')
             throw error
           } finally {
@@ -227,26 +277,7 @@ export function bindCanvasPort(
           if (nativeEvent) {
             let event = events.get(nativeEvent)
             if (!event) {
-              // Keep native event propagation and target getters while replacing only the decoded message fields.
-              event = new Proxy(nativeEvent, {
-                get(target, key) {
-                  if (key === 'data') return result.value
-                  if (key === 'ports') {
-                    if (result.ports.length > 0) return result.ports
-                    // Ordinary transfers keep Node's ports; hide the private Canvas receipt.
-                    const packet: unknown = target.data
-                    const receipt =
-                      Array.isArray(packet) && packet[0] === token
-                        ? packet[2]
-                        : undefined
-                    return [...target.ports].filter((port) => port !== receipt)
-                  }
-                  const value: unknown = Reflect.get(target, key, target)
-                  return typeof value === 'function'
-                    ? value.bind(target)
-                    : value
-                },
-              })
+              event = decodedMessageEvent(nativeEvent, result, token)
               events.set(nativeEvent, event)
             }
             delivered = event

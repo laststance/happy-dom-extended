@@ -26,6 +26,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
+          persist-credentials: false
       - name: Confirm the successful Test SHA is still origin/main
         run: |
           git fetch --no-tags origin main

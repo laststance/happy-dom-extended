@@ -5,6 +5,23 @@ import { defineConfig } from 'vitest/config'
 const environment = fileURLToPath(new URL('./dist/index.mjs', import.meta.url))
 const packageRoot = 'packages/vitest-happy-dom-extended'
 
+/** Pins isolate:false files to path order so a-first always writes before b-second reads.
+ * Vitest's default sequencer can reorder by size; isolate-false `sequence.sequencer` uses this.
+ * @example sequence: { sequencer: IsolateFalseSequencer }
+ */
+class IsolateFalseSequencer {
+  // Vitest constructs sequencers with the runner context; this project does not shard.
+  constructor(_ctx: unknown) {}
+  async shard<T>(files: T[]) {
+    return files
+  }
+  async sort<T extends { moduleId: string }>(files: T[]) {
+    return [...files].sort((left, right) =>
+      left.moduleId.localeCompare(right.moduleId),
+    )
+  }
+}
+
 export default defineConfig({
   test: {
     projects: [
@@ -33,7 +50,7 @@ export default defineConfig({
       {
         test: {
           name: 'isolate-false',
-          sequence: { groupOrder: 2 },
+          sequence: { groupOrder: 2, sequencer: IsolateFalseSequencer },
           isolate: false,
           fileParallelism: false,
           pool: 'forks',

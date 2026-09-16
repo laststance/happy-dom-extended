@@ -21,10 +21,7 @@ function snapshotOwnProperties(target: object) {
   return [
     ...Object.getOwnPropertyNames(target),
     ...Object.getOwnPropertySymbols(target),
-  ].map(
-    (key) =>
-      [key, Object.getOwnPropertyDescriptor(target, key)] as const,
-  )
+  ].map((key) => [key, Object.getOwnPropertyDescriptor(target, key)] as const)
 }
 
 /** Restores own properties after {@link populateGlobal} throws mid-write.
@@ -32,23 +29,46 @@ function snapshotOwnProperties(target: object) {
  * @param snapshot - Result of {@link snapshotOwnProperties} taken before mutation.
  * @example restoreOwnProperties(global, snapshot)
  */
-function restoreOwnProperties(
+/** Deletes own keys added after the snapshot so a failed {@link populateGlobal} does not leave Window leftovers.
+ * {@link restoreOwnProperties} calls this before reapplying saved descriptors.
+ * @example deleteUnknownOwnProperties(global, known)
+ */
+function deleteUnknownOwnProperties(
   target: object,
-  snapshot: ReadonlyArray<
-    readonly [string | symbol, PropertyDescriptor | undefined]
-  >,
+  known: ReadonlySet<string | symbol>,
 ) {
-  const known = new Set(snapshot.map(([key]) => key))
   for (const key of [
     ...Object.getOwnPropertyNames(target),
     ...Object.getOwnPropertySymbols(target),
   ]) {
     if (!known.has(key)) Reflect.deleteProperty(target, key)
   }
+}
+
+/** Reapplies snapshot descriptors, deleting keys that had no descriptor before {@link populateGlobal}.
+ * {@link restoreOwnProperties} calls this after removing unknown keys.
+ * @example applyOwnPropertySnapshot(global, snapshot)
+ */
+function applyOwnPropertySnapshot(
+  target: object,
+  snapshot: ReadonlyArray<
+    readonly [string | symbol, PropertyDescriptor | undefined]
+  >,
+) {
   for (const [key, descriptor] of snapshot) {
     if (descriptor) Object.defineProperty(target, key, descriptor)
     else Reflect.deleteProperty(target, key)
   }
+}
+
+function restoreOwnProperties(
+  target: object,
+  snapshot: ReadonlyArray<
+    readonly [string | symbol, PropertyDescriptor | undefined]
+  >,
+) {
+  deleteUnknownOwnProperties(target, new Set(snapshot.map(([key]) => key)))
+  applyOwnPropertySnapshot(target, snapshot)
 }
 
 // Keys that already exist on Node's globalThis must still receive the Window/compat implementations.
@@ -107,6 +127,100 @@ async function joinEnvironment(
     errors.push(error)
   }
   disposeAll([() => disposeCompatibility(), () => adapter?.dispose()], errors)
+}
+
+/** Restores {@link populateGlobal} keys even when drain/close failed so the next setup sees Node globals.
+ * @param globalThisValue - Sandbox or worker global mutated by setup.
+ * @param keys - Names populateGlobal added.
+ * @param originals - Prior values to put back.
+ * @example restorePopulatedGlobals(global, keys, originals)
+ */
+function restorePopulatedGlobals(
+  globalThisValue: object,
+  keys: Set<string>,
+  originals: Map<string | symbol, unknown>,
+) {
+  keys.forEach((key) => {
+    Reflect.deleteProperty(globalThisValue, key)
+  })
+  originals.forEach((value, key) => {
+    Reflect.set(globalThisValue, key, value)
+  })
+}
+
+/** Throws a single error or an AggregateError after setup/teardown collected more than one failure.
+ * @param errors - Failures from join, restore, or populateGlobal.
+ * @param message - AggregateError message when more than one failure exists.
+ * @example throwCollectedErrors(errors, 'Environment teardown failed.')
+ */
+function throwCollectedErrors(errors: unknown[], message: string) {
+  // A single failure keeps the original error so callers do not unwrap AggregateError.
+  if (errors.length === 1) throw errors[0]
+  // Multiple failures wrap so drain/close/restore errors are all visible.
+  if (errors.length > 1) {
+    throw new AggregateError(errors, message, { cause: errors[0] })
+  }
+}
+
+/** Restores a partial {@link populateGlobal} write, then joins the Window so setup failures do not leak ports.
+ * `setup` catch calls this after populateGlobal throws.
+ * @example await recoverFailedPopulate(global, snapshot, created, error)
+ */
+async function recoverFailedPopulate(
+  global: object,
+  globalSnapshot: ReadonlyArray<
+    readonly [string | symbol, PropertyDescriptor | undefined]
+  >,
+  created: {
+    window: InstanceType<typeof Window>
+    adapter: ExtendedCanvasAdapter | undefined
+    dispose: DisposeCompatibility
+  },
+  error: unknown,
+) {
+  const errors = [error]
+  try {
+    restoreOwnProperties(global, globalSnapshot)
+  } catch (restoreError) {
+    errors.push(restoreError)
+  }
+  try {
+    await joinEnvironment(created.window, created.adapter, created.dispose)
+  } catch (cleanupError) {
+    errors.push(cleanupError)
+  }
+  throwCollectedErrors(errors, 'Environment setup failed.')
+}
+
+/** Joins the Window then restores populateGlobal writes so a second setup does not see leftover Window keys.
+ * @param globalThisValue - Same object passed to setup.
+ * @param created - Window/adapter/dispose from {@link createExtendedWindow}.
+ * @param keys - populateGlobal keys to delete.
+ * @param originals - populateGlobal originals to restore.
+ * @example await teardownPopulatedEnvironment(global, created, keys, originals)
+ */
+async function teardownPopulatedEnvironment(
+  globalThisValue: object,
+  created: {
+    window: InstanceType<typeof Window>
+    adapter: ExtendedCanvasAdapter | undefined
+    dispose: DisposeCompatibility
+  },
+  keys: Set<string>,
+  originals: Map<string | symbol, unknown>,
+) {
+  const errors: unknown[] = []
+  try {
+    await joinEnvironment(created.window, created.adapter, created.dispose)
+  } catch (error) {
+    errors.push(error)
+  }
+  try {
+    restorePopulatedGlobals(globalThisValue, keys, originals)
+  } catch (error) {
+    errors.push(error)
+  }
+  throwCollectedErrors(errors, 'Environment teardown failed.')
 }
 
 /** Creates a Happy DOM Window with compat installed before any consumer module evaluates.
@@ -221,58 +335,17 @@ export function createHappyDomExtendedEnvironment(
           additionalKeys,
         }))
       } catch (error) {
-        const errors = [error]
-        try {
-          restoreOwnProperties(global, globalSnapshot)
-        } catch (restoreError) {
-          errors.push(restoreError)
-        }
-        try {
-          await joinEnvironment(
-            created.window,
-            created.adapter,
-            created.dispose,
-          )
-        } catch (cleanupError) {
-          errors.push(cleanupError)
-        }
-        if (errors.length === 1) throw errors[0]
-        throw new AggregateError(errors, 'Environment setup failed.', {
-          cause: errors[0],
-        })
+        await recoverFailedPopulate(global, globalSnapshot, created, error)
       }
       let teardown: Promise<void> | undefined
       return {
         async teardown(globalThisValue) {
-          return (teardown ??= (async () => {
-            const errors: unknown[] = []
-            try {
-              await joinEnvironment(
-                created.window,
-                created.adapter,
-                created.dispose,
-              )
-            } catch (error) {
-              errors.push(error)
-            }
-            try {
-              keys.forEach((key) => {
-                // Restore even when drain/close failed so a second setup sees Node globals again.
-                Reflect.deleteProperty(globalThisValue, key)
-              })
-              originals.forEach((value, key) => {
-                Reflect.set(globalThisValue, key, value)
-              })
-            } catch (error) {
-              errors.push(error)
-            }
-            if (errors.length === 1) throw errors[0]
-            if (errors.length > 1) {
-              throw new AggregateError(errors, 'Environment teardown failed.', {
-                cause: errors[0],
-              })
-            }
-          })())
+          return (teardown ??= teardownPopulatedEnvironment(
+            globalThisValue,
+            created,
+            keys,
+            originals,
+          ))
         },
       }
     },
