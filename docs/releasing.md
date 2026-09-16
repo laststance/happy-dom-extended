@@ -1,4 +1,4 @@
-# Manual npm release
+# npm release
 
 The publishable packages are `jest-happy-dom-extended` and `vitest-environment-happy-dom-extended`. The repository root and compatibility workspace are private. GitHub Actions validate every change. After the Test workflow succeeds on a `main` push, the Release workflow either opens a Version Packages PR or publishes pending versions to npm with OIDC trusted publishing.
 
@@ -49,7 +49,7 @@ The package's prepack script builds the public entry, declarations and private W
 
 The block stops on a failed build or a missing archive before inspecting or dry-running publication. Keep the inspected archive for release records.
 
-Expect `dist/index.cjs`, `dist/index.d.cts`, `dist/worker.cjs`, their build chunks, README, CHANGELOG, LICENSE and package.json. Repository tests, fixtures, local artifacts, credentials and workspace source directories must not appear. Distribution source maps may contain the public source used to build the package.
+Expect `dist/index.cjs`, `dist/index.d.cts`, `dist/worker.cjs`, their build chunks, README, CHANGELOG, LICENSE and package.json for the Jest tarball. The Vitest tarball is ESM-only: `dist/index.mjs`, `dist/index.d.mts`, `dist/worker.cjs`, the same docs/license/manifest set, and no CommonJS public entry. Repository tests, fixtures, local artifacts, credentials and workspace source directories must not appear. Distribution source maps may contain the public source used to build the package.
 
 `pnpm check:package` checks package exports and type resolution (Jest uses attw `node16`; the ESM-only Vitest environment uses `esm-only`). `pnpm test:package` installs tarballs outside the repository and runs both supported Jest and Vitest versions, setup files, environment lifetimes and actual Worker/video use in serial and two-process modes. `pnpm check` includes both commands.
 

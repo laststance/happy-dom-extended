@@ -149,6 +149,6 @@ Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-
 
 ## Contributing and releases
 
-The [monorepo](https://github.com/laststance/happy-dom-extended) contains source, regression/property tests and installed-consumer fixtures. `pnpm check` validates the implementation and its distribution. The private compatibility workspace is bundled; consumers install only this public package and its normal dependencies. Follow the [contribution guide](https://github.com/laststance/happy-dom-extended/blob/main/CONTRIBUTING.md) or [manual release guide](https://github.com/laststance/happy-dom-extended/blob/main/docs/releasing.md).
+The [monorepo](https://github.com/laststance/happy-dom-extended) contains source, regression/property tests and installed-consumer fixtures. `pnpm check` validates the implementation and its distribution. The private compatibility workspace is bundled; consumers install only this public package and its normal dependencies. Follow the [contribution guide](https://github.com/laststance/happy-dom-extended/blob/main/CONTRIBUTING.md) or [release guide](https://github.com/laststance/happy-dom-extended/blob/main/docs/releasing.md).
 
 Independent Laststance project; not an official Happy DOM or Jest package. MIT licensed.

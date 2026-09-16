@@ -4,7 +4,7 @@ Thank you for helping make browser application tests work more faithfully in Nod
 
 ## Before changing behavior
 
-Search [existing issues](https://github.com/laststance/happy-dom-extended/issues) and the research documents before adding a compatibility fix. Include a minimal reproduction, affected Node/Jest/Happy DOM versions, expected behavior, actual output, and a link to the relevant standard or upstream report. Never include credentials or private application data. For vulnerabilities, use [SECURITY.md](SECURITY.md).
+Search [existing issues](https://github.com/laststance/happy-dom-extended/issues) and the research documents before adding a compatibility fix. Include a minimal reproduction, affected Node/Jest/Vitest/Happy DOM versions, expected behavior, actual output, and a link to the relevant standard or upstream report. Never include credentials or private application data. For vulnerabilities, use [SECURITY.md](SECURITY.md). Out-of-scope follow-ups live in [TODOS.md](TODOS.md).
 
 Implement working behavior. Fixed return values and application-specific mocks belong in consumer tests. Preserve upstream implementations that already work. Document browser differences and test the behavior you claim to support.
 
