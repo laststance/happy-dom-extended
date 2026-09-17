@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -15,14 +16,27 @@ import spawn from 'cross-spawn'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const isolatedDirectories = []
+/** Resolves Windows 8.3 temp paths so Vite `/@fs/` and Node import the same directory.
+ * @example const cwd = resolveExistingPath(consumer)
+ */
+function resolveExistingPath(directory) {
+  try {
+    return realpathSync.native(directory)
+  } catch {
+    return realpathSync(directory)
+  }
+}
+
 /** Creates an isolated temp directory with a space-free prefix under `os.tmpdir()`.
  * The OS temp root itself may contain spaces; spawn passes argv without a shell.
  * @example const consumer = createIsolatedDirectory('happy-dom-extended-vitest-4.0.0')
  */
 function createIsolatedDirectory(label) {
-  const directory = mkdtempSync(path.join(tmpdir(), `${label}-`))
+  const directory = mkdtempSync(
+    path.join(resolveExistingPath(tmpdir()), `${label}-`),
+  )
   isolatedDirectories.push(directory)
-  return directory
+  return resolveExistingPath(directory)
 }
 // Outside the repository, Node cannot fall back to workspace dependencies during resolution.
 const temporary = createIsolatedDirectory('happy-dom-extended-pack')
@@ -39,7 +53,7 @@ const rootManifest = JSON.parse(
  */
 function run(command, argumentsList, cwd, environment = process.env) {
   const result = spawn.sync(command, argumentsList, {
-    cwd,
+    cwd: resolveExistingPath(cwd),
     stdio: 'inherit',
     env: environment,
   })
