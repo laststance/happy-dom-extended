@@ -81,14 +81,22 @@ The maintainer performs this step after reviewing the artifact. Authenticate to 
 
 ```sh
 set -eu
-: "${jest_release_tarball:?Run the build-and-inspect block in this shell first.}"
-: "${vitest_release_tarball:?Run the build-and-inspect block in this shell first.}"
+: "${jest_release_tarball:=}"
+: "${vitest_release_tarball:=}"
+if [ -z "$jest_release_tarball" ] && [ -z "$vitest_release_tarball" ]; then
+  echo 'Run the build-and-inspect block for at least one package in this shell first.' >&2
+  exit 1
+fi
 npm login --registry=https://registry.npmjs.org
 npm whoami --registry=https://registry.npmjs.org
-test -f "$jest_release_tarball"
-test -f "$vitest_release_tarball"
-npm publish "$jest_release_tarball" --access public --registry=https://registry.npmjs.org
-npm publish "$vitest_release_tarball" --access public --registry=https://registry.npmjs.org
+if [ -n "$jest_release_tarball" ]; then
+  test -f "$jest_release_tarball"
+  npm publish "$jest_release_tarball" --access public --registry=https://registry.npmjs.org
+fi
+if [ -n "$vitest_release_tarball" ]; then
+  test -f "$vitest_release_tarball"
+  npm publish "$vitest_release_tarball" --access public --registry=https://registry.npmjs.org
+fi
 ```
 
 Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal. Prefer the Release workflow for registry publication. Configure npm trusted publishing for `laststance/happy-dom-extended` on each public package, including the first `vitest-environment-happy-dom-extended` release, before merging a Version Packages PR. The local commands remain a fallback when CI cannot publish.
@@ -97,20 +105,28 @@ After publication, verify the registry version in the same shell:
 
 ```sh
 set -eu
-: "${jest_release_version:?Run the build-and-inspect block in this shell first.}"
-: "${vitest_release_version:?Run the build-and-inspect block in this shell first.}"
-npm view "jest-happy-dom-extended@${jest_release_version}" version dist.integrity --registry=https://registry.npmjs.org
-npm view "vitest-environment-happy-dom-extended@${vitest_release_version}" version dist.integrity --registry=https://registry.npmjs.org
+: "${jest_release_version:=}"
+: "${vitest_release_version:=}"
+if [ -n "$jest_release_version" ]; then
+  npm view "jest-happy-dom-extended@${jest_release_version}" version dist.integrity --registry=https://registry.npmjs.org
+fi
+if [ -n "$vitest_release_version" ]; then
+  npm view "vitest-environment-happy-dom-extended@${vitest_release_version}" version dist.integrity --registry=https://registry.npmjs.org
+fi
 ```
 
-Switch to a clean consumer project directory in that same shell, then install the verified versions:
+Switch to a clean consumer project directory in that same shell, then install the verified versions that were prepared:
 
 ```sh
 set -eu
-: "${jest_release_version:?Run the build-and-inspect block in this shell first.}"
-: "${vitest_release_version:?Run the build-and-inspect block in this shell first.}"
-npm install --save-dev jest@30 "jest-happy-dom-extended@${jest_release_version}" --registry=https://registry.npmjs.org
-npm install --save-dev vitest@4 "vitest-environment-happy-dom-extended@${vitest_release_version}" --registry=https://registry.npmjs.org
+: "${jest_release_version:=}"
+: "${vitest_release_version:=}"
+if [ -n "$jest_release_version" ]; then
+  npm install --save-dev jest@30 "jest-happy-dom-extended@${jest_release_version}" --registry=https://registry.npmjs.org
+fi
+if [ -n "$vitest_release_version" ]; then
+  npm install --save-dev vitest@4 "vitest-environment-happy-dom-extended@${vitest_release_version}" --registry=https://registry.npmjs.org
+fi
 ```
 
 Apply the same npm 12 approval and rebuild steps in that clean consumer before running the README's Jest example.

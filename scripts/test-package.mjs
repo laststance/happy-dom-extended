@@ -14,14 +14,19 @@ import { fileURLToPath } from 'node:url'
 import spawn from 'cross-spawn'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
+const isolatedDirectories = []
+/** Creates a space-free temp directory so npm 10 and Windows Vitest workers can resolve paths.
+ * Pack archives and each consumer live at the OS temp root, not under a shared spaced parent.
+ * @example const consumer = createIsolatedDirectory('happy-dom-extended-vitest-4.0.0')
+ */
+function createIsolatedDirectory(label) {
+  const directory = mkdtempSync(path.join(tmpdir(), `${label}-`))
+  isolatedDirectories.push(directory)
+  return directory
+}
 // Outside the repository, Node cannot fall back to workspace dependencies during resolution.
-const temporary = mkdtempSync(
-  path.join(tmpdir(), 'happy-dom-extended consumer-'),
-)
-// npm 10 on Node 22 can fail arborist walks when the cache path contains spaces.
-const npmCacheRoot = mkdtempSync(
-  path.join(tmpdir(), 'happy-dom-extended-npm-cache-'),
-)
+const temporary = createIsolatedDirectory('happy-dom-extended-pack')
+const npmCacheRoot = createIsolatedDirectory('happy-dom-extended-npm-cache')
 const rootManifest = JSON.parse(
   readFileSync(path.join(root, 'package.json'), 'utf8'),
 )
@@ -228,7 +233,9 @@ try {
   )
   // Exercise the advertised Jest floor and the current development version independently.
   for (const jestVersion of ['30.0.0', rootManifest.devDependencies.jest]) {
-    const consumer = path.join(temporary, `consumer-jest-${jestVersion}`)
+    const consumer = createIsolatedDirectory(
+      `happy-dom-extended-jest-${jestVersion}`,
+    )
     cpSync(path.join(root, 'fixtures/consumer'), consumer, {
       recursive: true,
       // The consumer must install from the tarball, with no workspace node_modules links.
@@ -312,7 +319,9 @@ try {
   )
   // Exercise the advertised Vitest floor and the current development version independently.
   for (const vitestVersion of ['4.0.0', rootManifest.devDependencies.vitest]) {
-    const consumer = path.join(temporary, `consumer-vitest-${vitestVersion}`)
+    const consumer = createIsolatedDirectory(
+      `happy-dom-extended-vitest-${vitestVersion}`,
+    )
     cpSync(path.join(root, 'fixtures/consumer-vitest'), consumer, {
       recursive: true,
       filter: (source) => path.basename(source) !== 'node_modules',
@@ -379,7 +388,7 @@ try {
     }
   }
 } finally {
-  // This unique directory contains only fixtures created by this invocation.
-  rmSync(temporary, { recursive: true, force: true })
-  rmSync(npmCacheRoot, { recursive: true, force: true })
+  for (const directory of isolatedDirectories) {
+    rmSync(directory, { recursive: true, force: true })
+  }
 }
