@@ -1,6 +1,6 @@
 {
   "name": "jest-happy-dom-extended",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A Happy DOM Jest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
   "type": "module",
   "license": "MIT",
