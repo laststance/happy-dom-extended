@@ -25,6 +25,11 @@ jobs:
       - uses: ./.github/actions/prepare
         with:
           node-version: ${{ matrix.node }}
+      - name: Use npm 11 on Node 22
+        if: matrix.node == '22.18.0'
+        # npm 10.9.3 arborist throws `edgesOut` null on the second isolated Vitest consumer install.
+        run: npm install -g npm@11.19.0
+        shell: bash
       - name: Install video decoders on Linux
         if: runner.os == 'Linux'
         run: |

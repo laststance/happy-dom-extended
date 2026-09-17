@@ -15,8 +15,8 @@ import spawn from 'cross-spawn'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const isolatedDirectories = []
-/** Creates a space-free temp directory so npm 10 and Windows Vitest workers can resolve paths.
- * Pack archives and each consumer live at the OS temp root, not under a shared spaced parent.
+/** Creates an isolated temp directory with a space-free prefix under `os.tmpdir()`.
+ * The OS temp root itself may contain spaces; spawn passes argv without a shell.
  * @example const consumer = createIsolatedDirectory('happy-dom-extended-vitest-4.0.0')
  */
 function createIsolatedDirectory(label) {
@@ -26,7 +26,6 @@ function createIsolatedDirectory(label) {
 }
 // Outside the repository, Node cannot fall back to workspace dependencies during resolution.
 const temporary = createIsolatedDirectory('happy-dom-extended-pack')
-const npmCacheRoot = createIsolatedDirectory('happy-dom-extended-npm-cache')
 const rootManifest = JSON.parse(
   readFileSync(path.join(root, 'package.json'), 'utf8'),
 )
@@ -189,41 +188,59 @@ function assertConsumerReport(results, expectedSuites, label) {
   assertExpectedSuites(results.testResults, expectedSuites, label)
 }
 
-/** Installs an isolated consumer with its own npm cache so a second version cannot reuse a broken arborist graph.
+/** Installs an isolated consumer; retries with npm 11 when npm 10's arborist throws `edgesOut`.
  * @param consumer - Isolated working directory.
  * @returns Nothing; throws when npm install fails.
  * @example installConsumer(consumer)
  */
 function installConsumer(consumer) {
-  run(
-    'npm',
-    [
-      'install',
-      '--no-audit',
-      '--no-fund',
-      '--registry=https://registry.npmjs.org',
-    ],
-    consumer,
-    {
-      ...process.env,
-      npm_config_cache: path.join(npmCacheRoot, path.basename(consumer)),
-    },
-  )
+  const argumentsList = [
+    'install',
+    '--no-audit',
+    '--no-fund',
+    '--registry=https://registry.npmjs.org',
+  ]
+  const environment = {
+    ...process.env,
+    // A sibling cache under one parent can still confuse npm 10's arborist graph.
+    npm_config_cache: createIsolatedDirectory('happy-dom-extended-npm-cache'),
+  }
+  try {
+    run('npm', argumentsList, consumer, environment)
+  } catch {
+    rmSync(path.join(consumer, 'node_modules'), {
+      recursive: true,
+      force: true,
+    })
+    rmSync(path.join(consumer, 'package-lock.json'), { force: true })
+    // Node 22 ships npm 10, which can throw `edgesOut` null on the second Vitest tree.
+    run(
+      'npx',
+      ['--yes', 'npm@11.19.0', ...argumentsList],
+      consumer,
+      environment,
+    )
+  }
 }
 
 /** Runs installed Vitest through `process.execPath` so Windows does not treat a drive-letter shim as an ESM URL.
- * @param consumer - Isolated working directory.
- * @param argumentsList - Vitest CLI arguments after the entry file.
- * @param environment - Child environment, including worker-record directory.
- * @returns The child PID on success.
+ * Clears Vite's default cache and points `VITE_CACHE_DIR` at a per-mode directory.
  * @example runVitest(consumer, ['run'], env)
  */
 function runVitest(consumer, argumentsList, environment) {
+  const viteCache = path.join(
+    consumer,
+    `.vite-cache-${path.basename(environment.HAPPY_DOM_WORKER_RECORD_DIRECTORY ?? 'default')}`,
+  )
+  rmSync(path.join(consumer, 'node_modules/.vite'), {
+    recursive: true,
+    force: true,
+  })
   return run(
     process.execPath,
     [path.join(consumer, 'node_modules/vitest/vitest.mjs'), ...argumentsList],
     consumer,
-    environment,
+    { ...environment, VITE_CACHE_DIR: viteCache },
   )
 }
 
@@ -367,6 +384,10 @@ try {
           ...(mode === 'serial'
             ? ['--fileParallelism=false', '--maxWorkers=1']
             : ['--maxWorkers=2']),
+          '--pool=forks',
+          '--no-cache',
+          // JSON-only reporter hid the Windows parallel crash after the serial report.
+          '--reporter=verbose',
           '--reporter=json',
           `--outputFile=${testReport}`,
         ],
