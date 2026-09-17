@@ -1,5 +1,11 @@
 # jest-happy-dom-extended
 
+## 0.2.1
+
+### Patch Changes
+
+- d7b63a2: Decode cross-realm MessageEvent envelopes and bind Canvas port `onmessage` so Worker and MessageChannel transfers still work after a runner replaces the global `MessageEvent` constructor.
+
 ## 0.2.0
 
 ### Minor Changes
