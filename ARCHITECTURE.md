@@ -2,7 +2,9 @@
 
 The public Jest package extends `@happy-dom/jest-environment`. Its constructor clones caller configuration, creates an environment-owned Canvas adapter, and supplies it before the upstream Window is constructed. Compatibility installers then run synchronously, so application setup modules can use the added APIs immediately.
 
-The private `packages/compat` workspace owns runner-independent API repairs and native Canvas integration. tsdown bundles it into the public CommonJS runtime and a private Worker bootstrap. ESM imports and CommonJS require resolve to the same public runtime, sharing prototype ownership. Happy DOM and its Jest environment are pinned to 20.14.0 because the integration uses internal lifecycle hooks. CPU Skia, Culori, WebIDL conversions and bounded image-header inspection remain external runtime dependencies. Installed-tarball checks verify their presence, shared Happy DOM class identity and the Worker bootstrap path.
+The public Vitest package is a custom `Environment` named `happy-dom-extended` (`vitest-environment-happy-dom-extended`). It constructs `GlobalWindow || Window` with the owned adapter already in `settings`, calls {@link installCompatibility}, then copies Window APIs onto the worker global with `populateGlobal` from `vitest/environments`, including Node-overlapping keys. Teardown joins with {@link ExtendedCanvasAdapter.drain} then `window.happyDOM.close()`, not `abort()`.
+
+The private `packages/compat` workspace owns runner-independent API repairs and native Canvas integration. tsdown bundles it into each public runtime and a private Worker bootstrap. Happy DOM is pinned to 20.14.0 because the integration uses internal lifecycle hooks. CPU Skia, Culori, WebIDL conversions and bounded image-header inspection remain external runtime dependencies. Installed-tarball checks verify their presence, shared Happy DOM class identity and the Worker bootstrap path.
 
 ## Canvas ownership
 
@@ -26,4 +28,4 @@ Only repairs that must affect upstream shared prototypes use reference counting.
 
 ## Boundaries
 
-The public package exposes the Jest environment only; there is no Canvas stub entry. Native Canvas installation is required; video sources additionally need ffmpeg and ffprobe on PATH. The [Canvas contract](docs/canvas-compatibility.md) records supported behavior, resource ceilings, measured browser differences and exact comparison fixtures. The reserved Vitest workspace can reuse the compatibility package in a future phase without depending on Jest.
+The public packages expose runner environments only; there is no Canvas stub entry. Native Canvas installation is required; video sources additionally need ffmpeg and ffprobe on PATH. The [Canvas contract](docs/canvas-compatibility.md) records supported behavior, resource ceilings, measured browser differences and exact comparison fixtures. The Vitest package reuses the compatibility workspace and does not depend on Jest. `vmForks` is not a claimed 0.1.0 pool.

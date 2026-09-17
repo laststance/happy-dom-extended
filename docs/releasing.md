@@ -1,6 +1,15 @@
-# Manual npm release
+# npm release
 
-The publishable package is `jest-happy-dom-extended` in `packages/jest-happy-dom-extended`. The repository root, compatibility workspace and reserved Vitest workspace are private. GitHub Actions validate changes and never publish them.
+The publishable packages are `jest-happy-dom-extended` and `vitest-environment-happy-dom-extended`. The repository root and compatibility workspace are private. GitHub Actions validate every change. After the Test workflow succeeds on a `main` push, the Release workflow either opens a Version Packages PR or publishes pending versions to npm with OIDC trusted publishing.
+
+## Automated release
+
+1. Merge a reviewed PR that includes Changeset files.
+2. Wait for Test on `main`.
+3. Review and merge the Version Packages PR that Release opens.
+4. Wait for Test on that merge. Release then runs `changeset publish` with npm provenance.
+
+Configure each public package on npmjs.com as a trusted publisher for `laststance/happy-dom-extended`, workflow `release.yml` (filename only, exact case), environment none. The first `vitest-environment-happy-dom-extended` version needs that publisher before step 4. Do not set `NODE_AUTH_TOKEN` or `NPM_TOKEN` on the Release job.
 
 ## Prepare a version
 
@@ -18,7 +27,7 @@ pnpm install --lockfile-only
 pnpm check
 ```
 
-If the version/changelog changes are already included in the reviewed commit, skip the version command and run `pnpm check`. Confirm that the selected name/version has not already been published; npm cannot reuse an existing name/version. The version in `packages/jest-happy-dom-extended/package.json` determines the artifact name.
+If the version/changelog changes are already included in the reviewed commit, skip the version command and run `pnpm check`. Confirm that the selected name/version has not already been published; npm cannot reuse an existing name/version. The version in each public package's `package.json` determines that artifact name. Run both pack/inspect blocks below when releasing both packages.
 
 ## Build and inspect the package
 
@@ -26,23 +35,30 @@ Start in the repository root and keep the maintainer blocks in the same shell. E
 
 ```sh
 set -eu
-release_version="$(node -p "require('./packages/jest-happy-dom-extended/package.json').version")"
 mkdir -p .artifacts/release
-release_directory="$(mktemp -d "$(pwd)/.artifacts/release/pack.XXXXXX")"
-release_tarball="$release_directory/jest-happy-dom-extended-${release_version}.tgz"
-pnpm --filter jest-happy-dom-extended pack --pack-destination "$release_directory"
-test -f "$release_tarball"
-tar -tzf "$release_tarball"
-npm publish "$release_tarball" --dry-run --access public --registry=https://registry.npmjs.org
+jest_release_version="$(node -p "require('./packages/jest-happy-dom-extended/package.json').version")"
+jest_release_directory="$(mktemp -d "$(pwd)/.artifacts/release/pack.XXXXXX")"
+jest_release_tarball="$jest_release_directory/jest-happy-dom-extended-${jest_release_version}.tgz"
+pnpm --filter jest-happy-dom-extended pack --pack-destination "$jest_release_directory"
+test -f "$jest_release_tarball"
+tar -tzf "$jest_release_tarball"
+npm publish "$jest_release_tarball" --dry-run --access public --registry=https://registry.npmjs.org
+vitest_release_version="$(node -p "require('./packages/vitest-happy-dom-extended/package.json').version")"
+vitest_release_directory="$(mktemp -d "$(pwd)/.artifacts/release/pack.XXXXXX")"
+vitest_release_tarball="$vitest_release_directory/vitest-environment-happy-dom-extended-${vitest_release_version}.tgz"
+pnpm --filter vitest-environment-happy-dom-extended pack --pack-destination "$vitest_release_directory"
+test -f "$vitest_release_tarball"
+tar -tzf "$vitest_release_tarball"
+npm publish "$vitest_release_tarball" --dry-run --access public --registry=https://registry.npmjs.org
 ```
 
 The package's prepack script builds the public entry, declarations and private Worker bootstrap. The `files` allowlist includes only distribution files, the package guide, changelog and license, plus npm's mandatory package manifest. A separate `.npmignore` is unnecessary. Registry/access are set in the public package's publishConfig; project `.npmrc` credentials are unnecessary. [npm's file selection rules](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#files) describe how the allowlist is applied.
 
 The block stops on a failed build or a missing archive before inspecting or dry-running publication. Keep the inspected archive for release records.
 
-Expect `dist/index.cjs`, `dist/index.d.cts`, `dist/worker.cjs`, their build chunks, README, CHANGELOG, LICENSE and package.json. Repository tests, fixtures, local artifacts, credentials and workspace source directories must not appear. Distribution source maps may contain the public source used to build the package.
+Expect `dist/index.cjs`, `dist/index.d.cts`, `dist/worker.cjs`, their build chunks, README, CHANGELOG, LICENSE and package.json for the Jest tarball. The Vitest tarball is ESM-only: `dist/index.mjs`, `dist/index.d.mts`, `dist/worker.cjs`, the same docs/license/manifest set, and no CommonJS public entry. Repository tests, fixtures, local artifacts, credentials and workspace source directories must not appear. Distribution source maps may contain the public source used to build the package.
 
-`pnpm check:package` checks package exports and type resolution. `pnpm test:package` installs a tarball outside the repository and runs both supported Jest versions, setup files, ESM/CommonJS lifetimes and actual Worker/video use in serial and two-process modes. `pnpm check` includes both commands.
+`pnpm check:package` checks package exports and type resolution (Jest uses attw `node16`; the ESM-only Vitest environment uses `esm-only`). `pnpm test:package` installs tarballs outside the repository and runs both supported Jest and Vitest versions, setup files, environment lifetimes and actual Worker/video use in serial and two-process modes. `pnpm check` includes both commands.
 
 To try a prepared artifact in an application before registry publication:
 
@@ -65,29 +81,52 @@ The maintainer performs this step after reviewing the artifact. Authenticate to 
 
 ```sh
 set -eu
-: "${release_tarball:?Run the build-and-inspect block in this shell first.}"
+: "${jest_release_tarball:=}"
+: "${vitest_release_tarball:=}"
+if [ -z "$jest_release_tarball" ] && [ -z "$vitest_release_tarball" ]; then
+  echo 'Run the build-and-inspect block for at least one package in this shell first.' >&2
+  exit 1
+fi
 npm login --registry=https://registry.npmjs.org
 npm whoami --registry=https://registry.npmjs.org
-test -f "$release_tarball"
-npm publish "$release_tarball" --access public --registry=https://registry.npmjs.org
+if [ -n "$jest_release_tarball" ]; then
+  test -f "$jest_release_tarball"
+  npm publish "$jest_release_tarball" --access public --registry=https://registry.npmjs.org
+fi
+if [ -n "$vitest_release_tarball" ]; then
+  test -f "$vitest_release_tarball"
+  npm publish "$vitest_release_tarball" --access public --registry=https://registry.npmjs.org
+fi
 ```
 
-Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal. This local manual workflow does not enable CI provenance; configure trusted publishing separately if automated releases become a requirement.
+Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal. Prefer the Release workflow for registry publication. Configure npm trusted publishing for `laststance/happy-dom-extended` on each public package, including the first `vitest-environment-happy-dom-extended` release, before merging a Version Packages PR. The local commands remain a fallback when CI cannot publish.
 
 After publication, verify the registry version in the same shell:
 
 ```sh
 set -eu
-: "${release_version:?Run the build-and-inspect block in this shell first.}"
-npm view "jest-happy-dom-extended@${release_version}" version dist.integrity --registry=https://registry.npmjs.org
+: "${jest_release_version:=}"
+: "${vitest_release_version:=}"
+if [ -n "$jest_release_version" ]; then
+  npm view "jest-happy-dom-extended@${jest_release_version}" version dist.integrity --registry=https://registry.npmjs.org
+fi
+if [ -n "$vitest_release_version" ]; then
+  npm view "vitest-environment-happy-dom-extended@${vitest_release_version}" version dist.integrity --registry=https://registry.npmjs.org
+fi
 ```
 
-Switch to a clean consumer project directory in that same shell, then install the verified version:
+Switch to a clean consumer project directory in that same shell, then install the verified versions that were prepared:
 
 ```sh
 set -eu
-: "${release_version:?Run the build-and-inspect block in this shell first.}"
-npm install --save-dev jest@30 "jest-happy-dom-extended@${release_version}" --registry=https://registry.npmjs.org
+: "${jest_release_version:=}"
+: "${vitest_release_version:=}"
+if [ -n "$jest_release_version" ]; then
+  npm install --save-dev jest@30 "jest-happy-dom-extended@${jest_release_version}" --registry=https://registry.npmjs.org
+fi
+if [ -n "$vitest_release_version" ]; then
+  npm install --save-dev vitest@4 "vitest-environment-happy-dom-extended@${vitest_release_version}" --registry=https://registry.npmjs.org
+fi
 ```
 
 Apply the same npm 12 approval and rebuild steps in that clean consumer before running the README's Jest example.

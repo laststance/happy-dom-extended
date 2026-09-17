@@ -4,7 +4,7 @@ Thank you for helping make browser application tests work more faithfully in Nod
 
 ## Before changing behavior
 
-Search [existing issues](https://github.com/laststance/happy-dom-extended/issues) and the research documents before adding a compatibility fix. Include a minimal reproduction, affected Node/Jest/Happy DOM versions, expected behavior, actual output, and a link to the relevant standard or upstream report. Never include credentials or private application data. For vulnerabilities, use [SECURITY.md](SECURITY.md).
+Search [existing issues](https://github.com/laststance/happy-dom-extended/issues) and the research documents before adding a compatibility fix. Include a minimal reproduction, affected Node/Jest/Vitest/Happy DOM versions, expected behavior, actual output, and a link to the relevant standard or upstream report. Never include credentials or private application data. For vulnerabilities, use [SECURITY.md](SECURITY.md). Out-of-scope follow-ups live in [TODOS.md](TODOS.md).
 
 Implement working behavior. Fixed return values and application-specific mocks belong in consumer tests. Preserve upstream implementations that already work. Document browser differences and test the behavior you claim to support.
 
@@ -32,8 +32,8 @@ Code and documentation use English. Test names use `test`, describe what breaks 
 
 ## Tooling
 
-- `pnpm test`: build, Node regressions, actual Jest integration, coverage.
-- `pnpm test:package`: install the built tarball outside the checkout; run both supported Jest versions serially and with two workers.
+- `pnpm test`: build, Node regressions, actual Jest and Vitest integration, coverage.
+- `pnpm test:package`: install the built tarballs outside the checkout; run both supported Jest and Vitest versions serially and with two workers.
 - `pnpm typecheck`: TypeScript 7 compiler through the `typescript-compiler` alias. TypeScript 6 remains installed for tools using its JavaScript API.
 - `pnpm lint`, `pnpm format:check`, `pnpm sherif`: source and workspace consistency.
 - `pnpm health`, `pnpm dupes`, `pnpm dead-code`: Fallow checks. Run `pnpm test` first for health's measured coverage.
@@ -43,6 +43,6 @@ Fallow excludes test procedures from complexity and duplication scoring. It reco
 
 ## Releases
 
-Changesets manages versions and changelogs. Maintainers run `pnpm version:packages` to prepare a release and `pnpm run release` to validate and publish with separately configured npm credentials. Versioning and publishing are separate from merging a PR. There is no automatic npm publication workflow.
+Changesets manages versions and changelogs. Merging a feature PR to `main` does not publish. After Test succeeds on that push, Release opens a Version Packages PR when `.changeset` files remain. Merging that version PR and a green Test run publishes the new versions with OIDC trusted publishing. `pnpm version:packages` and `pnpm run release` remain a local fallback. See [docs/releasing.md](docs/releasing.md).
 
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.

@@ -5,25 +5,26 @@ Tests must prove real application behavior, including meaningful failure and cle
 ## Commands
 
 ```sh
-pnpm test              # Build, Node regressions, Jest integration, c8 coverage
+pnpm test              # Build, Node regressions, Jest/Vitest integration, c8 coverage
 pnpm test:package      # Requires a current build; isolated installed-tarball checks
 pnpm check             # Complete local gate
 ```
 
-Use `pnpm test:unit` or `pnpm test:jest` for focused iteration; build before Jest when source changed. `pnpm test:coverage` is an alias for the coverage-producing test command. c8 collects V8 coverage from Node and Jest processes and remaps bundled code to source. Reports: `coverage/lcov.info` for Codecov and `coverage/coverage-final.json` for Fallow. Type-only source declarations can appear in V8's line accounting; don't equate the percentage with executable branch coverage.
+Use `pnpm test:unit`, `pnpm test:jest`, or `pnpm test:vitest` for focused iteration; build before runner suites when source changed. `pnpm test:coverage` is an alias for the coverage-producing test command. c8 collects V8 coverage from Node, Jest, and Vitest processes and remaps bundled code to source. Reports: `coverage/lcov.info` for Codecov and `coverage/coverage-final.json` for Fallow. Type-only source declarations can appear in V8's line accounting; don't equate the percentage with executable branch coverage.
 
 ## Test layers
 
-| Layer                          | Location                                                | What it proves                                                                     |
-| ------------------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Node compatibility regressions | `packages/compat/test/*.test.ts`                        | Web API behavior, pixels, dimension resets, ownership, failure cleanup             |
-| Source environment lifecycle   | `packages/jest-happy-dom-extended/test-node/*.test.mjs` | Constructor options and pre-setup behavior without a build boundary                |
-| Actual Jest VM                 | `packages/jest-happy-dom-extended/test/*.test.ts`       | VM arrays, setup APIs, fake timers, consumer spies                                 |
-| Installed package              | `fixtures/consumer/` and `scripts/test-package.mjs`     | Runtime dependencies, public exports/types, module mixing, serial/parallel workers |
+| Layer                          | Location                                                                      | What it proves                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Node compatibility regressions | `packages/compat/test/*.test.ts`                                              | Web API behavior, pixels, dimension resets, ownership, failure cleanup               |
+| Source environment lifecycle   | `packages/*/test-node/*.test.mjs`                                             | Constructor/factory options and pre-setup behavior without a build boundary          |
+| Actual Jest VM                 | `packages/jest-happy-dom-extended/test/*.test.ts`                             | VM arrays, setup APIs, fake timers, consumer spies                                   |
+| Actual Vitest worker           | `packages/vitest-happy-dom-extended/test/**/*.test.ts`                        | Worker globals, `vmThreads`, `isolate: false`, fake timers, consumer spies           |
+| Installed packages             | `fixtures/consumer/`, `fixtures/consumer-vitest/`, `scripts/test-package.mjs` | Runtime dependencies, public exports, setupFiles evaluation, serial/parallel workers |
 
-Installed-package tests run outside the workspace in a path containing spaces. The generated manifest includes fixture-only verification dependencies, never a direct Canvas dependency that could hide a packaging omission. PNG output is independently decoded with pngjs. JSON reports require all expected suites/tests, and setup records verify two real worker processes in parallel mode. Each Jest version also runs environment lifecycle regressions.
+Installed-package tests run outside the workspace in a path containing spaces. The generated manifest includes fixture-only verification dependencies, never a direct Canvas dependency that could hide a packaging omission. PNG output is independently decoded with pngjs. JSON reports require all expected suites/tests, and setup records verify two real worker processes in parallel mode. Vitest serial mode still records one setup identity per isolated file because the forks pool respawns even with `--maxWorkers=1`. Each Jest and Vitest version also runs environment lifecycle regressions. Packed Vitest setupFiles must construct Canvas/File at module evaluation.
 
-CI tests Node 22.18.0, 24.20.0, and 26.8.1 on Linux and Windows with Jest 30.0.0 and 30.5.1 installed consumers. Codecov receives one Linux Node 24 report to avoid duplicate matrix uploads. Fork PRs use Codecov's public-repository upload flow when the organization token is unavailable.
+CI tests Node 22.18.0, 24.20.0, and 26.8.1 on Linux and Windows with Jest 30.0.0 and 30.5.1 plus Vitest 4.0.0 and the current pin installed consumers. The Vitest 4.0.0 cell pins Vite 7.1.12; 4.0.0's module runner does not implement Vite 7.2+'s `getBuiltins`. Codecov receives one Linux Node 24 report to avoid duplicate matrix uploads. Fork PRs use Codecov's public-repository upload flow when the organization token is unavailable.
 
 ## Regression expectations
 
@@ -37,16 +38,16 @@ Rendering comparisons share `fixtures/canvas/render-cases.mjs` with a real brows
 
 ## Generated compatibility properties
 
-`fast-check` is a development dependency of the two workspaces that own these tests. The existing Node and Jest runners discover `property.test.ts` automatically; `pnpm test`, `pnpm check`, and every coverage matrix job execute the properties without a separate fuzzing command. It is neither a runtime dependency nor part of the published bundle.
+`fast-check` is a development dependency of the workspaces that own these tests. The existing Node, Jest, and Vitest runners discover `property.test.ts` automatically; `pnpm test`, `pnpm check`, and every coverage matrix job execute the properties without a separate fuzzing command. It is neither a runtime dependency nor part of the published bundle.
 
 | Property                        | Input budget per case                                                                              | Observable guarantee                                                                                                                                                                                                                      |
 | ------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Blob / File                     | Two byte arrays of 0–64 bytes, 1–8 surrounding bytes on each side, slice bounds −256…256           | ArrayBuffer parts, subviews, nested and empty Blob/File inputs retain exactly their selected bytes; slices clamp correctly; `bytes()` copies are independent; FileReader reads the extended File                                          |
-| Jest VM ImageData               | 1–6 pixels per axis, 1–8 bytes of nonzero offset and suffix, matching opaque RGBA arrays           | ArrayBuffer and SharedArrayBuffer are allocated in the actual Jest VM; data identity and shared storage survive mutations in both directions; drawing reads the correct subview                                                           |
+| Jest / Vitest worker ImageData  | 1–6 pixels per axis, 1–8 bytes of nonzero offset and suffix, matching opaque RGBA arrays           | ArrayBuffer and SharedArrayBuffer are allocated in the actual runner worker; data identity and shared storage survive mutations in both directions; drawing reads the correct subview                                                     |
 | HTML / Offscreen dimensions     | 1–6 pixels per axis, 1–6 generated changes plus same-value resets on both axes                     | Assignment and HTML attribute mutation/removal clear pixels and state while preserving context identity; drawing at the far corner verifies the resized native bitmap                                                                     |
 | PNG snapshots and empty exports | Two distinct opaque colors, at most two simultaneous exports, 1–6 pixels per axis or one zero axis | pngjs independently decodes invocation-time pixels and dimensions after redraw/resize; Happy DOM completion and environment cleanup deliver pending outputs; HTML empty exports notify asynchronously with null, Offscreen exports reject |
 
-Each of the seven Node properties and two Jest VM properties runs 50 cases with a fresh random seed: **450 generated cases per normal run**, plus shrinking on failure. A property has a 30-second runner timeout. Node properties complete in about 1.4 seconds locally on Node 24/macOS; the separate Jest command includes its environment/build startup overhead. CI timings also include existing regressions and installed consumers, so use the individual property durations when comparing overhead.
+Each of the seven Node properties, two Jest VM properties, and two Vitest worker properties runs 50 cases with a fresh random seed: **550 generated cases per normal run**, plus shrinking on failure. A property has a 30-second runner timeout. Node properties complete in about 1.4 seconds locally on Node 24/macOS; the separate Jest command includes its environment/build startup overhead. CI timings also include existing regressions and installed consumers, so use the individual property durations when comparing overhead.
 
 HTML attribute removal temporarily restores the browser's 300×150 defaults. The other axis remains at most 6 pixels, and each operation restores the generated dimensions: at most 1,800 transient pixels. Node properties reuse the regression Window/adapter setup and await complete cleanup in `finally` **for every case and every shrink**, including failed assertions. Jest properties release each native bitmap in `finally`; the runner owns its surrounding VM lifetime. Pending native output drains before Window shutdown and adapter disposal. No case depends on garbage collection or an RSS threshold.
 
@@ -58,6 +59,7 @@ Expected bytes come directly from generated input arrays; expected PNG pixels co
 # Fresh randomized runs of one layer.
 node --test packages/compat/test/property.test.ts
 pnpm test:jest --runTestsByPath packages/jest-happy-dom-extended/test/property.test.ts
+pnpm test:vitest packages/vitest-happy-dom-extended/test/property.test.ts
 
 # Copy seed and path from the failure, and select that one property's name.
 FC_SEED=1245566333 FC_PATH='0:0:1:0:0:1:1:1:1:1:1:1' \
@@ -65,6 +67,9 @@ FC_SEED=1245566333 FC_PATH='0:0:1:0:0:1:1:1:1:1:1:1' \
 FC_SEED=123 FC_PATH='0:1' pnpm test:jest \
   --runTestsByPath packages/jest-happy-dom-extended/test/property.test.ts \
   --testNamePattern='^generated Jest VM ImageData retains ArrayBuffer'
+FC_SEED=123 FC_PATH='0:1' pnpm test:vitest \
+  packages/vitest-happy-dom-extended/test/property.test.ts \
+  -t 'generated Vitest worker ImageData retains ArrayBuffer'
 ```
 
 The Jest seed/path above are placeholders; replace them with the failing report. `FC_PATH` enables `endOnFailure` for exact counterexample replay and requires the matching `FC_SEED`. Blank, non-numeric and non-finite seeds fail before generation instead of silently selecting a different case. Do not set either variable in ordinary CI or permanently fix a seed. On Windows PowerShell, assign `$env:FC_SEED` and `$env:FC_PATH` before the same command, then remove them afterward.

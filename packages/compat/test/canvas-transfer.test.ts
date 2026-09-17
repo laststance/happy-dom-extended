@@ -514,6 +514,228 @@ test(
 )
 
 test(
+  'EventTarget handleEvent listeners receive decoded Canvas ports and ignore objects without handleEvent',
+  { timeout: 2000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    const channel = new Constructor()
+    const canvas = new window.OffscreenCanvas(1, 1)
+    const drawing = canvas.getContext('2d')!
+    drawing.fillStyle = 'blue'
+    drawing.fillRect(0, 0, 1, 1)
+    const bitmap = canvas.transferToImageBitmap()
+    const silent = {}
+    const received = new Promise<MessageEvent>((resolve) => {
+      channel.port2.addEventListener('message', {
+        handleEvent(event: MessageEvent) {
+          resolve(event)
+        },
+      })
+    })
+    Reflect.apply(channel.port2.addEventListener, channel.port2, [
+      'message',
+      silent,
+    ])
+    // Act
+    Reflect.apply(channel.port1.postMessage, channel.port1, [
+      { bitmap, alias: bitmap },
+      [bitmap],
+    ])
+    const event = await received
+    drawing.drawImage(event.data.bitmap, 0, 0)
+    // Assert
+    assert.equal(bitmap.width, 0)
+    assert.equal(event.data.bitmap instanceof window.ImageBitmap, true)
+    assert.equal(event.data.bitmap, event.data.alias)
+    assert.equal(event.target, channel.port2)
+    assert.deepEqual(
+      [...drawing.getImageData(0, 0, 1, 1).data],
+      [0, 0, 255, 255],
+    )
+  },
+)
+
+test(
+  'onmessage keeps transferred MessagePorts that addEventListener also receives',
+  { timeout: 2000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    const channel = new Constructor()
+    const reply = new Constructor()
+    const fromListener = new Promise<MessageEvent>((resolve) => {
+      Reflect.apply(channel.port2.addEventListener, channel.port2, [
+        'message',
+        (event: MessageEvent) => {
+          resolve(event)
+        },
+      ])
+    })
+    const fromOnmessage = new Promise<MessageEvent>((resolve) => {
+      Reflect.set(channel.port2, 'onmessage', (event: MessageEvent) => {
+        resolve(event)
+      })
+    })
+    // Act
+    channel.port1.postMessage('reply-please', [reply.port1])
+    const [listenerEvent, onmessageEvent] = await Promise.all([
+      fromListener,
+      fromOnmessage,
+    ])
+    // Assert: a second wrap used to replace decoded ports with [].
+    assert.equal(listenerEvent.data, 'reply-please')
+    assert.equal(onmessageEvent.data, 'reply-please')
+    assert.equal(listenerEvent.ports.length, 1)
+    assert.equal(onmessageEvent.ports.length, 1)
+    assert.equal(listenerEvent.ports[0], onmessageEvent.ports[0])
+  },
+)
+
+test(
+  'canvas transfers keep an ordinary native port beside decoded Canvas ports',
+  { timeout: 2000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    const channel = new Constructor()
+    const reply = new Constructor()
+    const extra = new NativeMessageChannel()
+    context.after(() => {
+      extra.port1.close()
+      extra.port2.close()
+    })
+    const canvas = new window.OffscreenCanvas(1, 1)
+    const drawing = canvas.getContext('2d')!
+    drawing.fillStyle = 'blue'
+    drawing.fillRect(0, 0, 1, 1)
+    const bitmap = canvas.transferToImageBitmap()
+    const received = new Promise<MessageEvent>((resolve) => {
+      Reflect.apply(channel.port2.addEventListener, channel.port2, [
+        'message',
+        (event: MessageEvent) => {
+          resolve(event)
+        },
+      ])
+    })
+    // Act: ImageBitmap is Canvas-encoded; the native extra port must still appear on event.ports.
+    Reflect.apply(channel.port1.postMessage, channel.port1, [
+      { bitmap },
+      [bitmap, reply.port1, extra.port1],
+    ])
+    const event = await received
+    // Assert: decoded Canvas ports used to replace the entire list and drop the native extra port.
+    assert.equal(event.data.bitmap instanceof window.ImageBitmap, true)
+    assert.ok(event.ports.length >= 2)
+    const replied = once(extra.port2, 'message')
+    for (const port of event.ports) {
+      context.after(() => port.close())
+      try {
+        port.postMessage('mixed-native')
+      } catch {
+        // Only extra's twin delivers; other transferred ports are not that channel.
+      }
+    }
+    assert.deepEqual(await replied, ['mixed-native'])
+  },
+)
+
+test(
+  'clearing onmessage with a non-function stops delivery and exposes a null getter',
+  { timeout: 2000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    const channel = new Constructor()
+    let calls = 0
+    const firstHandler = (event: MessageEvent) => {
+      calls += 1
+      resolveFirst(event.data)
+    }
+    let resolveFirst!: (value: string) => void
+    const first = new Promise<string>((resolve) => {
+      resolveFirst = resolve
+      Reflect.set(channel.port2, 'onmessage', firstHandler)
+    })
+    // Act
+    channel.port1.postMessage('before-clear')
+    assert.equal(await first, 'before-clear')
+    assert.equal(Reflect.get(channel.port2, 'onmessage'), firstHandler)
+    Reflect.set(channel.port2, 'onmessage', { handleEvent() {} })
+    // Assert: the setter only keeps functions, so Node dispatch must not invoke the old wrapper.
+    assert.equal(Reflect.get(channel.port2, 'onmessage'), null)
+    const second = new Promise<string>((resolve) => {
+      Reflect.set(channel.port2, 'onmessage', (event: MessageEvent) =>
+        resolve(event.data),
+      )
+    })
+    channel.port1.postMessage('after-clear')
+    assert.equal(await second, 'after-clear')
+    assert.equal(calls, 1)
+  },
+)
+
+test(
+  'non-message EventTarget listeners and invalid message listeners stay unwrapped',
+  { timeout: 2000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const Constructor: typeof MessageChannel = Reflect.get(
+      window,
+      'MessageChannel',
+    )
+    const channel = new Constructor()
+    const closed = once(channel.port2, 'close')
+    // Act / Assert: invalid listeners reach native addEventListener instead of Canvas wrapping.
+    assert.throws(
+      () =>
+        Reflect.apply(channel.port2.addEventListener, channel.port2, [
+          'message',
+          1,
+        ]),
+      { code: 'ERR_INVALID_ARG_TYPE' },
+    )
+    Reflect.apply(channel.port2.addEventListener, channel.port2, [
+      'message',
+      null,
+    ])
+    Reflect.apply(channel.port2.addEventListener, channel.port2, [
+      'close',
+      () => {},
+    ])
+    const received = new Promise<string>((resolve) => {
+      Reflect.apply(channel.port2.addEventListener, channel.port2, [
+        'message',
+        (event: MessageEvent) => {
+          resolve(event.data)
+        },
+      ])
+    })
+    channel.port1.postMessage('passthrough')
+    assert.equal(await received, 'passthrough')
+    channel.port2.close()
+    await closed
+  },
+)
+
+test(
   'a transferred native port keeps Canvas transport and receiver ownership in another Window',
   { timeout: 2000 },
   async (context) => {

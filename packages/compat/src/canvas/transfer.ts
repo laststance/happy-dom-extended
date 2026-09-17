@@ -14,6 +14,7 @@ import { Canvas, ImageData } from 'skia-canvas'
 
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
+import { isNativeDOMException } from '../utils/is-native-dom-exception.ts'
 import { replaceProperty } from '../utils/replace-property.ts'
 
 import { ExtendedCanvasAdapter } from './adapter.ts'
@@ -111,7 +112,7 @@ function mapCanvasGraph(
   }
   // Native typed storage/errors/ports retain their own serialization rules; proxies must reach the native rejection path intact.
   if (nativeStructuredValue(value)) return value
-  if (types.isNativeError(value) || value instanceof DOMException)
+  if (types.isNativeError(value) || isNativeDOMException(value))
     return mapError(
       value,
       seen,
@@ -440,7 +441,7 @@ export function installCanvasTransfer(
           return receiveCanvasTransfer(window, cloned, clonedReceivers)
         } catch (error) {
           const failure =
-            error instanceof DOMException && error.name === 'DataCloneError'
+            isNativeDOMException(error) && error.name === 'DataCloneError'
               ? new window.DOMException(error.message, 'DataCloneError')
               : error
           if (receivers) {
