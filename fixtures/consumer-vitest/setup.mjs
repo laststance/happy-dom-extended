@@ -2,17 +2,22 @@ import assert from 'node:assert/strict'
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { clearTimeout, setTimeout } from 'node:timers'
+import { threadId } from 'node:worker_threads'
 
 import { PNG } from 'pngjs'
 
-// The tarball verifier checks actual process identities, not just requested CLI worker options.
+// The tarball verifier checks the actual process/thread/VM context of each pool, not just the requested CLI options.
 if (process.env.HAPPY_DOM_WORKER_RECORD_DIRECTORY) {
   writeFileSync(
     path.join(
       process.env.HAPPY_DOM_WORKER_RECORD_DIRECTORY,
-      `${process.pid}.json`,
+      `${process.pid}-${threadId}.json`,
     ),
-    JSON.stringify({ pid: process.pid }),
+    JSON.stringify({
+      pid: process.pid,
+      threadId,
+      vmContext: process.env.VITEST_VM_POOL === '1',
+    }),
   )
 }
 

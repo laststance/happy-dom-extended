@@ -17,7 +17,8 @@ jobs:
         node: ['22.18.0', '24.20.0', '26.8.1']
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # test:package installs 8 isolated consumers; Windows npm installs dominate the runtime.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -14,17 +14,42 @@ Use `pnpm test:unit`, `pnpm test:jest`, or `pnpm test:vitest` for focused iterat
 
 ## Test layers
 
-| Layer                          | Location                                                                      | What it proves                                                                       |
-| ------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Node compatibility regressions | `packages/compat/test/*.test.ts`                                              | Web API behavior, pixels, dimension resets, ownership, failure cleanup               |
-| Source environment lifecycle   | `packages/*/test-node/*.test.mjs`                                             | Constructor/factory options and pre-setup behavior without a build boundary          |
-| Actual Jest VM                 | `packages/jest-happy-dom-extended/test/*.test.ts`                             | VM arrays, setup APIs, fake timers, consumer spies                                   |
-| Actual Vitest worker           | `packages/vitest-happy-dom-extended/test/**/*.test.ts`                        | Worker globals, `vmThreads`, `isolate: false`, fake timers, consumer spies           |
-| Installed packages             | `fixtures/consumer/`, `fixtures/consumer-vitest/`, `scripts/test-package.mjs` | Runtime dependencies, public exports, setupFiles evaluation, serial/parallel workers |
+| Layer                          | Location                                               | What it proves                                                                                                       |
+| ------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Node compatibility regressions | `packages/compat/test/*.test.ts`                       | Web API behavior, pixels, dimension resets, ownership, failure cleanup                                               |
+| Source environment lifecycle   | `packages/*/test-node/*.test.mjs`                      | Constructor/factory options, pre-setup behavior and the Vitest global setup without a build boundary                 |
+| Actual Jest VM                 | `packages/jest-happy-dom-extended/test/*.test.ts`      | VM arrays, setup APIs, fake timers, consumer spies                                                                   |
+| Actual Vitest worker           | `packages/vitest-happy-dom-extended/test/**/*.test.ts` | Worker globals and execution context in every pool, `isolate: false`, fake timers, consumer spies                    |
+| Installed packages             | `fixtures/consumer*/`, `scripts/test-package.mjs`      | Runtime dependencies, public exports, setupFiles evaluation, pool contexts, a React product, missing-binary guidance |
 
-Installed-package tests run outside the workspace in a path containing spaces. The generated manifest includes fixture-only verification dependencies, never a direct Canvas dependency that could hide a packaging omission. PNG output is independently decoded with pngjs. JSON reports require all expected suites/tests, and setup records verify two real worker processes in parallel mode. Vitest serial mode still records one setup identity per isolated file because the forks pool respawns even with `--maxWorkers=1`. Each Jest and Vitest version also runs environment lifecycle regressions. Packed Vitest setupFiles must construct Canvas/File at module evaluation.
+Installed-package tests run outside the workspace in dedicated temp directories. Their prefixes contain no spaces, but `os.tmpdir()` itself may. The generated manifest includes fixture-only verification dependencies, never a direct Canvas dependency that could hide a packaging omission. PNG output is independently decoded with pngjs. JSON reports require all expected suites/tests. Each Jest and Vitest version also runs environment lifecycle regressions. Packed Vitest setupFiles must construct Canvas/File at module evaluation.
 
-CI tests Node 22.18.0, 24.20.0, and 26.8.1 on Linux and Windows with Jest 30.0.0 and 30.5.1 plus Vitest 4.0.0 and the current pin installed consumers. The Vitest 4.0.0 cell pins Vite 7.1.12; 4.0.0's module runner does not implement Vite 7.2+'s `getBuiltins`. Codecov receives one Linux Node 24 report to avoid duplicate matrix uploads. Fork PRs use Codecov's public-repository upload flow when the organization token is unavailable.
+Setup records prove where each runner executed setup. Jest `--runInBand` must stay in the CLI process, and its parallel mode must use two worker processes. Each Vitest record names its process, thread and VM context. `threads` and `vmThreads` must run on worker threads inside the CLI process. `forks` and `vmForks` must run in child processes, the VM pools must report a VM context, and two-worker modes must record two workers. A Vitest run also fails when its stderr mentions `vitest/environments`, which Vitest 4.1 deprecates and Vitest 5 removed.
+
+Thread-pool runs configure Vitest the way the Vitest README tells `threads` and `vmThreads` users to. The harness sets `HAPPY_DOM_THREAD_POOL=1`, and the fixture configs then add `vitest-environment-happy-dom-extended/global-setup`, which loads skia-canvas in Vitest's main thread. Without it, Windows can unload skia-canvas's native binary under its own threads and crash the run; [Verification](docs/verification.md#windows-thread-pool-crash) records the experiments. The repository's own Vitest projects use the built global setup for the same pools. `forks` and `vmForks` runs keep the plain configuration most consumers use.
+
+Node 25 and later define their own lazy `localStorage` and `sessionStorage` globals. Below Node 25, every Vitest run adds `--experimental-webstorage` to `NODE_OPTIONS`, so each CI cell has them too. Consumers must still receive the Window's storage in every pool, and a Node 25+ run fails when stderr shows Node's `localStorage` warning. Node 22 and 24 then print Node's experimental Web Storage warning once per process, because reading the `Storage` global's descriptor, as populateGlobal does, loads the flagged feature.
+
+`fixtures/consumer-vitest-product` is a small React 19 application tested the way product teams test. It uses TSX through Vite, an `@` alias, a named project with globals and a setup file, Testing Library, user-event and jest-dom. Its eight tests read chart pixels and a PNG export, preview an uploaded image through createImageBitmap, confirm IME composition before searching, persist recent searches in localStorage and survive a corrupted entry, and sign out across tabs with BroadcastChannel. The three Canvas tests fail with Vitest's plain `happy-dom` environment. `pnpm test:package` installs it from the tarball in every pool; inside the workspace, run `pnpm --filter happy-dom-extended-vitest-product-fixture exec vitest run`.
+
+The development versions of Jest and Vitest also hide skia-canvas's native binary after installation. The run must fail and print every approval command, which proves that both bundles explain a skipped install script. A second Vitest run uses `threads` with the global setup. It must fail in the global setup, before any worker starts, with the same commands.
+
+CI tests Node 22.18.0, 24.20.0, and 26.8.1 on Linux and Windows with Jest 30.0.0 and 30.5.1 plus Vitest 4.0.0, 4.1.11 and 5.0.1 installed consumers. The Vitest 4.0.0 cell pins Vite 7.1.12; 4.0.0's module runner does not implement Vite 7.2+'s `getBuiltins`. Codecov receives one Linux Node 24 report to avoid duplicate matrix uploads. Fork PRs use Codecov's public-repository upload flow when the organization token is unavailable.
+
+## Try an application before release
+
+The fixtures cannot cover every project. To check a real application, install the packed tarball into a disposable copy of it, never into its working tree. A tarball install is more faithful than `pnpm link`, which resolves the environment's dependencies from this workspace.
+
+```sh
+pnpm build
+pnpm --filter vitest-environment-happy-dom-extended pack --pack-destination /tmp/hde-pack
+rsync -a --exclude node_modules /path/to/app/ /tmp/hde-trial/app/
+cd /tmp/hde-trial/app
+pnpm add -D /tmp/hde-pack/vitest-environment-happy-dom-extended-*.tgz
+pnpm approve-builds skia-canvas
+```
+
+Set `environment: 'happy-dom-extended'` in the copy's Vitest config, and add `globalSetup: ['vitest-environment-happy-dom-extended/global-setup']` for the thread pools. Run the suite with `--pool=forks`, `--pool=threads`, `--pool=vmThreads` and `--pool=vmForks`, then run the same commands with `environment: 'happy-dom'`. A failure that also occurs with `happy-dom` belongs to the application or to Happy DOM. A failure that occurs only with this environment needs a regression test here. [Verification](docs/verification.md#real-application-trials) records the latest trials.
 
 ## Regression expectations
 

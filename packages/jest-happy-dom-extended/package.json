@@ -2,6 +2,17 @@
   "name": "jest-happy-dom-extended",
   "version": "0.2.0",
   "description": "A Happy DOM Jest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
+  "keywords": [
+    "jest",
+    "jest-environment",
+    "happy-dom",
+    "canvas",
+    "offscreencanvas",
+    "skia",
+    "web-worker",
+    "dom",
+    "testing"
+  ],
   "type": "module",
   "license": "MIT",
   "author": "ryota-murakami",

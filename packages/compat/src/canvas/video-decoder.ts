@@ -2,7 +2,6 @@ import { spawn } from 'node:child_process'
 import { clearTimeout, setTimeout } from 'node:timers'
 
 import type { AbortSignal, ICanvasAdapterCaller } from 'happy-dom'
-import { ImageData } from 'skia-canvas'
 
 import type { ExtendedCanvasAdapter } from './adapter.ts'
 import {
@@ -12,6 +11,7 @@ import {
   MEDIA_OPERATION_TIMEOUT_MS,
   VIDEO_TIMESTAMP_EPSILON_SECONDS,
 } from './constants.ts'
+import { ImageData } from './skia.ts'
 import { pixelBytes } from './utils/pixel-bytes.ts'
 import { videoGeometry } from './utils/video-geometry.ts'
 

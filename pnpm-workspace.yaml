@@ -2,6 +2,7 @@ packages:
   - packages/*
   - fixtures/consumer
   - fixtures/consumer-vitest
+  - fixtures/consumer-vitest-product
 
 minimumReleaseAge: 1440
 

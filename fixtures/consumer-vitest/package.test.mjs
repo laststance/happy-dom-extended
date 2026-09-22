@@ -53,6 +53,23 @@ test('installed npm package initializes its Web APIs in a separate consumer', as
   expect(new XMLHttpRequest().DONE).toBe(4)
 })
 
+test("installed npm package gives tests the Window's localStorage and sessionStorage instead of Node's Web Storage", () => {
+  // Arrange
+  localStorage.clear()
+  sessionStorage.clear()
+  try {
+    // Act
+    localStorage.setItem('theme', 'dark')
+    // Assert
+    expect(localStorage).toBeInstanceOf(Storage)
+    expect(sessionStorage).toBeInstanceOf(Storage)
+    expect(localStorage.getItem('theme')).toBe('dark')
+    expect(sessionStorage.getItem('theme')).toBeNull()
+  } finally {
+    localStorage.clear()
+  }
+})
+
 test('installed npm package snapshots ImageData and decodes a Blob URL with the consumer Window constructors', async () => {
   // Arrange
   const pixels = new ImageData(new Uint8ClampedArray([0, 0, 255, 255]), 1)

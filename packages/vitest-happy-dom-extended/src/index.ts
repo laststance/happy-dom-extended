@@ -4,32 +4,60 @@ import type {
   ExtendedCanvasAdapter,
 } from '@happy-dom-extended/compat'
 import { GlobalWindow, Window } from 'happy-dom'
-// Vitest 4.0.0 has `vitest/environments` and no `vitest/runtime` export.
-import { populateGlobal, type Environment } from 'vitest/environments'
+// Type-only: checks conformance against the development Vitest without emitting a runtime import.
+import type { Environment as VitestEnvironment } from 'vitest/runtime'
 
+import {
+  importPopulateGlobal,
+  populateWindowGlobals,
+} from './populate-global.ts'
 import {
   prepareEnvironment,
   type HappyDomExtendedFactoryOptions,
 } from './prepare-environment.ts'
 
-/** Copies own property descriptors so a failed {@link populateGlobal} can roll back partial writes.
+/** Own-property descriptors captured before {@link PopulateGlobal} runs so failed setup and teardown restore the exact prior state. */
+type OwnPropertySnapshot = ReadonlyArray<
+  readonly [string | symbol, PropertyDescriptor | undefined]
+>
+
+/** Resources one environment lifetime owns: the Window, its default Canvas adapter, and the compatibility restorer. */
+type ExtendedWindow = {
+  window: InstanceType<typeof Window>
+  adapter: ExtendedCanvasAdapter | undefined
+  dispose: DisposeCompatibility
+}
+
+/** Vitest environment object returned by {@link createHappyDomExtendedEnvironment}.
+ * Structural so the published types do not import `vitest/environments` (Vitest 4) or `vitest/runtime` (Vitest 4.1+/5).
+ */
+export type HappyDomExtendedEnvironment = {
+  name: 'happy-dom-extended'
+  viteEnvironment: 'client'
+  setupVM(options: Record<string, unknown>): Promise<{
+    getVmContext(): InstanceType<typeof Window>
+    teardown(): Promise<void>
+  }>
+  setup(
+    global: object,
+    options: Record<string, unknown>,
+  ): Promise<{ teardown(global: object): Promise<void> }>
+}
+
+/** Copies own property descriptors so a failed {@link PopulateGlobal} can roll back and teardown can restore populated keys.
+ * Reads descriptors, never values, so lazy native getters such as Node's `localStorage` are not invoked.
  * @param target - Sandbox or globalThis that populateGlobal is about to mutate.
  * @returns Name/symbol pairs with the descriptor present before mutation.
  * @example const snapshot = snapshotOwnProperties(global)
  */
-function snapshotOwnProperties(target: object) {
+function snapshotOwnProperties(target: object): OwnPropertySnapshot {
   return [
     ...Object.getOwnPropertyNames(target),
     ...Object.getOwnPropertySymbols(target),
   ].map((key) => [key, Object.getOwnPropertyDescriptor(target, key)] as const)
 }
 
-/** Restores own properties after {@link populateGlobal} throws mid-write.
- * @param target - Same object passed to populateGlobal.
- * @param snapshot - Result of {@link snapshotOwnProperties} taken before mutation.
- * @example restoreOwnProperties(global, snapshot)
- */
-/** Deletes own keys added after the snapshot so a failed {@link populateGlobal} does not leave Window leftovers.
+/** Deletes own keys added after the snapshot so a failed {@link PopulateGlobal} does not leave Window leftovers.
  * {@link restoreOwnProperties} calls this before reapplying saved descriptors.
  * @example deleteUnknownOwnProperties(global, known)
  */
@@ -45,15 +73,13 @@ function deleteUnknownOwnProperties(
   }
 }
 
-/** Reapplies snapshot descriptors, deleting keys that had no descriptor before {@link populateGlobal}.
+/** Reapplies snapshot descriptors, deleting keys that had no descriptor before {@link PopulateGlobal}.
  * {@link restoreOwnProperties} calls this after removing unknown keys.
  * @example applyOwnPropertySnapshot(global, snapshot)
  */
 function applyOwnPropertySnapshot(
   target: object,
-  snapshot: ReadonlyArray<
-    readonly [string | symbol, PropertyDescriptor | undefined]
-  >,
+  snapshot: OwnPropertySnapshot,
 ) {
   for (const [key, descriptor] of snapshot) {
     if (descriptor) Object.defineProperty(target, key, descriptor)
@@ -61,47 +87,15 @@ function applyOwnPropertySnapshot(
   }
 }
 
-function restoreOwnProperties(
-  target: object,
-  snapshot: ReadonlyArray<
-    readonly [string | symbol, PropertyDescriptor | undefined]
-  >,
-) {
+/** Restores every own property after {@link PopulateGlobal} throws mid-write.
+ * @param target - Same object passed to populateGlobal.
+ * @param snapshot - Result of {@link snapshotOwnProperties} taken before mutation.
+ * @example restoreOwnProperties(global, snapshot)
+ */
+function restoreOwnProperties(target: object, snapshot: OwnPropertySnapshot) {
   deleteUnknownOwnProperties(target, new Set(snapshot.map(([key]) => key)))
   applyOwnPropertySnapshot(target, snapshot)
 }
-
-// Keys that already exist on Node's globalThis must still receive the Window/compat implementations.
-const additionalKeys = [
-  'Request',
-  'Response',
-  'MessagePort',
-  'fetch',
-  'Headers',
-  'AbortController',
-  'AbortSignal',
-  'URL',
-  'URLSearchParams',
-  'FormData',
-  'structuredClone',
-  'MessageChannel',
-  'BroadcastChannel',
-  'Blob',
-  'File',
-  'FileReader',
-  'ImageData',
-  'ImageBitmap',
-  'createImageBitmap',
-  'OffscreenCanvas',
-  'Worker',
-  'Animation',
-  'XMLHttpRequest',
-  'CompositionEvent',
-  'TextEncoderStream',
-  'TextDecoderStream',
-  'CompressionStream',
-  'DecompressionStream',
-]
 
 /** Drains owned Canvas output, closes the Window to join Workers/media, then restores compatibility patches.
  * @param window - Happy DOM window created for this environment lifetime.
@@ -129,23 +123,26 @@ async function joinEnvironment(
   disposeAll([() => disposeCompatibility(), () => adapter?.dispose()], errors)
 }
 
-/** Restores {@link populateGlobal} keys even when drain/close failed so the next setup sees Node globals.
+/** Puts back the pre-setup descriptor of every key {@link PopulateGlobal} wrote, deleting keys that did not exist before.
+ * Uses this environment's own snapshot because Vitest 4 `originals` holds values while Vitest 5 holds descriptors.
+ * Runs even when drain/close failed so the next setup sees Node globals.
  * @param globalThisValue - Sandbox or worker global mutated by setup.
- * @param keys - Names populateGlobal added.
- * @param originals - Prior values to put back.
- * @example restorePopulatedGlobals(global, keys, originals)
+ * @param keys - Names populateGlobal wrote, including `window`/`self`/`top`/`parent`.
+ * @param snapshot - Descriptors from {@link snapshotOwnProperties} taken before populateGlobal.
+ * @example restorePopulatedGlobals(global, keys, snapshot)
  */
 function restorePopulatedGlobals(
   globalThisValue: object,
-  keys: Set<string>,
-  originals: Map<string | symbol, unknown>,
+  keys: ReadonlySet<string>,
+  snapshot: OwnPropertySnapshot,
 ) {
-  keys.forEach((key) => {
-    Reflect.deleteProperty(globalThisValue, key)
-  })
-  originals.forEach((value, key) => {
-    Reflect.set(globalThisValue, key, value)
-  })
+  const before = new Map(snapshot)
+  for (const key of keys) {
+    const descriptor = before.get(key)
+    // Keys that existed regain their exact descriptor; keys the Window introduced are removed.
+    if (descriptor) Object.defineProperty(globalThisValue, key, descriptor)
+    else Reflect.deleteProperty(globalThisValue, key)
+  }
 }
 
 /** Throws a single error or an AggregateError after setup/teardown collected more than one failure.
@@ -162,20 +159,14 @@ function throwCollectedErrors(errors: unknown[], message: string) {
   }
 }
 
-/** Restores a partial {@link populateGlobal} write, then joins the Window so setup failures do not leak ports.
+/** Restores a partial {@link PopulateGlobal} write, then joins the Window so setup failures do not leak ports.
  * `setup` catch calls this after populateGlobal throws.
  * @example await recoverFailedPopulate(global, snapshot, created, error)
  */
 async function recoverFailedPopulate(
   global: object,
-  globalSnapshot: ReadonlyArray<
-    readonly [string | symbol, PropertyDescriptor | undefined]
-  >,
-  created: {
-    window: InstanceType<typeof Window>
-    adapter: ExtendedCanvasAdapter | undefined
-    dispose: DisposeCompatibility
-  },
+  globalSnapshot: OwnPropertySnapshot,
+  created: ExtendedWindow,
   error: unknown,
 ): Promise<never> {
   const errors = [error]
@@ -196,19 +187,15 @@ async function recoverFailedPopulate(
 /** Joins the Window then restores populateGlobal writes so a second setup does not see leftover Window keys.
  * @param globalThisValue - Same object passed to setup.
  * @param created - Window/adapter/dispose from {@link createExtendedWindow}.
- * @param keys - populateGlobal keys to delete.
- * @param originals - populateGlobal originals to restore.
- * @example await teardownPopulatedEnvironment(global, created, keys, originals)
+ * @param keys - populateGlobal keys to restore or delete.
+ * @param snapshot - Descriptors captured by {@link snapshotOwnProperties} before populateGlobal.
+ * @example await teardownPopulatedEnvironment(global, created, keys, snapshot)
  */
 async function teardownPopulatedEnvironment(
   globalThisValue: object,
-  created: {
-    window: InstanceType<typeof Window>
-    adapter: ExtendedCanvasAdapter | undefined
-    dispose: DisposeCompatibility
-  },
-  keys: Set<string>,
-  originals: Map<string | symbol, unknown>,
+  created: ExtendedWindow,
+  keys: ReadonlySet<string>,
+  snapshot: OwnPropertySnapshot,
 ) {
   const errors: unknown[] = []
   try {
@@ -217,7 +204,7 @@ async function teardownPopulatedEnvironment(
     errors.push(error)
   }
   try {
-    restorePopulatedGlobals(globalThisValue, keys, originals)
+    restorePopulatedGlobals(globalThisValue, keys, snapshot)
   } catch (error) {
     errors.push(error)
   }
@@ -235,11 +222,7 @@ async function createExtendedWindow(
   options: unknown,
   factoryOptions: HappyDomExtendedFactoryOptions | undefined,
   WindowImplementation: typeof Window,
-): Promise<{
-  window: InstanceType<typeof Window>
-  adapter: ExtendedCanvasAdapter | undefined
-  dispose: DisposeCompatibility
-}> {
+): Promise<ExtendedWindow> {
   const prepared = prepareEnvironment(options, factoryOptions)
   const happyDOM = prepared.happyDOM
   const settings = {
@@ -282,20 +265,20 @@ async function createExtendedWindow(
 
 export type { HappyDomExtendedFactoryOptions } from './prepare-environment.ts'
 
-/** Builds a Vitest {@link Environment} that installs the same Happy DOM extensions as the Jest package.
- * setup: options → Window → compat → populateGlobal(+additionalKeys). teardown: drain → happyDOM.close → dispose → restore.
+/** Builds the Vitest 4/5 {@link HappyDomExtendedEnvironment} that installs the same Happy DOM extensions as the Jest package.
+ * setup: populateGlobal import → options → Window → compat → {@link populateWindowGlobals}. teardown: drain → happyDOM.close → dispose → restore descriptors.
  * @param factoryOptions - Optional caller-owned `canvasAdapter`; omitted adapters are created per setup.
- * @returns An environment whose `setup`/`setupVM` expose Canvas before tests and setupFiles evaluate.
+ * @returns An environment whose `setup` (forks/threads) and `setupVM` (vmThreads/vmForks) expose Canvas before tests and setupFiles evaluate.
  * @example export default createHappyDomExtendedEnvironment()
  */
 export function createHappyDomExtendedEnvironment(
   factoryOptions?: HappyDomExtendedFactoryOptions,
-): Environment {
-  return {
+): HappyDomExtendedEnvironment {
+  const environment: HappyDomExtendedEnvironment = {
     name: 'happy-dom-extended',
     viteEnvironment: 'client',
-    async setupVM(options: Record<string, unknown>) {
-      // vmThreads requires a `vm.createContext` Window, not {@link GlobalWindow}.
+    async setupVM(options) {
+      // vmThreads/vmForks require a `vm.createContext` Window, not {@link GlobalWindow}.
       const created = await createExtendedWindow(
         options,
         factoryOptions,
@@ -321,20 +304,18 @@ export function createHappyDomExtendedEnvironment(
       }
     },
     async setup(global, options) {
+      // Resolve Vitest's entry before creating a Window so an unsupported Vitest cannot leak one.
+      const populateGlobal = await importPopulateGlobal()
       const created = await createExtendedWindow(
         options,
         factoryOptions,
         GlobalWindow || Window,
       )
-      let keys: Set<string>
-      let originals: Map<string | symbol, unknown>
+      let keys: ReadonlySet<string>
       const globalSnapshot = snapshotOwnProperties(global)
       try {
         // populateGlobal can throw after Window+compat exist; join so ports/Workers do not leak.
-        ;({ keys, originals } = populateGlobal(global, created.window, {
-          bindFunctions: true,
-          additionalKeys,
-        }))
+        keys = populateWindowGlobals(global, created.window, populateGlobal)
       } catch (error) {
         await recoverFailedPopulate(global, globalSnapshot, created, error)
       }
@@ -345,12 +326,14 @@ export function createHappyDomExtendedEnvironment(
             globalThisValue,
             created,
             keys,
-            originals,
+            globalSnapshot,
           ))
         },
       }
     },
   }
+  // Compile-time check against the development Vitest; the structural type keeps it out of the published declarations.
+  return environment satisfies VitestEnvironment
 }
 
 export default createHappyDomExtendedEnvironment()

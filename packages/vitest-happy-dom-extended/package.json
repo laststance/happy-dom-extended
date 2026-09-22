@@ -2,6 +2,17 @@
   "name": "vitest-environment-happy-dom-extended",
   "version": "0.0.0",
   "description": "A Happy DOM Vitest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
+  "keywords": [
+    "vitest",
+    "vitest-environment",
+    "happy-dom",
+    "canvas",
+    "offscreencanvas",
+    "skia",
+    "web-worker",
+    "dom",
+    "testing"
+  ],
   "type": "module",
   "license": "MIT",
   "author": "ryota-murakami",
@@ -32,6 +43,11 @@
       "import": "./dist/index.mjs",
       "default": "./dist/index.mjs"
     },
+    "./global-setup": {
+      "types": "./dist/global-setup.d.mts",
+      "import": "./dist/global-setup.mjs",
+      "default": "./dist/global-setup.mjs"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -51,11 +67,11 @@
     "webidl-conversions": "8.0.1"
   },
   "peerDependencies": {
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0 || ^5.0.0"
   },
   "devDependencies": {
     "@happy-dom-extended/compat": "workspace:*",
     "fast-check": "4.9.0",
-    "vitest": "4.1.6"
+    "vitest": "5.0.1"
   }
 }

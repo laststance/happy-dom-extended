@@ -1,9 +1,9 @@
 import { ImageData } from 'happy-dom'
-import { ImageData as NativeImageData } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
 import { MAX_COLOR_CHANNEL, RGBA_BYTES_PER_PIXEL } from './constants.ts'
 import { imageDataSettings } from './image-data-settings.ts'
+import { ImageData as NativeImageData } from './skia.ts'
 import { imageDataColorSpaces } from './state.ts'
 import type { CanvasMethod, CanvasState } from './types.ts'
 import { conversionOptions } from './utils/conversion-options.ts'

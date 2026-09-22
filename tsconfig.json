@@ -29,5 +29,10 @@
     "fixtures/**/*",
     "packages/**/*.mjs"
   ],
-  "exclude": ["**/node_modules", "**/dist", ".artifacts"]
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    ".artifacts",
+    "fixtures/consumer-vitest-product"
+  ]
 }

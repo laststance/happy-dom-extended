@@ -3,6 +3,7 @@
   "entry": [
     "packages/*/src/index.ts",
     "packages/*/src/worker.ts",
+    "packages/vitest-happy-dom-extended/src/global-setup.ts",
     "packages/compat/src/workers/worker-bootstrap.ts",
     "packages/*/tsdown.config.ts",
     "packages/*/test/**/*.test.ts",
@@ -10,6 +11,9 @@
     "fixtures/consumer/*.cjs",
     "fixtures/consumer/*.mjs",
     "fixtures/consumer-vitest/*.mjs",
+    "fixtures/consumer-vitest-product/vitest.config.ts",
+    "fixtures/consumer-vitest-product/src/test/setup.ts",
+    "fixtures/consumer-vitest-product/src/**/*.test.tsx",
     "packages/*/test-node/*.test.mjs",
     "packages/*/vitest.config.ts"
   ],
