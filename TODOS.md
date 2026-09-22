@@ -66,6 +66,18 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Changesets support for staged publishing
 
+### Decide on a dependency update tool
+
+**What:** Decide whether Dependabot or Renovate should run, and over which dependency groups.
+
+**Why:** OpenSSF Scorecard scores this repository zero for dependency updates, and pinned dependencies drift without a tool.
+
+**Context:** `happy-dom` and `skia-canvas` are pinned to the exact versions [Verification](docs/verification.md) records, so a bump needs the whole matrix re-run before it can merge. Remote actions are already pinned by commit digest and could be updated on their own schedule. Limiting a tool to actions and development dependencies would close most of the finding without invalidating the recorded evidence. [SECURITY.md](SECURITY.md) explains why the finding stays open meanwhile.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** Nothing
+
 ## Completed
 
 ### Claim the Vitest vmForks pool
