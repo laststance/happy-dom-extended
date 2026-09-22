@@ -90,14 +90,26 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P2
 **Depends on:** Nothing
 
+### Confirm the Codecov upload on a fork pull request
+
+**What:** Establish whether the coverage upload succeeds on a pull request from a fork, and add a fallback if it does not.
+
+**Why:** `test` is a required status check. The upload step passes `secrets.CODECOV_TOKEN` and sets `fail_ci_if_error: true`, and a fork pull request cannot read that secret, so a failing upload would block every outside contribution.
+
+**Context:** `.github/workflows/test.yml` runs the upload only on Linux Node 24.20.0. codecov-action v7 documents a tokenless flow for public repositories, which this repository has never exercised because no fork pull request has been opened. Either confirm the tokenless path or skip the step when the token is empty. [TESTING.md](TESTING.md) records the current state.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** A fork pull request, or a deliberate test of one
+
 ## Completed
 
 ### Claim the Vitest vmForks pool
 
-Completed for `vitest-environment-happy-dom-extended` 0.1.0. The behavior suite, the installed consumer and the React product fixture run in `vmForks` on Vitest 4.0.0, 4.1.11 and 5.0.1. Setup records prove a child process with a VM context.
+Completed for the unreleased `vitest-environment-happy-dom-extended` 0.1.0. The behavior suite, the installed consumer and the React product fixture run in `vmForks` on Vitest 4.0.0, 4.1.11 and 5.0.1. Setup records prove a child process with a VM context.
 
 ### Investigate Vitest threads plus Skia
 
-Completed for 0.1.0. skia-canvas loads in each worker thread. The behavior suite, dedicated Worker tests and pixel checks pass in `threads` and `vmThreads` with two concurrent workers, and setup records prove worker threads inside the CLI process. laststance/corelive and laststance/gitbox produce the same results in `threads` as in `forks`.
+Completed for the same unreleased 0.1.0. skia-canvas loads in each worker thread. The behavior suite, dedicated Worker tests and pixel checks pass in `threads` and `vmThreads` with two concurrent workers, and setup records prove worker threads inside the CLI process. laststance/corelive and laststance/gitbox produce the same results in `threads` as in `forks`.
 
 On Windows, a thread-pool run could crash after its tests passed, because Windows unloaded skia.node when the last worker thread that loaded it exited. The `vitest-environment-happy-dom-extended/global-setup` entry loads skia-canvas in Vitest's main thread first; [Verification](docs/verification.md#windows-thread-pool-crash) records the experiments.

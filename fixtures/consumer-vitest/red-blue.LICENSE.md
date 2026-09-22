@@ -6,4 +6,4 @@
 ffmpeg -f lavfi -i 'color=c=red:s=16x16:r=1:d=1' -f lavfi -i 'color=c=blue:s=16x16:r=1:d=1' -filter_complex '[0:v][1:v]concat=n=2:v=1:a=0[v]' -map '[v]' -c:v libvpx-vp9 -lossless 1 -pix_fmt yuv420p -colorspace smpte170m -color_primaries smpte170m -color_trc smpte170m -color_range tv red-blue.webm
 ```
 
-Expected decoded RGBA samples are `[254, 0, 0, 255]` before 1 second and `[0, 0, 255, 255]` afterward. The one-level red difference comes from RGB↔YUV conversion. This fixture contains no third-party footage, audio, fonts or external resources.
+Expected decoded RGBA samples on macOS are `[254, 0, 0, 255]` before 1 second and `[0, 0, 255, 255]` afterward. The one-level red difference comes from RGB↔YUV conversion. Linux and Windows decode one level lower again, so the tests accept a two-level error. This fixture contains no third-party footage, audio, fonts or external resources.

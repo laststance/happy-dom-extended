@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-This project is preparing its first npm release. Security fixes are developed on `main`; after publication, use the latest release. There is no commitment to backport fixes to older prerelease versions.
+`jest-happy-dom-extended` is published on npm and `vitest-environment-happy-dom-extended` is awaiting its first release. Security fixes are developed on `main` and reach users in the next release of each package, so install the latest version of the package you use. There is no commitment to backport a fix to an earlier version.
 
 ## Report a vulnerability
 
