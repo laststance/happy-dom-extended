@@ -42,6 +42,18 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P2
 **Depends on:** A Laststance GitHub App installed on this repository
 
+### Drop the dangling declaration-map reference from the published types
+
+**What:** Stop shipping a `sourceMappingURL` comment for a declaration map that the tarball does not contain, and report it to tsdown.
+
+**Why:** Editors resolve the comment to a missing file. TypeScript ignores it, so today this only makes the artifact look unfinished.
+
+**Context:** tsdown 0.23.0 passes the bundle's `sourcemap: true` to the declaration output, which appends the comment, while `dts.sourcemap` decides whether a map is written. Enabling `dts: { sourcemap: true }` writes maps whose `sources` point at `../src/*.ts` without `sourcesContent`, so they do not resolve from a tarball either. Removing the comment needs a tsdown fix or a post-build rewrite.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** Nothing
+
 ## Completed
 
 ### Claim the Vitest vmForks pool
