@@ -16,6 +16,18 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** A reproduction
 
+### Report the Windows skia.node unload crash to skia-canvas
+
+**What:** Report to skia-canvas that Windows can unload skia.node while threads that skia-canvas started still run code inside it.
+
+**Why:** Until skia-canvas keeps its binary loaded, `threads` and `vmThreads` users must add `vitest-environment-happy-dom-extended/global-setup`. Other tools that load skia-canvas only in worker threads can crash the same way.
+
+**Context:** Node releases a worker thread's handle to a native addon when the thread exits, and Windows unloads the addon when no handle remains. The worker-thread experiment in [Verification](docs/verification.md#windows-thread-pool-crash) crashed on Node.js 24.20.0 and 26.8.1 without Vitest. skia-canvas could pin its module on Windows or stop its threads when the last Node environment that uses it exits. After a fixed release, keep the global setup entry so existing configurations still resolve.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** Nothing
+
 ## Release automation
 
 ### Run Version Packages PR checks without manual approval
