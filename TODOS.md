@@ -54,6 +54,18 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
+### Evaluate staged npm publishing
+
+**What:** Decide whether the Release job should stage each version for manual approval instead of publishing directly.
+
+**Why:** A staged version needs a maintainer's approval before consumers can install it, so a compromised workflow cannot reach the registry on its own.
+
+**Context:** Since 3 September 2026 every trusted publishing configuration can stage a version, and direct publishing is opt-in. npm 12 provides `npm stage publish`, `npm stage list` and `npm stage approve`. `changeset publish` calls `npm publish`, so staging needs Changesets support or a publish script, and the trusted publisher would no longer need `--allow-publish`.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Changesets support for staged publishing
+
 ## Completed
 
 ### Claim the Vitest vmForks pool
