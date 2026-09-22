@@ -6,9 +6,11 @@ import { fileURLToPath } from 'node:url'
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
 const fenceOpenerPattern = /^ {0,3}(`{3,}|~{3,})/
 const fenceCloserPattern = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
+const frontMatterPattern = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(?=\r?\n|$)/
 const commentPattern = /<!--[\s\S]*?-->/g
 const spanPattern = /(`+)[^\n]*?\1/g
-const headingPattern = /^#{1,6}[ \t]+(.+)$/gm
+const headingPattern =
+  /^#{1,6}[ \t]+(.+)$|^ {0,3}(\S[^\n]*)\n {0,3}(?:=+|-+)[ \t]*$/gm
 const trailingHashPattern = /[ \t]+#+[ \t]*$/
 const definitionPattern =
   /^ {0,3}\[[^\]]+\]:[ \t]*(?:\r?\n[ \t]*)?(<[^>\n]*>|\S+)(?:[ \t]+["'(][^\n]*)?[ \t]*$/gm
@@ -81,6 +83,17 @@ function stripFences(markdown) {
 }
 
 /**
+ * Blanks a leading YAML block, keeping its line breaks, so its keys cannot look like headings.
+ *
+ * @example stripFrontMatter("---\na: b\n---\n# T").trim() === '# T'
+ */
+function stripFrontMatter(markdown) {
+  return markdown.replace(frontMatterPattern, (block) =>
+    block.replaceAll(/[^\n]/g, ''),
+  )
+}
+
+/**
  * Blanks HTML comments while keeping their line breaks, so the lines around them stay apart.
  *
  * @example stripComments('a <!-- [x](y) --> b') === 'a  b'
@@ -100,7 +113,7 @@ function stripComments(markdown) {
 
 /** Returns a document's prose: everything outside its fenced blocks and HTML comments. */
 function proseOf(markdown) {
-  return stripComments(stripFences(markdown))
+  return stripComments(stripFences(stripFrontMatter(markdown)))
 }
 
 /** Blanks inline spans, pairing a backtick run with the next run of the same length. */
@@ -126,14 +139,23 @@ function headingSlug(heading) {
 }
 
 /**
+ * Lists a document's heading texts in order, from both hashed and underlined headings.
+ *
+ * @example headingTextsIn('# A\nB\n===') → ['A', 'B']
+ */
+function headingTextsIn(prose) {
+  return [...prose.matchAll(headingPattern)].map(
+    ([, hashed, underlined]) => hashed ?? underlined,
+  )
+}
+
+/**
  * Lists headings that carry raw HTML, whose rendered text {@link headingSlug} cannot reproduce.
  *
  * @example htmlHeadingsIn('# A <b>B</b>') → ['A <b>B</b>']
  */
 function htmlHeadingsIn(prose) {
-  return [...prose.matchAll(headingPattern)]
-    .map(([, heading]) => heading)
-    .filter((heading) => heading.includes('<'))
+  return headingTextsIn(prose).filter((heading) => heading.includes('<'))
 }
 
 /**
@@ -144,7 +166,7 @@ function htmlHeadingsIn(prose) {
 function anchorsOf(prose) {
   const anchors = new Set()
   const seen = new Map()
-  for (const [, heading] of prose.matchAll(headingPattern)) {
+  for (const heading of headingTextsIn(prose)) {
     const slug = headingSlug(heading)
     const used = seen.get(slug) ?? 0
     seen.set(slug, used + 1)
