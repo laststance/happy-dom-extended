@@ -712,10 +712,26 @@ test(
         ]),
       { code: 'ERR_INVALID_ARG_TYPE' },
     )
-    Reflect.apply(channel.port2.addEventListener, channel.port2, [
-      'message',
-      null,
-    ])
+    const warningNames: string[] = []
+    const emitWarning = context.mock.method(
+      process,
+      'emitWarning',
+      (warning: unknown) => {
+        warningNames.push(
+          warning instanceof Error ? warning.name : String(warning),
+        )
+      },
+    )
+    try {
+      Reflect.apply(channel.port2.addEventListener, channel.port2, [
+        'message',
+        null,
+      ])
+    } finally {
+      emitWarning.mock.restore()
+    }
+    // Only Node's own addEventListener warns about a null listener, so the Canvas wrapper passed it through.
+    assert.deepEqual(warningNames, ['AddEventListenerArgumentTypeWarning'])
     Reflect.apply(channel.port2.addEventListener, channel.port2, [
       'close',
       () => {},

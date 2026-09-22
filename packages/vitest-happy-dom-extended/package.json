@@ -2,6 +2,17 @@
   "name": "vitest-environment-happy-dom-extended",
   "version": "0.0.0",
   "description": "A Happy DOM Vitest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
+  "keywords": [
+    "vitest",
+    "vitest-environment",
+    "happy-dom",
+    "canvas",
+    "offscreencanvas",
+    "skia",
+    "web-worker",
+    "dom",
+    "testing"
+  ],
   "type": "module",
   "license": "MIT",
   "author": "ryota-murakami",

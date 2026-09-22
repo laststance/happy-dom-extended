@@ -17,7 +17,7 @@ The full local gate ran on macOS arm64 with Node.js 24.19.0, pnpm 12.3.4 and npm
 | Missing native binary                 | The development Jest and Vitest versions fail with every approval command after the Skia binary is hidden, and so does the Vitest global setup before any worker starts                                  |
 | Public entry points                   | Jest shared ESM/CommonJS runtime; Vitest ESM-only environment and global setup; consistent Happy DOM class identity; removed `/canvas` rejected; no `vitest/environments` warning on Vitest 4.1 or 5     |
 
-`pnpm test` reported 99.31% source line coverage. `pnpm test:package` took about 90 seconds for all eight installed consumers on Node.js 24 and on Node.js 26.
+`pnpm test` reported 99.32% source line coverage. `pnpm test:package` took under two minutes for all eight installed consumers on Node.js 24 and on Node.js 26.
 
 The isolated tarball is installed outside this checkout in a dedicated temp directory (prefixes have no spaces; `os.tmpdir()` itself may). Native install scripts are enabled. Launchers pass executable paths as argv, not a shell string, and resolve Windows 8.3 temp paths before spawning Vitest. The fixture does not install Canvas directly. PNG is independently decoded using pngjs; JPEG/WebP are decoded by FFmpeg and compared with documented tolerance. The private Worker bootstrap executes from the installed package, including Blob-based scripts. Setup records verify each pool's process, thread and VM context, and runner JSON reports verify every expected suite and test.
 
@@ -83,13 +83,13 @@ Coverage is source-mapped V8 coverage from the source tests and the Jest and Vit
 
 The [Test workflow](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml) runs Node 22.18.0 / 24.20.0 / 26.8.1 on Linux and Windows. The [other workflows](https://github.com/laststance/happy-dom-extended/actions) cover lint, types, package build, Fallow, CodeQL, dependency review, audit, and Scorecard. Codecov receives the Linux Node 24 source report.
 
-Recorded execution: the [successful PR #10 Test run](https://github.com/laststance/happy-dom-extended/actions/runs/34156732310) ran all six Linux/Windows combinations on commit `d86b89644ce93dfe7b9b8ad9713730c46088e95f`. Its setup logs report these exact versions on both operating systems; all jobs used pnpm 12.3.4, Jest 30.5.1 integration and Jest 30.0.0/30.5.1 installed consumers. Test jobs now also install Vitest 4.0.0, 4.1.11 and 5.0.1 consumers in each matrix cell, and the Node 22 job upgrades npm to 11.19.0 before installing them. Inspect the PR commit's Test run for those consumer logs:
+Recorded execution: the [successful PR #16 Test run](https://github.com/laststance/happy-dom-extended/actions/runs/35753808848) ran all six Linux/Windows combinations on commit `97a9612f45f160d904ad37fcc6672d5ad18fd56a`. Every job used pnpm 12.3.4, Jest 30.5.1 and Vitest 5.0.1 integration, and installed Jest 30.0.0/30.5.1 and Vitest 4.0.0, 4.1.11 and 5.0.1 consumers. On Windows, the `threads` and `vmThreads` consumers used the global setup and passed. The setup logs report each Node.js release's bundled npm on both operating systems. The Node 22 jobs then install npm 11.19.0, because npm 10.9.3 failed on the second isolated Vitest consumer install:
 
-| Node.js | npm     |
-| ------- | ------- |
-| 22.18.0 | 10.9.3  |
-| 24.20.0 | 11.19.0 |
-| 26.8.1  | 11.19.0 |
+| Node.js | Bundled npm | npm for installed consumers |
+| ------- | ----------- | --------------------------- |
+| 22.18.0 | 10.9.3      | 11.19.0                     |
+| 24.20.0 | 11.19.0     | 11.19.0                     |
+| 26.8.1  | 11.19.0     | 11.19.0                     |
 
 The workflow definitions describe the configured matrix beyond that recorded commit. A local macOS pass does not prove Windows/Linux execution: inspect the successful runs for the PR's exact commit. Scorecard runs on `main`, scheduled runs, and repository policy changes, so its first result follows merge. The Test workflow does not publish. After Test succeeds on a `main` push, the Release workflow may open a Version Packages PR or publish pending versions.
 
