@@ -8,22 +8,26 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
 2. Wait for Test on `main`. Release then opens or updates the Version Packages PR.
 3. On the Version Packages PR, select **Approve workflows to run**. GitHub holds workflows on this bot-authored PR at `action_required`, and the required checks cannot pass until a maintainer approves them. Every later `main` push rebuilds the branch and needs a new approval.
 4. Review and merge the Version Packages PR after its checks pass.
-5. Wait for Test on that merge. Release then runs `changeset publish` with OIDC trusted publishing, and npm records provenance for each version.
+5. Wait for Test on that merge. Release then runs `changeset publish`, which detects the pnpm workspace and publishes each pending version with `pnpm publish` over OIDC trusted publishing, and npm records provenance for each version.
 6. Release fails if a published version has no SLSA provenance attestation on the registry.
 
-Each public package on npmjs.com must trust `laststance/happy-dom-extended`, workflow `release.yml` (filename only, exact case), with no environment and with `npm publish` allowed. Do not set `NODE_AUTH_TOKEN`, `NPM_TOKEN` or `NPM_CONFIG_PROVENANCE` on the Release job. pnpm 11 and later ignore `NPM_CONFIG_PROVENANCE`, and trusted publishing adds provenance for this public repository by itself.
+Each public package on npmjs.com must trust `laststance/happy-dom-extended`, workflow `release.yml` (filename only, exact case), with no environment and with `npm publish` allowed. Since 3 September 2026 every new configuration may stage a version, while direct publishing is opt-in, so the configuration needs `--allow-publish` or the same option on npmjs.com. Without it a configuration can only stage a version for manual approval, and this repository's Release job publishes directly. npm recommends the opposite, allowing only `--allow-stage-publish` so that a maintainer approves each version with a second factor; [TODOS.md](../TODOS.md) tracks that trade-off. Do not set `NODE_AUTH_TOKEN`, `NPM_TOKEN` or `NPM_CONFIG_PROVENANCE` on the Release job. pnpm 11 and later ignore `NPM_CONFIG_PROVENANCE`, and trusted publishing adds provenance for this public repository by itself.
 
 ### First publish of a new package
 
 A trusted publisher can only be attached to a package that already exists, so OIDC cannot create `vitest-environment-happy-dom-extended`. Until this bootstrap is done, Release fails that package's publish while `jest-happy-dom-extended` can still publish. Complete these steps before merging the first Version Packages PR that contains the new package:
 
-1. From a clean, up-to-date `main` checkout, publish the unreleased 0.0.0 manifest as a placeholder. npm prompts for authentication and 2FA:
+1. From a clean, up-to-date `main` checkout, sign in and publish the unreleased 0.0.0 manifest as a placeholder. Publishing needs a stored npm token, so sign in first even when the browser session on npmjs.com is active. npm asks for the account's 2FA code:
 
    ```sh
+   npm login --registry=https://registry.npmjs.org
+   npm whoami --registry=https://registry.npmjs.org
    pnpm install --frozen-lockfile
    pnpm --filter vitest-environment-happy-dom-extended publish --access public
    npm deprecate vitest-environment-happy-dom-extended@0.0.0 "Bootstrap placeholder. Install 0.1.0 or later."
    ```
+
+   `pnpm publish` runs the package's prepack build, checks that HEAD is on `main`, and rejects an unclean tree. A single untracked file is enough to stop it with `ERR_PNPM_GIT_UNCLEAN`. Use a clean checkout rather than `--no-git-checks`.
 
 2. Add the trusted publisher on npmjs.com, or with the npm CLI:
 
@@ -36,6 +40,12 @@ A trusted publisher can only be attached to a package that already exists, so OI
    ```sh
    npm trust list vitest-environment-happy-dom-extended
    npm trust list jest-happy-dom-extended
+   ```
+
+   `jest-happy-dom-extended` 0.2.0 was published by hand and has no provenance attestation, so it may still list no publisher. Add one with the same command and that package name:
+
+   ```sh
+   npm trust github jest-happy-dom-extended --file release.yml --repo laststance/happy-dom-extended --allow-publish
    ```
 
 4. Merge the Version Packages PR. Release publishes 0.1.0 with provenance and moves `latest` to it.

@@ -54,6 +54,18 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
+### Evaluate staged npm publishing
+
+**What:** Decide whether the Release job should stage each version for manual approval instead of publishing directly.
+
+**Why:** A staged version needs a maintainer's approval before consumers can install it, so a compromised workflow cannot reach the registry on its own.
+
+**Context:** Since 3 September 2026 every trusted publishing configuration can stage a version, and direct publishing is opt-in. `npm trust` takes `--allow-publish` and `--allow-stage-publish` as separate permissions, and [npm's guide](https://docs.npmjs.com/cli/v12/commands/npm-stage) recommends allowing only staged publishing. Staging prompts for no second factor; approving does, and a trusted publisher's short-lived token can run `npm publish` and `npm stage publish` but no other `npm stage` subcommand, so approval stays a maintainer's action at the keyboard. Confirm the minimum npm and Node.js versions in that guide before adopting it; the commands above were read from npm 12.0.2. Changesets 3.0.2 detects this pnpm workspace and publishes with `pnpm pack` followed by `pnpm publish <tarball> --access public --tag <tag> --no-git-checks`, so it never stages. Staging therefore needs Changesets support or a replacement publish script, plus a configuration created with `--allow-stage-publish`.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Changesets support for staged publishing
+
 ## Completed
 
 ### Claim the Vitest vmForks pool
