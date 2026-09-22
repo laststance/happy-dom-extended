@@ -4,45 +4,48 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+const fencePattern = /^ {0,3}(`{3,}|~{3,})/
+const spanPattern = /(`+)[^\n]*?\1/g
+const headingPattern = /^#{1,6}[ \t]+(.+)$/gm
+const definitionPattern =
+  /^ {0,3}\[[^\]]+\]:[ \t]*(\S+)(?:[ \t]+["'(][^\n]*)?[ \t]*$/gm
+const inlineOpenerPattern = /\[[^\]]*\]\(/g
+const externalPattern = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i
 
 /**
- * Blanks inline code spans, pairing a backtick run with the next run of the same length.
+ * Reads the fence marker a line opens or closes with, so its family and length stay known.
  *
- * @example stripSpans('a `b` c') === 'a  c'
+ * @example fenceMarkerOf('````sh') === '````'
  */
-function stripSpans(line) {
-  let output = ''
-  let index = 0
-  while (index < line.length) {
-    if (line[index] !== '`') {
-      output += line[index]
-      index += 1
-      continue
-    }
-    const opener = index
-    while (line[index] === '`') index += 1
-    const runLength = index - opener
-    let search = index
-    let closer = -1
-    // CommonMark closes a span only on a run of exactly the opening length.
-    while (search < line.length) {
-      if (line[search] !== '`') {
-        search += 1
-        continue
-      }
-      let end = search
-      while (line[end] === '`') end += 1
-      if (end - search === runLength) {
-        closer = end
-        break
-      }
-      search = end
-    }
-    // An unpaired run is literal text, so keep it and carry on after it.
-    if (closer === -1) output += line.slice(opener, index)
-    else index = closer
-  }
-  return output
+function fenceMarkerOf(line) {
+  return fencePattern.exec(line)?.[1]
+}
+
+/**
+ * Tells whether a marker closes an open fence: the same character, repeated at least as often.
+ *
+ * @example closesFence('```', '````') === false
+ */
+function closesFence(marker, fence) {
+  return (
+    marker !== undefined &&
+    marker[0] === fence[0] &&
+    marker.length >= fence.length
+  )
+}
+
+/**
+ * Blanks one line when a fence holds it, and reports the fence still open after it.
+ *
+ * @example stepFence('```sh', '') → { text: '', fence: '```' }
+ */
+function stepFence(line, fence) {
+  const marker = fenceMarkerOf(line)
+  // Inside a fence every line is content, so only a closing marker can end it.
+  if (fence !== '')
+    return { text: '', fence: closesFence(marker, fence) ? '' : fence }
+  if (marker !== undefined) return { text: '', fence: marker }
+  return { text: line.replaceAll(spanPattern, ''), fence: '' }
 }
 
 /**
@@ -52,23 +55,13 @@ function stripSpans(line) {
  */
 function stripCode(markdown) {
   let fence = ''
-  return markdown
-    .split('\n')
-    .map((line) => {
-      const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1]
-      // A fence closes only on its own character, repeated at least as often as the opener.
-      if (fence !== '') {
-        if (marker && marker[0] === fence[0] && marker.length >= fence.length)
-          fence = ''
-        return ''
-      }
-      if (marker) {
-        fence = marker
-        return ''
-      }
-      return stripSpans(line)
-    })
-    .join('\n')
+  const kept = []
+  for (const line of markdown.split('\n')) {
+    const step = stepFence(line, fence)
+    fence = step.fence
+    kept.push(step.text)
+  }
+  return kept.join('\n')
 }
 
 /**
@@ -87,28 +80,26 @@ function headingSlug(heading) {
     .replaceAll(/ /g, '-')
 }
 
-const headingPattern = /^#{1,6}[ \t]+(.+)$/gm
-
 /**
  * Lists headings that carry raw HTML, whose rendered text {@link headingSlug} cannot reproduce.
  *
  * @example htmlHeadingsIn('# A <b>B</b>') → ['A <b>B</b>']
  */
-function htmlHeadingsIn(markdown) {
-  return [...stripCode(markdown).matchAll(headingPattern)]
+function htmlHeadingsIn(body) {
+  return [...body.matchAll(headingPattern)]
     .map(([, heading]) => heading)
     .filter((heading) => heading.includes('<'))
 }
 
 /**
- * Collects a file's anchors in document order, numbering repeats the way GitHub does.
+ * Collects a document's anchors in order, numbering repeated headings the way GitHub does.
  *
  * @example anchorsOf('# A\n# A') → Set { 'a', 'a-1' }
  */
-function anchorsOf(markdown) {
+function anchorsOf(body) {
   const anchors = new Set()
   const seen = new Map()
-  for (const [, heading] of stripCode(markdown).matchAll(headingPattern)) {
+  for (const [, heading] of body.matchAll(headingPattern)) {
     const slug = headingSlug(heading)
     const used = seen.get(slug) ?? 0
     seen.set(slug, used + 1)
@@ -123,61 +114,133 @@ const anchorCache = new Map()
 /** Reads a target file's anchors once per run, because several documents link into the same guide. */
 function cachedAnchorsOf(path) {
   if (!anchorCache.has(path))
-    anchorCache.set(path, anchorsOf(readFileSync(path, 'utf8')))
+    anchorCache.set(path, anchorsOf(stripCode(readFileSync(path, 'utf8'))))
   return anchorCache.get(path)
 }
 
 /**
- * Yields every link destination, covering inline links, images and reference definitions.
+ * Yields the destination of every reference definition, which stands alone or before a quoted title.
  *
- * @example [...destinationsIn('[a](b(c))')] → ['b(c)']
+ * @example [...definitionDestinations('[a]: b.md')] → ['b.md']
  */
-function* destinationsIn(body) {
-  // A reference definition holds its destination alone or ahead of a quoted title.
-  for (const [, destination] of body.matchAll(
-    /^ {0,3}\[[^\]]+\]:[ \t]*(\S+)(?:[ \t]+["'(][^\n]*)?[ \t]*$/gm,
-  ))
+function* definitionDestinations(body) {
+  for (const [, destination] of body.matchAll(definitionPattern))
     yield destination
-  for (const opener of body.matchAll(/\[[^\]]*\]\(/g)) {
-    const start = opener.index + opener[0].length
-    let cursor = start
-    let depth = 1
-    // A destination may contain balanced parentheses, so scan rather than match.
-    while (cursor < body.length && depth > 0) {
-      if (body[cursor] === '(') depth += 1
-      else if (body[cursor] === ')') depth -= 1
-      cursor += 1
-    }
-    if (depth === 0) yield body.slice(start, cursor - 1)
+}
+
+/**
+ * Finds the parenthesis closing a destination opened at from, or -1 when the document has none.
+ *
+ * @example closingParenthesis('(a(b))', 1) === 5
+ */
+function closingParenthesis(body, from) {
+  let depth = 1
+  // A destination may nest balanced parentheses, so track the depth instead of matching.
+  for (const match of body.slice(from).matchAll(/[()]/g)) {
+    depth += match[0] === '(' ? 1 : -1
+    if (depth === 0) return from + match.index
   }
+  return -1
+}
+
+/**
+ * Yields every inline destination, including images and destinations holding parentheses.
+ *
+ * @example [...inlineDestinations('[a](b(c))')] → ['b(c)']
+ */
+function* inlineDestinations(body) {
+  for (const opener of body.matchAll(inlineOpenerPattern)) {
+    const start = opener.index + opener[0].length
+    const end = closingParenthesis(body, start)
+    if (end !== -1) yield body.slice(start, end)
+  }
+}
+
+/** Yields every link destination a document declares, in either Markdown form. */
+function* destinationsIn(body) {
+  yield* definitionDestinations(body)
+  yield* inlineDestinations(body)
+}
+
+/**
+ * Splits a destination into its target and fragment, dropping any title and angle brackets.
+ *
+ * @example targetOf('<a.md#b> "t"') → { target: 'a.md#b', path: 'a.md', anchor: 'b' }
+ */
+function targetOf(destination) {
+  const target = destination.trim().split(/\s+/)[0].replace(/^<|>$/g, '')
+  const [path, ...rest] = target.split('#')
+  return { target, path, anchor: rest.join('#') }
+}
+
+/**
+ * Names the generated anchor a fragment should use, or reports that it matches no heading.
+ *
+ * @example anchorProblem('a.md#X', 'X', new Set(['x']), 'a.md') includes 'generated anchor #x'
+ */
+function anchorProblem(target, anchor, anchors, where) {
+  if (anchors.has(anchor)) return ''
+  // GitHub generates lowercase anchors, so name the exact one a differing link should use.
+  const lowercased = anchor.toLowerCase()
+  if (anchors.has(lowercased))
+    return `${target} should use the generated anchor #${lowercased}`
+  return `${target} matches no heading in ${where}`
+}
+
+/**
+ * Reports a destination that leaves this document, checking the file and then its anchor.
+ *
+ * @example fileProblem('gone.md', 'gone.md', '', '/repo/README.md') includes 'missing file'
+ */
+function fileProblem(target, path, anchor, absolute) {
+  const resolved = resolve(dirname(absolute), path)
+  if (!existsSync(resolved)) return `${target} points at a missing file`
+  // Only a Markdown target has headings to compare an anchor against.
+  if (anchor === '' || !resolved.endsWith('.md')) return ''
+  return anchorProblem(target, anchor, cachedAnchorsOf(resolved), path)
+}
+
+/**
+ * Tells whether a target leaves the repository, so this check cannot resolve it.
+ *
+ * @example isExternal('mailto:a@example.com') === true
+ */
+function isExternal(target) {
+  return target === '' || externalPattern.test(target)
 }
 
 /**
  * Reports what is wrong with one destination, or nothing when it resolves.
  *
- * @example problemWith('README.md#nope', …) === 'README.md#nope matches no heading in README.md'
+ * @example problemWith('#gone', '/repo/README.md', new Set()) includes 'matches no heading'
  */
 function problemWith(destination, absolute, ownAnchors) {
-  // A destination may carry a title, and may wrap the target in angle brackets.
-  const target = destination.trim().split(/\s+/)[0].replace(/^<|>$/g, '')
+  const { target, path, anchor } = targetOf(destination)
   // Registry, mail and protocol-relative targets live outside the repository.
-  if (target === '' || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(target)) return ''
-  const [path, ...rest] = target.split('#')
-  const anchor = rest.join('#')
-  let anchors = ownAnchors
-  if (path !== '') {
-    const resolved = resolve(dirname(absolute), path)
-    if (!existsSync(resolved)) return `${target} points at a missing file`
-    // Only Markdown targets have headings to compare an anchor against.
-    if (anchor === '' || !resolved.endsWith('.md')) return ''
-    anchors = cachedAnchorsOf(resolved)
+  if (isExternal(target)) return ''
+  if (path !== '') return fileProblem(target, path, anchor, absolute)
+  if (anchor === '') return ''
+  return anchorProblem(target, anchor, ownAnchors, 'this file')
+}
+
+/**
+ * Lists every problem one tracked document has, each prefixed with that document's path.
+ *
+ * @example problemsIn('SECURITY.md') → ['SECURITY.md: README.md#x matches no heading in README.md']
+ */
+function problemsIn(file) {
+  const absolute = resolve(repositoryRoot, file)
+  const body = stripCode(readFileSync(absolute, 'utf8'))
+  const ownAnchors = anchorsOf(body)
+  // A heading with HTML would be slugged wrongly, so name it rather than guess its anchor.
+  const found = htmlHeadingsIn(body).map(
+    (heading) => `heading "${heading}" contains HTML this check cannot slug`,
+  )
+  for (const destination of destinationsIn(body)) {
+    const problem = problemWith(destination, absolute, ownAnchors)
+    if (problem !== '') found.push(problem)
   }
-  if (anchor === '' || anchors.has(anchor)) return ''
-  // GitHub generates lowercase anchors, so name the exact one a differing link should use.
-  const lowercased = anchor.toLowerCase()
-  if (anchors.has(lowercased))
-    return `${target} should use the generated anchor #${lowercased}`
-  return `${target} matches no heading in ${path === '' ? 'this file' : path}`
+  return found.map((problem) => `${file}: ${problem}`)
 }
 
 const files = execFileSync('git', ['ls-files', '-z', '*.md'], {
@@ -187,22 +250,7 @@ const files = execFileSync('git', ['ls-files', '-z', '*.md'], {
   .split('\0')
   .filter(Boolean)
 
-const problems = []
-for (const file of files) {
-  const absolute = resolve(repositoryRoot, file)
-  const markdown = readFileSync(absolute, 'utf8')
-  const ownAnchors = anchorsOf(markdown)
-  // A heading with HTML would be slugged wrongly, so name it rather than guess its anchor.
-  for (const heading of htmlHeadingsIn(markdown))
-    problems.push(
-      `${file}: heading "${heading}" contains HTML this check cannot slug`,
-    )
-  for (const destination of destinationsIn(stripCode(markdown))) {
-    const problem = problemWith(destination, absolute, ownAnchors)
-    if (problem !== '') problems.push(`${file}: ${problem}`)
-  }
-}
-
+const problems = files.flatMap(problemsIn)
 for (const problem of problems) process.stderr.write(`${problem}\n`)
 process.stdout.write(
   problems.length === 0
