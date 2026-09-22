@@ -18,18 +18,29 @@ function stripCode(markdown) {
 
 /**
  * Converts heading text to GitHub's fragment identifier, so anchors can be compared without rendering.
+ * Headings containing raw HTML are rejected by {@link htmlHeadingsIn} instead of slugged here.
  *
  * @example headingSlug('Configure Jest or Vitest') === 'configure-jest-or-vitest'
  */
 function headingSlug(heading) {
   return heading
-    .replaceAll(/<[^>]*>/g, '')
     .replaceAll(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replaceAll(/[*_~]/g, '')
     .trim()
     .toLowerCase()
     .replaceAll(/[^\p{Letter}\p{Number} _-]/gu, '')
     .replaceAll(/ /g, '-')
+}
+
+/**
+ * Lists headings that carry raw HTML, whose rendered text {@link headingSlug} cannot reproduce.
+ *
+ * @example htmlHeadingsIn('# A <b>B</b>') → ['A <b>B</b>']
+ */
+function htmlHeadingsIn(markdown) {
+  return [...stripCode(markdown).matchAll(/^#{1,6}[ \t]+(.+)$/gm)]
+    .map(([, heading]) => heading)
+    .filter((heading) => heading.includes('<'))
 }
 
 /**
@@ -74,11 +85,16 @@ for (const file of files) {
   const markdown = readFileSync(absolute, 'utf8')
   const body = stripCode(markdown)
   const ownAnchors = anchorsOf(markdown)
-  for (const [, target] of body.matchAll(
-    /\[[^\]]*\]\(\s*<?([^)\s<>]+)>?[^)]*\)/g,
-  )) {
+  // A heading with HTML would be slugged wrongly, so name it rather than guess its anchor.
+  for (const heading of htmlHeadingsIn(markdown))
+    problems.push(
+      `${file}: heading "${heading}" contains HTML this check cannot slug`,
+    )
+  for (const [, destination] of body.matchAll(/\[[^\]]*\]\(([^()]*)\)/g)) {
+    // A destination may carry a title, and may wrap the target in angle brackets.
+    const target = destination.trim().split(/\s+/)[0].replace(/^<|>$/g, '')
     // Registry, mail and protocol-relative targets live outside the repository.
-    if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(target)) continue
+    if (target === '' || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(target)) continue
     const [path, anchor] = target.split('#')
     if (path === '') {
       if (!ownAnchors.has(anchor))
@@ -104,6 +120,6 @@ for (const problem of problems) process.stderr.write(`${problem}\n`)
 process.stdout.write(
   problems.length === 0
     ? `Checked relative links and anchors in ${files.length} Markdown files.\n`
-    : `${problems.length} broken link(s) in ${files.length} Markdown files.\n`,
+    : `Found ${problems.length} problem(s) in ${files.length} Markdown files.\n`,
 )
 process.exitCode = problems.length === 0 ? 0 : 1
