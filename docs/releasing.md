@@ -17,13 +17,17 @@ Each public package on npmjs.com must trust `laststance/happy-dom-extended`, wor
 
 A trusted publisher can only be attached to a package that already exists, so OIDC cannot create `vitest-environment-happy-dom-extended`. Until this bootstrap is done, Release fails that package's publish while `jest-happy-dom-extended` can still publish. Complete these steps before merging the first Version Packages PR that contains the new package:
 
-1. From a clean, up-to-date `main` checkout, publish the unreleased 0.0.0 manifest as a placeholder. npm prompts for authentication and 2FA:
+1. From a clean, up-to-date `main` checkout, sign in and publish the unreleased 0.0.0 manifest as a placeholder. Publishing needs a stored npm token, so sign in first even when the browser session on npmjs.com is active. npm asks for the account's 2FA code:
 
    ```sh
+   npm login --registry=https://registry.npmjs.org
+   npm whoami --registry=https://registry.npmjs.org
    pnpm install --frozen-lockfile
    pnpm --filter vitest-environment-happy-dom-extended publish --access public
    npm deprecate vitest-environment-happy-dom-extended@0.0.0 "Bootstrap placeholder. Install 0.1.0 or later."
    ```
+
+   `pnpm publish` runs the package's prepack build, checks that HEAD is on `main`, and rejects an unclean tree. A single untracked file is enough to stop it with `ERR_PNPM_GIT_UNCLEAN`. Use a clean checkout rather than `--no-git-checks`.
 
 2. Add the trusted publisher on npmjs.com, or with the npm CLI:
 
@@ -36,6 +40,12 @@ A trusted publisher can only be attached to a package that already exists, so OI
    ```sh
    npm trust list vitest-environment-happy-dom-extended
    npm trust list jest-happy-dom-extended
+   ```
+
+   `jest-happy-dom-extended` 0.2.0 was published by hand and has no provenance attestation, so it may still list no publisher. Add one with the same command and that package name:
+
+   ```sh
+   npm trust github jest-happy-dom-extended --file release.yml --repo laststance/happy-dom-extended --allow-publish
    ```
 
 4. Merge the Version Packages PR. Release publishes 0.1.0 with provenance and moves `latest` to it.
