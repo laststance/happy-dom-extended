@@ -60,7 +60,7 @@ Tracked follow-ups for the public packages and their release automation.
 
 **Why:** A staged version needs a maintainer's approval before consumers can install it, so a compromised workflow cannot reach the registry on its own.
 
-**Context:** Since 3 September 2026 every trusted publishing configuration can stage a version, and direct publishing is opt-in. npm 12 provides `npm stage publish`, `npm stage list` and `npm stage approve`. `changeset publish` calls `npm publish`, so staging needs Changesets support or a publish script, and the trusted publisher would no longer need `--allow-publish`.
+**Context:** Since 3 September 2026 every trusted publishing configuration can stage a version, and direct publishing is opt-in. npm 12 provides `npm stage publish`, `npm stage list` and `npm stage approve`. Changesets 3.0.2 detects this pnpm workspace and publishes with `pnpm pack` followed by `pnpm publish <tarball> --access public --tag <tag> --no-git-checks`; it never calls `npm stage publish`. Staging therefore needs Changesets support or a replacement publish script, after which the trusted publisher would no longer need `--allow-publish`.
 
 **Effort:** M
 **Priority:** P3

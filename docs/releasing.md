@@ -8,7 +8,7 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
 2. Wait for Test on `main`. Release then opens or updates the Version Packages PR.
 3. On the Version Packages PR, select **Approve workflows to run**. GitHub holds workflows on this bot-authored PR at `action_required`, and the required checks cannot pass until a maintainer approves them. Every later `main` push rebuilds the branch and needs a new approval.
 4. Review and merge the Version Packages PR after its checks pass.
-5. Wait for Test on that merge. Release then runs `changeset publish` with OIDC trusted publishing, and npm records provenance for each version.
+5. Wait for Test on that merge. Release then runs `changeset publish`, which detects the pnpm workspace and publishes each pending version with `pnpm publish` over OIDC trusted publishing, and npm records provenance for each version.
 6. Release fails if a published version has no SLSA provenance attestation on the registry.
 
 Each public package on npmjs.com must trust `laststance/happy-dom-extended`, workflow `release.yml` (filename only, exact case), with no environment and with `npm publish` allowed. Since 3 September 2026 every new configuration may stage a version, while direct publishing is opt-in, so the configuration needs `--allow-publish` or the same option on npmjs.com. Without it a configuration can only stage a version for manual approval, and this repository's Release job publishes directly. Do not set `NODE_AUTH_TOKEN`, `NPM_TOKEN` or `NPM_CONFIG_PROVENANCE` on the Release job. pnpm 11 and later ignore `NPM_CONFIG_PROVENANCE`, and trusted publishing adds provenance for this public repository by itself.
