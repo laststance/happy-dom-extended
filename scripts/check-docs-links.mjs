@@ -9,13 +9,13 @@ const tildeOpenerPattern = /^ {0,3}(~{3,})/
 const fenceCloserPattern = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
 const frontMatterPattern = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(?=\r?\n|$)/
 const commentPattern = /<!--[\s\S]*?-->/g
-const spanPattern = /(`+)[^\n]*?\1/g
+const spanPattern = /(?<!`)(`+)[^\n]*?\1(?!`)/g
 const headingPattern =
   /^ {0,3}#{1,6}[ \t]+(.+)$|^ {0,3}(\S[^\n]*)\n {0,3}(?:=+|-+)[ \t]*$/gm
 const trailingHashPattern = /[ \t]+#+[ \t]*$/
 const definitionPattern =
   /^ {0,3}\[[^\]]+\]:[ \t]*(?:\r?\n[ \t]*)?(<[^>\n]*>|\S+)(?:[ \t]+["'(][^\n]*)?[ \t]*$/gm
-const inlineOpenerPattern = /\]\(/g
+const inlineOpenerPattern = /(?<!\\)\]\(/g
 const angleTargetPattern = /^<([^>]*)>/
 const externalPattern = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i
 
@@ -119,7 +119,7 @@ function proseOf(markdown) {
   return stripComments(stripFences(stripFrontMatter(markdown)))
 }
 
-/** Blanks inline spans, pairing a backtick run with the next run of the same length. */
+/** Blanks inline spans, pairing a backtick run with the next run of exactly the same length. */
 function stripSpans(prose) {
   return prose.replaceAll(spanPattern, '')
 }
@@ -215,7 +215,7 @@ function closingParenthesis(body, from) {
 
 /**
  * Yields every inline destination, including both halves of a linked image.
- * Every opener is scanned, because a label may nest brackets that a single pattern cannot pair.
+ * Every unescaped opener is scanned, because a label may nest brackets no single pattern can pair.
  *
  * @example [...inlineDestinations('[![a](b)](c)')] → ['b', 'c']
  */
