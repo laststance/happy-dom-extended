@@ -19,3 +19,4 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/prepare
       - run: pnpm format:check
+      - run: pnpm check:docs

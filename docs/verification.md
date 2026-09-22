@@ -75,7 +75,7 @@ pnpm install --frozen-lockfile
 pnpm check
 ```
 
-This runs Sherif, Prettier, build, Node, Jest, and Vitest tests with c8 coverage, ESLint, TypeScript, Fallow health/dupes/dead-code, publint, Are the Types Wrong, and installed-consumer versions for both runners. Run `actionlint` and `git diff --check` when workflows change. `pnpm audit --prod --audit-level high` checks current production advisories.
+This runs Sherif, Prettier, documentation link resolution, build, Node, Jest, and Vitest tests with c8 coverage, ESLint, TypeScript, Fallow health/dupes/dead-code, publint, Are the Types Wrong, and installed-consumer versions for both runners. Run `actionlint` and `git diff --check` when workflows change. `pnpm audit --prod --audit-level high` checks current production advisories.
 
 Coverage is source-mapped V8 coverage from the source tests and the Jest and Vitest processes. Fallow uses measured Istanbul function coverage where it can match functions and a static estimate elsewhere. Coverage numbers are not browser conformance scores or deterministic GC guarantees. See [TESTING.md](../TESTING.md).
 

@@ -36,6 +36,7 @@ Code and documentation use English. Test names use `test`, describe what breaks 
 - `pnpm test:package`: install the built tarballs outside the checkout; run the supported Jest and Vitest versions in every Vitest pool, the React product fixture, and the missing-binary guidance check.
 - `pnpm typecheck`: TypeScript 7 compiler through the `typescript-compiler` alias. TypeScript 6 remains installed for tools using its JavaScript API.
 - `pnpm lint`, `pnpm format:check`, `pnpm sherif`: source and workspace consistency.
+- `pnpm check:docs`: every relative Markdown link and heading anchor in the tracked documentation resolves.
 - `pnpm health`, `pnpm dupes`, `pnpm dead-code`: Fallow checks. Run `pnpm test` first for health's measured coverage.
 - `pnpm check:package`: publint and Are the Types Wrong export/type validation.
 
