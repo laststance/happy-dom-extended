@@ -216,7 +216,7 @@ test('Invalid serialized adapters fail with actionable configuration guidance', 
   const sandbox = createSandbox()
   // Act / Assert
   await assert.rejects(
-    () => Environment.setup(sandbox, { settings: { canvasAdapter: {} } }),
+    async () => Environment.setup(sandbox, { settings: { canvasAdapter: {} } }),
     /cannot serialize adapter instances/,
   )
 })

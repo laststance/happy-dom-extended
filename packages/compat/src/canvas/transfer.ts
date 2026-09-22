@@ -10,7 +10,6 @@ import {
   PropertySymbol,
 } from 'happy-dom'
 import type { ICanvasAdapterCaller, Window } from 'happy-dom'
-import { Canvas, ImageData } from 'skia-canvas'
 
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
@@ -22,6 +21,7 @@ import { bitmapOptions } from './bitmap-options.ts'
 import { closeBitmapStorage, makeImageBitmap } from './bitmaps.ts'
 import { WindowBrowserContext } from './happy-dom-internals.ts'
 import { bindCanvasPresenter, offscreenPresenters } from './presentation.ts'
+import { Canvas, ImageData } from './skia.ts'
 import {
   bitmapStates,
   canvasStates,

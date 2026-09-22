@@ -13,7 +13,7 @@
 
 ## Installation
 
-Requires **Node.js >=22.18.0** and **Jest 30** or **Vitest 4**. Choose your package manager below.
+Requires **Node.js >=22.18.0** and **Jest 30**, or **Vitest 4 or 5**. Choose your package manager below.
 
 `skia-canvas` is a required dependency. Its installation script downloads the native binary for your platform. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported Linux, Windows and macOS builds and source-build requirements.
 
@@ -22,7 +22,7 @@ Requires **Node.js >=22.18.0** and **Jest 30** or **Vitest 4**. Choose your pack
 ```sh
 npm install --save-dev jest@30 jest-happy-dom-extended
 # or
-npm install --save-dev vitest@4 vitest-environment-happy-dom-extended
+npm install --save-dev vitest@5 vitest-environment-happy-dom-extended
 ```
 
 With npm 12, [approve](https://docs.npmjs.com/cli/v12/commands/npm-approve-scripts/) and run Skia's native installation script after installation:
@@ -36,14 +36,17 @@ npm rebuild skia-canvas
 
 ```sh
 pnpm add -D jest@30 jest-happy-dom-extended
+pnpm approve-builds skia-canvas @parcel/watcher unrs-resolver
 # or
-pnpm add -D vitest@4 vitest-environment-happy-dom-extended
-pnpm approve-builds
+pnpm add -D vitest@5 vitest-environment-happy-dom-extended
+pnpm approve-builds skia-canvas
 ```
 
-In the approval prompt, select **skia-canvas** and your project's other required native scripts. Jest 30 also lists **@parcel/watcher** and **unrs-resolver**. [pnpm saves these approvals](https://pnpm.io/cli/approve-builds) in `pnpm-workspace.yaml`.
+pnpm 11 and 12 stop `pnpm add` with `ERR_PNPM_IGNORED_BUILDS` until these install scripts are approved. The packages are already added, so run the `pnpm approve-builds` line next. It saves the approvals under `allowBuilds` in `pnpm-workspace.yaml` and runs the scripts. The Jest line also approves **@parcel/watcher** and **unrs-resolver**, which Jest 30 installs.
 
-For a non-interactive installation with pnpm 12, merge this into `pnpm-workspace.yaml` before running `pnpm add`:
+pnpm 10 finishes `pnpm add` with an "Ignored build scripts" warning and no Skia binary. Its `pnpm approve-builds` ignores package names and opens a prompt: select the same packages there. See [pnpm approve-builds](https://pnpm.io/cli/approve-builds).
+
+For a non-interactive installation, merge this into `pnpm-workspace.yaml` before running `pnpm add`. The Vitest package only needs the `skia-canvas` line:
 
 ```yaml
 allowBuilds:
@@ -52,16 +55,18 @@ allowBuilds:
   unrs-resolver: true
 ```
 
+pnpm 10 uses a `pnpm.onlyBuiltDependencies` list in `package.json` instead when one exists, so add `skia-canvas` to that list. pnpm 11 and 12 read only `allowBuilds`.
+
 ### Bun
 
 ```sh
 bun add --dev jest@30 jest-happy-dom-extended
 # or
-bun add --dev vitest@4 vitest-environment-happy-dom-extended
+bun add --dev vitest@5 vitest-environment-happy-dom-extended
 bun pm trust skia-canvas
 ```
 
-[`bun pm trust`](https://bun.sh/docs/pm/cli/pm#trust) runs Skia's installation script and saves the package in `trustedDependencies`. Use Bun to install dependencies; run Jest with Node.js as shown below.
+[`bun pm trust`](https://bun.sh/docs/pm/cli/pm#trust) runs Skia's installation script and saves the package in `trustedDependencies`. Use Bun to install dependencies; run Jest or Vitest with Node.js as shown below.
 
 ### Video support
 
@@ -96,7 +101,7 @@ npx jest
 npx vitest run
 ```
 
-CommonJS Jest projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal runner configuration. Jest extensions are available before `setupFiles` and `setupFilesAfterEnv` run. Vitest resolves `environment: 'happy-dom-extended'` to `vitest-environment-happy-dom-extended`. The default Vitest pool is `forks`; `vmForks` is not claimed in 0.1.0.
+CommonJS Jest projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal runner configuration. Jest extensions are available before `setupFiles` and `setupFilesAfterEnv` run. Vitest resolves `environment: 'happy-dom-extended'` to `vitest-environment-happy-dom-extended`. Every Vitest pool is supported: `forks` (the default), `threads`, `vmThreads` and `vmForks`.
 
 ## What this library provides
 
@@ -144,9 +149,15 @@ Image loading is enabled by default. Disable it with Happy DOM `settings.enableI
 
 ## Compatibility and verification
 
-The runtime pair is pinned to **Happy DOM 20.14.0**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**, including installed consumers using Jest **30.0.0 and 30.5.1** and Vitest **4.0.0 plus the current pin**, serial execution and two worker processes.
+The runtime pair is pinned to **Happy DOM 20.14.0**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**. Installed tarball consumers run Jest **30.0.0 and 30.5.1** serially and with two workers, and Vitest **4.0.0, 4.1.11 and 5.0.1** in every pool. A React product fixture using Testing Library also runs in every Vitest pool.
 
 The tests check real pixels and encoded images, actual HTTP/decoder/Worker cancellation, ownership transfer, failure recovery and teardown. Shared browser fixtures measure renderer-dependent differences with explicit tolerances. This is selected conformance evidence, not a complete Web Platform Tests run. See [verification](docs/verification.md) and the [Canvas contract](docs/canvas-compatibility.md).
+
+## Troubleshooting
+
+**`skia-canvas cannot load its native binary (lib/skia.node)`** means the package manager skipped Skia's install script. The error lists the approval commands for pnpm, npm 12 and Bun, and keeps the original loader error as its `cause`. Approve and run the script as described in [Installation](#installation), then rerun the tests. jest-happy-dom-extended 0.2.0 reports the same problem as `Cannot find module '../skia.node'`.
+
+When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
 
 ## Contribute and release
 

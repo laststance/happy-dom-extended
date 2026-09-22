@@ -1,4 +1,3 @@
-import { CanvasGradient, CanvasPattern } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
 import {
@@ -6,6 +5,7 @@ import {
   CANVAS_NUMERIC_PROPERTIES,
   CANVAS_STRING_PROPERTIES,
 } from './constants.ts'
+import { CanvasGradient, CanvasPattern } from './skia.ts'
 import { patternOrigins } from './state.ts'
 import type { CanvasState } from './types.ts'
 import { canvasColor } from './utils/canvas-color.ts'

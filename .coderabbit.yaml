@@ -108,9 +108,11 @@ reviews:
         Preserve portable process execution with separate executable and argument values,
         Windows command-shim support, and paths containing spaces. Check launch errors and exits.
         Tarball verification must install outside the workspace and test the minimum supported
-        Jest and Vitest versions plus the development pins. Check runner JSON reports for actual
-        passed tests; an exit code of zero alone can hide early termination. Keep build and pack
-        steps ordered, and clean up only temporary directories created by the current invocation.
+        Jest and Vitest versions, the last Vitest 4 minor, and the development pins. Check runner
+        JSON reports for actual passed tests; an exit code of zero alone can hide early termination.
+        Vitest runs must prove each pool's process, thread, and VM context, and fail when stderr
+        mentions vitest/environments. Keep build and pack steps ordered, restore any hidden native
+        binary, and clean up only temporary directories created by the current invocation.
 
     - path: '.github/**'
       instructions: |
@@ -122,18 +124,28 @@ reviews:
 
     - path: 'packages/vitest-happy-dom-extended/**'
       instructions: |
-        This public Vitest environment must reuse runner-independent compat code without a
-        Jest dependency. Construct the Window with canvasAdapter already set, then
-        installCompatibility. Import populateGlobal from vitest/environments, not vitest/runtime.
-        additionalKeys must overwrite Node globals including structuredClone, MessageChannel,
-        and BroadcastChannel. Teardown joins with adapter.drain() then window.happyDOM.close();
-        abort() is not the join. Do not claim vmForks in 0.1.0. Default pool is forks.
+        This public Vitest environment supports Vitest 4 and 5 and must reuse runner-independent
+        compat code without a Jest dependency. Construct the Window with canvasAdapter already set,
+        then installCompatibility. Load populateGlobal from vitest/runtime and fall back to
+        vitest/environments only when runtime is not exported (Vitest 4.0); published types must
+        import neither entry. additionalKeys must overwrite Node globals including structuredClone,
+        MessageChannel, and BroadcastChannel, and teardown must restore the exact pre-setup
+        descriptors. Teardown joins with adapter.drain() then window.happyDOM.close(); abort() is
+        not the join. forks (default), threads, vmThreads, and vmForks are all supported pools;
+        setupVM returns the Window itself as the VM context.
 
     - path: 'fixtures/consumer-vitest/**'
       instructions: |
         These fixtures exercise the installed Vitest npm tarball outside the workspace.
         Keep imports on public package entry points. Exercise Canvas/File at setupFiles
         module evaluation. Use descriptive test calls and literal expectations.
+
+    - path: 'fixtures/consumer-vitest-product/**'
+      instructions: |
+        This React product fixture shows how application teams use the installed environment:
+        TSX through Vite, an alias, a named project, Testing Library, user-event, and jest-dom.
+        Tests must describe user-visible behavior and assert real pixels, decoded images, or
+        DOM state with literal expectations. Keep the Canvas tests failing on plain happy-dom.
 
     - path: 'docs/**'
       instructions: |

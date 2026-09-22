@@ -7,7 +7,6 @@ import {
   PropertySymbol,
 } from 'happy-dom'
 import type { ICanvasAdapterCaller, Window } from 'happy-dom'
-import { ImageData as NativeImageData } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
 import type { DisposeCompatibility } from '../types.ts'
@@ -24,6 +23,7 @@ import {
 } from './image-sources.ts'
 import { decodeCanvasImage } from './images.ts'
 import { requestCanvasPresentation } from './presentation.ts'
+import { ImageData as NativeImageData } from './skia.ts'
 import {
   bitmapStates,
   canvasStates,

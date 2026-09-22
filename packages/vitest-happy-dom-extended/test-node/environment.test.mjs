@@ -80,11 +80,14 @@ test('Invalid settings and serialized adapter objects fail before constructing a
   // Arrange
   const sandbox = createSandbox()
   // Act / Assert
-  await assert.rejects(() => environment.setup(sandbox, { settings: false }), {
-    message: 'environmentOptions.settings must be an object.',
-  })
   await assert.rejects(
-    () => environment.setup(sandbox, { settings: { canvasAdapter: {} } }),
+    async () => environment.setup(sandbox, { settings: false }),
+    {
+      message: 'environmentOptions.settings must be an object.',
+    },
+  )
+  await assert.rejects(
+    async () => environment.setup(sandbox, { settings: { canvasAdapter: {} } }),
     {
       message:
         'canvasAdapter must implement getContext, toDataURL, and toBlob. Configuration cannot serialize adapter instances; construct custom adapters with createHappyDomExtendedEnvironment({ canvasAdapter }).',
@@ -137,7 +140,7 @@ test('A populateGlobal write failure restores caller globals before reporting th
     value: 'original-fetch',
   })
   // Act
-  await assert.rejects(() => environment.setup(sandbox, {}))
+  await assert.rejects(async () => environment.setup(sandbox, {}))
   // Assert: partial populateGlobal writes must not leak a closed Window onto the caller.
   assert.equal(sandbox.fetch, 'original-fetch')
   assert.equal(sandbox.Event, lockedEvent)
@@ -181,7 +184,7 @@ test('Factory rejects a serialized empty adapter object', async () => {
   const sandbox = createSandbox()
   // Act / Assert
   await assert.rejects(
-    () => created.setup(sandbox, {}),
+    async () => created.setup(sandbox, {}),
     /cannot serialize adapter instances/,
   )
 })
@@ -391,7 +394,7 @@ test('A factory adapter does not replace array settings', async () => {
   })
   const sandbox = createSandbox()
   // Act / Assert: arrays are objects; merge must not hide the settings TypeError.
-  await assert.rejects(() => created.setup(sandbox, { settings: [] }), {
+  await assert.rejects(async () => created.setup(sandbox, { settings: [] }), {
     message: 'environmentOptions.settings must be an object.',
   })
 })
@@ -413,9 +416,12 @@ test('A factory adapter does not replace invalid non-object settings', async () 
   })
   const sandbox = createSandbox()
   // Act / Assert: merge is skipped so the historical settings TypeError still wins.
-  await assert.rejects(() => created.setup(sandbox, { settings: false }), {
-    message: 'environmentOptions.settings must be an object.',
-  })
+  await assert.rejects(
+    async () => created.setup(sandbox, { settings: false }),
+    {
+      message: 'environmentOptions.settings must be an object.',
+    },
+  )
 })
 
 test('Factory-owned adapters win over a serialized settings.canvasAdapter object', async () => {
@@ -487,7 +493,7 @@ test('Failed Web API installation still closes the Window when close itself reje
   const sandbox = createSandbox()
   // Act / Assert
   await assert.rejects(
-    () => environment.setup(sandbox, {}),
+    async () => environment.setup(sandbox, {}),
     (error) => {
       assert.equal(error instanceof AggregateError, true)
       assert.deepEqual(error.errors, [installationError, cleanupError])
@@ -520,7 +526,7 @@ test('Failed Web API installation closes the Window and disposes the owned adapt
   const sandbox = createSandbox()
   // Act / Assert
   await assert.rejects(
-    () => environment.setup(sandbox, {}),
+    async () => environment.setup(sandbox, {}),
     (error) => error === installationError,
   )
   assert.equal(adapterDispose.mock.callCount(), 1)
@@ -589,4 +595,57 @@ test('Drain failure still closes the Window and restores overwritten Node global
   // Assert
   assert.equal(sandbox.structuredClone, originalClone)
   assert.equal(typeof sandbox.document, 'undefined')
+})
+
+test('Teardown restores a non-enumerable Node global with its exact data descriptor', async () => {
+  // Arrange
+  const originalClone = () => 'original'
+  const sandbox = Object.create(null)
+  Object.defineProperty(sandbox, 'structuredClone', {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: originalClone,
+  })
+  const result = await environment.setup(sandbox, {})
+  assert.notEqual(sandbox.structuredClone, originalClone)
+  // Act
+  await result.teardown(sandbox)
+  // Assert: Vitest 5 hands back descriptors, Vitest 4 hands back values; neither may leak into the restored global.
+  assert.deepEqual(
+    Object.getOwnPropertyDescriptor(sandbox, 'structuredClone'),
+    {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: originalClone,
+    },
+  )
+})
+
+test('Teardown restores an accessor Node global without invoking its lazy getter', async () => {
+  // Arrange
+  let getterReads = 0
+  const readLocalStorage = () => {
+    getterReads += 1
+    return 'node-local-storage'
+  }
+  const sandbox = Object.create(null)
+  Object.defineProperty(sandbox, 'localStorage', {
+    configurable: true,
+    enumerable: true,
+    get: readLocalStorage,
+  })
+  const result = await environment.setup(sandbox, {})
+  const readsBeforeTeardown = getterReads
+  // Act
+  await result.teardown(sandbox)
+  // Assert: Node's native localStorage getter warns when read without --localstorage-file.
+  assert.deepEqual(Object.getOwnPropertyDescriptor(sandbox, 'localStorage'), {
+    configurable: true,
+    enumerable: true,
+    get: readLocalStorage,
+    set: undefined,
+  })
+  assert.equal(getterReads, readsBeforeTeardown)
 })

@@ -51,11 +51,11 @@
     "webidl-conversions": "8.0.1"
   },
   "peerDependencies": {
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0 || ^5.0.0"
   },
   "devDependencies": {
     "@happy-dom-extended/compat": "workspace:*",
     "fast-check": "4.9.0",
-    "vitest": "4.1.6"
+    "vitest": "5.0.1"
   }
 }

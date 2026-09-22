@@ -3,7 +3,6 @@ import { setTimeout, clearTimeout } from 'node:timers'
 import imageSize from 'buffer-image-size'
 import { HTMLImageElement, HTMLElement, PropertySymbol } from 'happy-dom'
 import type { ICanvasAdapterCaller, Window } from 'happy-dom'
-import { Image } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
 import type { DisposeCompatibility } from '../types.ts'
@@ -21,6 +20,7 @@ import {
   installCanvasObjectURLs,
   installResourceFetch,
 } from './resource-fetch.ts'
+import { Image } from './skia.ts'
 import { conversionOptions } from './utils/conversion-options.ts'
 import { pixelBytes } from './utils/pixel-bytes.ts'
 

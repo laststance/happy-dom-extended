@@ -1,10 +1,9 @@
-import { DOMMatrix } from 'skia-canvas'
-
 import { PIXEL_DRAWING_METHODS } from './constants.ts'
 import { bindGradient } from './gradient.ts'
 import { readImageData, writeImageData } from './image-data.ts'
 import { createPattern, drawImage } from './image-sources.ts'
 import { canvasArguments } from './method-arguments.ts'
+import { DOMMatrix } from './skia.ts'
 import type { CanvasMethod, CanvasState } from './types.ts'
 import { flattenOpaque } from './utils/flatten-opaque.ts'
 

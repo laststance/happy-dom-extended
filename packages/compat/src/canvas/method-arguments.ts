@@ -1,5 +1,4 @@
 import type { ICanvasAdapterCaller } from 'happy-dom'
-import { Path2D } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
 import {
@@ -7,6 +6,7 @@ import {
   CANVAS_RADIUS_ARGUMENTS,
   MAX_ROUND_RECT_RADII,
 } from './constants.ts'
+import { Path2D } from './skia.ts'
 import { conversionOptions } from './utils/conversion-options.ts'
 import { matrixComponents } from './utils/matrix-components.ts'
 

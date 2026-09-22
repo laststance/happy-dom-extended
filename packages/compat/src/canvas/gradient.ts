@@ -1,7 +1,7 @@
 import type { ICanvasAdapterCaller } from 'happy-dom'
-import { CanvasGradient } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
+import { CanvasGradient } from './skia.ts'
 import { canvasColor } from './utils/canvas-color.ts'
 import { conversionOptions } from './utils/conversion-options.ts'
 

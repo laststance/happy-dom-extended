@@ -6,7 +6,6 @@ import type {
   ICanvasAdapterCaller,
   ICanvasShape,
 } from 'happy-dom'
-import { Canvas } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
 import { disposeAll } from '../utils/dispose-all.ts'
@@ -27,6 +26,7 @@ import { createCanvasContext } from './context.ts'
 import { installCanvasDimensions } from './dimensions.ts'
 import { requestCanvasPresentation } from './presentation.ts'
 import { contextSettings } from './settings.ts'
+import { Canvas } from './skia.ts'
 import { canvasStates } from './state.ts'
 import type { CanvasState } from './types.ts'
 import { conversionOptions } from './utils/conversion-options.ts'

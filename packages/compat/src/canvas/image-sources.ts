@@ -9,11 +9,6 @@ import {
   PropertySymbol,
 } from 'happy-dom'
 import type { Image } from 'skia-canvas'
-import {
-  Canvas,
-  CanvasPattern,
-  ImageData as NativeImageData,
-} from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
 import { disposeAll } from '../utils/dispose-all.ts'
@@ -21,6 +16,7 @@ import { disposeAll } from '../utils/dispose-all.ts'
 import { NATIVE_CANVAS } from './constants.ts'
 import { decodeCanvasImage, imageSources } from './images.ts'
 import { htmlPlaceholders } from './presentation.ts'
+import { Canvas, CanvasPattern, ImageData as NativeImageData } from './skia.ts'
 import {
   canvasStates,
   canvasWindows,

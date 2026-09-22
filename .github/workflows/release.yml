@@ -38,6 +38,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm build
       - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        id: changesets
         with:
           version-script: pnpm version:packages
           publish-script: pnpm exec changeset publish
@@ -46,5 +47,28 @@ jobs:
           create-github-releases: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
+          # OIDC trusted publishing adds provenance itself; pnpm 11+ ignores NPM_CONFIG_PROVENANCE.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: 'true'
+      - name: Verify npm provenance
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.published-packages }}
+        run: |
+          set -euo pipefail
+          # The registry can serve a new version's attestation a few seconds after publication.
+          specs="$(node -e 'for (const pkg of JSON.parse(process.env.PUBLISHED_PACKAGES)) console.log(pkg.name + "@" + pkg.version)')"
+          for spec in $specs; do
+            predicate=''
+            for _ in 1 2 3 4 5 6; do
+              predicate="$(npm view "$spec" dist.attestations.provenance.predicateType --registry=https://registry.npmjs.org 2>/dev/null || true)"
+              if [ "$predicate" = 'https://slsa.dev/provenance/v1' ]; then
+                break
+              fi
+              sleep 10
+            done
+            if [ "$predicate" != 'https://slsa.dev/provenance/v1' ]; then
+              echo "::error::$spec was published without an npm provenance attestation."
+              exit 1
+            fi
+            echo "$spec has an SLSA provenance attestation."
+          done

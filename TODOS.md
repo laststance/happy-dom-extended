@@ -1,31 +1,41 @@
 # TODOs
 
-Tracked follow-ups that are out of scope for `vitest-environment-happy-dom-extended` 0.1.0.
+Tracked follow-ups for the public packages and their release automation.
 
 ## Vitest environment
 
-### Claim the Vitest vmForks pool
+### Reproduce the one-off isolate:false hang
 
-**What:** Claim and test the Vitest `vmForks` pool for `vitest-environment-happy-dom-extended`.
+**What:** Reproduce and explain one laststance/corelive `vitest run --no-isolate` run that hung at full CPU for over ten minutes with `vitest-environment-happy-dom-extended`.
 
-**Why:** 0.1.0 only promises `forks` and covered `vmThreads`. Consumers who set `vmForks` have no owned proof.
+**Why:** Seven further attempts, including an exact replay, passed. An unexplained hang may return in other non-isolated suites.
 
-**Context:** Keep the default pool as `forks`. Add `setupVM` coverage on `vmForks` only after the 0.1.0 environment is stable on `forks` and `vmThreads`.
+**Context:** corelive is not written for `isolate: false`; 32 to 162 of its tests fail there with this environment and with `happy-dom`. If it recurs, capture a worker CPU profile and the active handles before stopping it. See [real application trials](docs/verification.md#real-application-trials).
 
 **Effort:** M
 **Priority:** P3
-**Depends on:** 0.1.0 published and used on `forks`
+**Depends on:** A reproduction
+
+## Release automation
+
+### Run Version Packages PR checks without manual approval
+
+**What:** Let the Release workflow open the Version Packages PR with a GitHub App installation token instead of `GITHUB_TOKEN`.
+
+**Why:** Workflows on the bot's PR stop at `action_required` until a maintainer selects "Approve workflows to run". Every `main` push rebuilds the branch, so each new head needs approval again.
+
+**Context:** `workflow_dispatch` runs do not satisfy required status checks. Scope the App token to contents and pull requests, and keep npm publishing on OIDC.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** A Laststance GitHub App installed on this repository
+
+## Completed
+
+### Claim the Vitest vmForks pool
+
+Completed for `vitest-environment-happy-dom-extended` 0.1.0. The behavior suite, the installed consumer and the React product fixture run in `vmForks` on Vitest 4.0.0, 4.1.11 and 5.0.1. Setup records prove a child process with a VM context.
 
 ### Investigate Vitest threads plus Skia
 
-**What:** Investigate Vitest `threads` plus Skia native-module constraints.
-
-**Why:** Advertising `threads` before owned Canvas and Worker tests pass can silently corrupt pixels.
-
-**Context:** Skia is process-scoped. `pool: 'threads'` shares native state across test files. Do not advertise `threads` until owned Canvas and Worker tests pass on that pool.
-
-**Effort:** L
-**Priority:** P3
-**Depends on:** None
-
-## Completed
+Completed for 0.1.0. skia-canvas loads in each worker thread. The behavior suite, dedicated Worker tests and pixel checks pass in `threads` and `vmThreads` with two concurrent workers, and setup records prove worker threads inside the CLI process. laststance/corelive and laststance/gitbox produce the same results in `threads` as in `forks`.

@@ -10,6 +10,9 @@
     "fixtures/consumer/*.cjs",
     "fixtures/consumer/*.mjs",
     "fixtures/consumer-vitest/*.mjs",
+    "fixtures/consumer-vitest-product/vitest.config.ts",
+    "fixtures/consumer-vitest-product/src/test/setup.ts",
+    "fixtures/consumer-vitest-product/src/**/*.test.tsx",
     "packages/*/test-node/*.test.mjs",
     "packages/*/vitest.config.ts"
   ],

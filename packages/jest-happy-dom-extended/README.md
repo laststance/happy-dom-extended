@@ -25,12 +25,14 @@ npm rebuild skia-canvas
 
 ```sh
 pnpm add -D jest@30 jest-happy-dom-extended
-pnpm approve-builds
+pnpm approve-builds skia-canvas @parcel/watcher unrs-resolver
 ```
 
-In the approval prompt, select **skia-canvas** and your project's other required native scripts. Jest 30 also lists **@parcel/watcher** and **unrs-resolver**. [pnpm saves these approvals](https://pnpm.io/cli/approve-builds) in `pnpm-workspace.yaml`.
+pnpm 11 and 12 stop `pnpm add` with `ERR_PNPM_IGNORED_BUILDS` until these install scripts are approved. The packages are already added, so run the `pnpm approve-builds` line next. It saves the approvals under `allowBuilds` in `pnpm-workspace.yaml` and runs the scripts. Jest 30 installs **@parcel/watcher** and **unrs-resolver**; Skia needs **skia-canvas**.
 
-For a non-interactive installation with pnpm 12, merge this into `pnpm-workspace.yaml` before running `pnpm add`:
+pnpm 10 finishes `pnpm add` with an "Ignored build scripts" warning and no Skia binary. Its `pnpm approve-builds` ignores package names and opens a prompt: select the same packages there. See [pnpm approve-builds](https://pnpm.io/cli/approve-builds).
+
+For a non-interactive installation, merge this into `pnpm-workspace.yaml` before running `pnpm add`:
 
 ```yaml
 allowBuilds:
@@ -38,6 +40,8 @@ allowBuilds:
   '@parcel/watcher': true
   unrs-resolver: true
 ```
+
+pnpm 10 uses a `pnpm.onlyBuiltDependencies` list in `package.json` instead when one exists, so add `skia-canvas` to that list. pnpm 11 and 12 read only `allowBuilds`.
 
 ### Bun
 
@@ -146,6 +150,12 @@ ESM imports and CommonJS require share one runtime, coordinating prototype resto
 - Animation support addresses cancellation promises; other upstream animation limitations remain.
 
 Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-dom-extended/blob/main/docs/canvas-compatibility.md), [verification guide](https://github.com/laststance/happy-dom-extended/blob/main/docs/verification.md) and [architecture](https://github.com/laststance/happy-dom-extended/blob/main/ARCHITECTURE.md) for details. The former `/canvas` helper subpath is removed; use the environment setting above.
+
+## Troubleshooting
+
+**`skia-canvas cannot load its native binary (lib/skia.node)`** means the package manager skipped Skia's install script. The error lists the approval commands for pnpm, npm 12 and Bun, and keeps the original loader error as its `cause`. Approve and run the script as described in [Installation](#installation), then rerun Jest. Version 0.2.0 reports the same problem as `Cannot find module '../skia.node'`.
+
+When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
 
 ## Contributing and releases
 

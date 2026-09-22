@@ -4,14 +4,14 @@
 
 ## Installation
 
-Requires **Node.js >=22.18.0** and **Vitest 4**. Choose your package manager below.
+Requires **Node.js >=22.18.0** and **Vitest 4 or 5**. Choose your package manager below.
 
 `skia-canvas` is a required dependency. Its installation script downloads the native binary for your platform. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported Linux, Windows and macOS builds and source-build requirements.
 
 ### npm
 
 ```sh
-npm install --save-dev vitest@4 vitest-environment-happy-dom-extended
+npm install --save-dev vitest@5 vitest-environment-happy-dom-extended
 ```
 
 With npm 12, [approve](https://docs.npmjs.com/cli/v12/commands/npm-approve-scripts/) and run Skia's native installation script after installation:
@@ -24,23 +24,27 @@ npm rebuild skia-canvas
 ### pnpm
 
 ```sh
-pnpm add -D vitest@4 vitest-environment-happy-dom-extended
-pnpm approve-builds
+pnpm add -D vitest@5 vitest-environment-happy-dom-extended
+pnpm approve-builds skia-canvas
 ```
 
-In the approval prompt, select **skia-canvas** and your project's other required native scripts. [pnpm saves these approvals](https://pnpm.io/cli/approve-builds) in `pnpm-workspace.yaml`.
+pnpm 11 and 12 stop `pnpm add` with `ERR_PNPM_IGNORED_BUILDS` until Skia's install script is approved. The packages are already added, so run `pnpm approve-builds skia-canvas` next. It saves the approval under `allowBuilds` in `pnpm-workspace.yaml` and downloads the binary.
 
-For a non-interactive installation with pnpm 12, merge this into `pnpm-workspace.yaml` before running `pnpm add`:
+pnpm 10 finishes `pnpm add` with an "Ignored build scripts" warning and no Skia binary. Its `pnpm approve-builds` ignores package names and opens a prompt: select **skia-canvas** there. See [pnpm approve-builds](https://pnpm.io/cli/approve-builds).
+
+For a non-interactive installation, merge this into `pnpm-workspace.yaml` before running `pnpm add`:
 
 ```yaml
 allowBuilds:
   skia-canvas: true
 ```
 
+pnpm 10 uses a `pnpm.onlyBuiltDependencies` list in `package.json` instead when one exists, so add `skia-canvas` to that list. pnpm 11 and 12 read only `allowBuilds`.
+
 ### Bun
 
 ```sh
-bun add --dev vitest@4 vitest-environment-happy-dom-extended
+bun add --dev vitest@5 vitest-environment-happy-dom-extended
 bun pm trust skia-canvas
 ```
 
@@ -72,7 +76,7 @@ export default defineConfig({
 npx vitest run
 ```
 
-The default pool is `forks`. `vmThreads` is covered. `vmForks` is not claimed in 0.1.0. File-level options use `@vitest-environment-options` and are read from the `happy-dom-extended` wrapper key as well as `happyDOM`.
+Every Vitest pool is supported: `forks` (the default), `threads`, `vmThreads` and `vmForks`. In `vmThreads` and `vmForks`, the Happy DOM Window is each test file's global object, as with Vitest's built-in `happy-dom` environment. With `isolate: false`, test files that share a `forks` or `threads` worker also share one Window. File-level options use `@vitest-environment-options` and are read from the `happy-dom-extended` wrapper key as well as `happyDOM`.
 
 Programmatic custom adapters keep their identity when constructed through the factory:
 
@@ -151,16 +155,22 @@ The package owns the Canvas/media/Worker resources it creates. Close ports trans
 
 ## Runtime boundaries
 
-- Runtime dependencies are pinned to Happy DOM 20.14.0 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows, plus installed Vitest 4.0.0 and current-pin consumers in serial and two-worker modes. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
+- Runtime dependencies are pinned to Happy DOM 20.14.0 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows. Installed Vitest 4.0.0, 4.1.11 and 5.0.1 consumers run in every pool with one and two workers, next to a React Testing Library product fixture. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
 - Canvas contexts use effective sRGB/unorm8 backing. Byte ImageData supports sRGB/display-p3 conversion; float16 ImageData is not supported. Font availability, edge rasterization and decoder rounding can differ from browsers.
 - 2D support does not include a Window Path2D constructor, WebGL, WebGPU or bitmaprenderer. Real layout and browser scheduling require a browser.
 - Dedicated Workers use actual node:worker_threads and the documented classic/module script loader. They are for trusted test code; their VM contexts are not a security sandbox. Node/file imports, service/shared workers and arbitrary browser-platform serialization are outside the supported contract.
 - Video selects the latest frame at or before the requested timestamp and samples playback at up to 20 fps. Audio playback and browser media scheduling are outside the contract.
 - Native structuredClone does not make every Happy DOM Blob, File, DOM node or platform object cloneable. BroadcastChannel names are isolated per test environment.
 - Animation support addresses cancellation promises; other upstream animation limitations remain.
-- `vmForks` is not a claimed 0.1.0 pool. The default Vitest pool is `forks`.
+- Tests that delete or replace Window globals, such as `navigator`, can behave differently in `vmThreads` and `vmForks`, because the Window itself is the global object there. Vitest's built-in `happy-dom` environment behaves the same way.
 
 Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-dom-extended/blob/main/docs/canvas-compatibility.md), [verification guide](https://github.com/laststance/happy-dom-extended/blob/main/docs/verification.md) and [architecture](https://github.com/laststance/happy-dom-extended/blob/main/ARCHITECTURE.md) for details.
+
+## Troubleshooting
+
+**`skia-canvas cannot load its native binary (lib/skia.node)`** means the package manager skipped Skia's install script. The error lists the approval commands for pnpm, npm 12 and Bun, and keeps the original loader error as its `cause`. Approve and run the script as described in [Installation](#installation), then rerun Vitest.
+
+When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
 
 ## Contributing and releases
 

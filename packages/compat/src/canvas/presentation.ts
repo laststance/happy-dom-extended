@@ -5,13 +5,13 @@ import { MessageChannel } from 'node:worker_threads'
 
 import { HTMLCanvasElement, OffscreenCanvas, PropertySymbol } from 'happy-dom'
 import type { Window, BrowserWindow } from 'happy-dom'
-import { ImageData } from 'skia-canvas'
 
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
 import { replaceProperty } from '../utils/replace-property.ts'
 
 import type { ExtendedCanvasAdapter } from './adapter.ts'
+import { ImageData } from './skia.ts'
 import { canvasStates, canvasWindows, detachedOffscreens } from './state.ts'
 import { pixelBytes } from './utils/pixel-bytes.ts'
 

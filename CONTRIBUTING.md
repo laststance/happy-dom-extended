@@ -33,7 +33,7 @@ Code and documentation use English. Test names use `test`, describe what breaks 
 ## Tooling
 
 - `pnpm test`: build, Node regressions, actual Jest and Vitest integration, coverage.
-- `pnpm test:package`: install the built tarballs outside the checkout; run both supported Jest and Vitest versions serially and with two workers.
+- `pnpm test:package`: install the built tarballs outside the checkout; run the supported Jest and Vitest versions in every Vitest pool, the React product fixture, and the missing-binary guidance check.
 - `pnpm typecheck`: TypeScript 7 compiler through the `typescript-compiler` alias. TypeScript 6 remains installed for tools using its JavaScript API.
 - `pnpm lint`, `pnpm format:check`, `pnpm sherif`: source and workspace consistency.
 - `pnpm health`, `pnpm dupes`, `pnpm dead-code`: Fallow checks. Run `pnpm test` first for health's measured coverage.
@@ -43,6 +43,6 @@ Fallow excludes test procedures from complexity and duplication scoring. It reco
 
 ## Releases
 
-Changesets manages versions and changelogs. Merging a feature PR to `main` does not publish. After Test succeeds on that push, Release opens a Version Packages PR when `.changeset` files remain. Merging that version PR and a green Test run publishes the new versions with OIDC trusted publishing. `pnpm version:packages` and `pnpm run release` remain a local fallback. See [docs/releasing.md](docs/releasing.md).
+Changesets manages versions and changelogs. Merging a feature PR to `main` does not publish. After Test succeeds on that push, Release opens a Version Packages PR when `.changeset` files remain. A maintainer must select **Approve workflows to run** on that bot-authored PR before its checks run. Merging that version PR and a green Test run publishes the new versions with OIDC trusted publishing. A new package needs the [first-publish bootstrap](docs/releasing.md#first-publish-of-a-new-package) before its first automated release. `pnpm version:packages` and `pnpm run release` remain a local fallback. See [docs/releasing.md](docs/releasing.md).
 
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.
