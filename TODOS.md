@@ -78,6 +78,18 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
+### Require a pull request and block force pushes on main
+
+**What:** Add the `pull_request` and `non_fast_forward` rules to the `main` ruleset.
+
+**Why:** `main` accepts a direct push and a force push today, so the required status checks can be bypassed entirely by pushing to it. OpenSSF Scorecard scores branch protection 1 out of 10 for exactly these two gaps.
+
+**Context:** Ruleset 22409011 targets the default branch with `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage`, and no bypass actors. Repository rules are public, so Scorecard reads them without a token. Adding `pull_request` with zero required approvals keeps a solo maintainer's flow intact while routing every change through the checks. Confirm first that the Version Packages branch still merges, because `changesets/action` pushes to `changeset-release/main` and opens a pull request rather than pushing to `main`. [SECURITY.md](SECURITY.md) records the finding meanwhile.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Nothing
+
 ## Completed
 
 ### Claim the Vitest vmForks pool
