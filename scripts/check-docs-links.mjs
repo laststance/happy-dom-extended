@@ -4,27 +4,30 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-const fenceOpenerPattern = /^ {0,3}(`{3,}|~{3,})/
+const backtickOpenerPattern = /^ {0,3}(`{3,})[^`\n]*$/
+const tildeOpenerPattern = /^ {0,3}(~{3,})/
 const fenceCloserPattern = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
 const frontMatterPattern = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(?=\r?\n|$)/
 const commentPattern = /<!--[\s\S]*?-->/g
 const spanPattern = /(`+)[^\n]*?\1/g
 const headingPattern =
-  /^#{1,6}[ \t]+(.+)$|^ {0,3}(\S[^\n]*)\n {0,3}(?:=+|-+)[ \t]*$/gm
+  /^ {0,3}#{1,6}[ \t]+(.+)$|^ {0,3}(\S[^\n]*)\n {0,3}(?:=+|-+)[ \t]*$/gm
 const trailingHashPattern = /[ \t]+#+[ \t]*$/
 const definitionPattern =
   /^ {0,3}\[[^\]]+\]:[ \t]*(?:\r?\n[ \t]*)?(<[^>\n]*>|\S+)(?:[ \t]+["'(][^\n]*)?[ \t]*$/gm
-const inlineOpenerPattern = /\[[^\]]*\]\(/g
+const inlineOpenerPattern = /\]\(/g
 const angleTargetPattern = /^<([^>]*)>/
 const externalPattern = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i
 
 /**
  * Reads the marker a line opens a fence with, whose info string may follow it.
  *
- * @example fenceOpenerOf('````sh') === '````'
+ * @example fenceOpenerOf('```js`x') === undefined
  */
 function fenceOpenerOf(line) {
-  return fenceOpenerPattern.exec(line)?.[1]
+  // CommonMark forbids a backtick in a backtick fence's info string; a tilde fence allows one.
+  return (backtickOpenerPattern.exec(line) ??
+    tildeOpenerPattern.exec(line))?.[1]
 }
 
 /**
@@ -211,9 +214,10 @@ function closingParenthesis(body, from) {
 }
 
 /**
- * Yields every inline destination, including images and destinations holding parentheses.
+ * Yields every inline destination, including both halves of a linked image.
+ * Every opener is scanned, because a label may nest brackets that a single pattern cannot pair.
  *
- * @example [...inlineDestinations('[a](b(c))')] → ['b(c)']
+ * @example [...inlineDestinations('[![a](b)](c)')] → ['b', 'c']
  */
 function* inlineDestinations(body) {
   for (const opener of body.matchAll(inlineOpenerPattern)) {
