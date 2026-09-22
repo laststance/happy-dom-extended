@@ -81,7 +81,7 @@ Coverage is source-mapped V8 coverage from the source tests and the Jest and Vit
 
 ## CI evidence
 
-The [Test workflow](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml) runs Node 22.18.0 / 24.20.0 / 26.8.1 on Linux and Windows. The [other workflows](https://github.com/laststance/happy-dom-extended/actions) cover lint, types, package build, Fallow, CodeQL, dependency review, audit, and Scorecard. Codecov receives the Linux Node 24 source report.
+The [Test workflow](https://github.com/laststance/happy-dom-extended/actions/workflows/test.yml) runs Node 22.18.0 / 24.20.0 / 26.8.1 on Linux and Windows. The [other workflows](https://github.com/laststance/happy-dom-extended/actions) cover lint and documentation links, formatting, types, package build, Fallow, CodeQL, dependency review, audit, Socket dependency scanning, and Scorecard. Codecov receives the Linux Node 24 source report.
 
 Recorded execution: the [successful PR #16 Test run](https://github.com/laststance/happy-dom-extended/actions/runs/35753808848) ran all six Linux/Windows combinations on commit `97a9612f45f160d904ad37fcc6672d5ad18fd56a`. Every job used pnpm 12.3.4, Jest 30.5.1 and Vitest 5.0.1 integration, and installed Jest 30.0.0/30.5.1 and Vitest 4.0.0, 4.1.11 and 5.0.1 consumers. On Windows, the `threads` and `vmThreads` consumers used the global setup and passed. The setup logs report each Node.js release's bundled npm on both operating systems. The Node 22 jobs then install npm 11.19.0, because npm 10.9.3 failed on the second isolated Vitest consumer install:
 

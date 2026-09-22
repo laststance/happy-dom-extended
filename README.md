@@ -175,6 +175,8 @@ Workflows are separated into [Test](.github/workflows/test.yml), [Lint](.github/
 
 Socket scans same-repository PRs, pushes to main, its weekly schedule and manual runs, using the `SOCKET_SECURITY_API_TOKEN` Actions secret. Fork PRs skip that secret-dependent workflow. See [Socket token setup](https://docs.socket.dev/docs/create-socket-api-key-for-cicd) for maintainer configuration.
 
+Three source workspaces hold the code. `pnpm-workspace.yaml` also registers the installed-consumer fixtures under `fixtures/`.
+
 | Workspace                          | Purpose                                                             |
 | ---------------------------------- | ------------------------------------------------------------------- |
 | packages/jest-happy-dom-extended   | Public Jest environment (`jest-happy-dom-extended`)                 |

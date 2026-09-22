@@ -2,6 +2,8 @@
 
 Status: engineering review complete; 10 findings incorporated, no unresolved plan decisions. Implementation started from main 08273e7 after Issue #5 PR #8 merged. All Issue #4 work and all valid review findings belong to one PR; no TODO or follow-up deferrals. npm publication remains the user's manual action.
 
+This plan is kept as a record of Issue #4 as it was planned. Its counts, quoted build entries and scope statements describe the repository at that time, and the Vitest environment it lists as out of scope now ships. [Verification](../verification.md) and [TESTING.md](../../TESTING.md) carry the current numbers.
+
 ## Problem and evidence
 
 The library currently subclasses the Happy DOM 20.14.0 node-canvas adapter, then wraps its instance methods. That adapter owns hidden bitmap/source behavior which the library cannot correct consistently. Preserve the working Jest lifecycle and move Canvas semantics into this repository.

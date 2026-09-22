@@ -66,14 +66,50 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Changesets support for staged publishing
 
+### Decide on a dependency update tool
+
+**What:** Decide whether Dependabot or Renovate should run, and over which dependency groups.
+
+**Why:** OpenSSF Scorecard scores this repository zero for dependency updates, and pinned dependencies drift without a tool.
+
+**Context:** `happy-dom` and `skia-canvas` are pinned to the exact versions [Verification](docs/verification.md) records, so a bump needs the whole matrix re-run before it can merge. Remote actions are already pinned by commit digest and could be updated on their own schedule. Limiting a tool to actions and development dependencies would close most of the finding without invalidating the recorded evidence. [SECURITY.md](SECURITY.md) explains why the finding stays open meanwhile.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** Nothing
+
+### Require a pull request and block force pushes on main
+
+**What:** Add the `pull_request` and `non_fast_forward` rules to the `main` ruleset.
+
+**Why:** `main` accepts a direct push and a force push today, so the required status checks can be bypassed entirely by pushing to it. OpenSSF Scorecard scores branch protection 1 out of 10 for exactly these two gaps.
+
+**Context:** Ruleset 22409011 targets the default branch with `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage`, and no bypass actors. Repository rules are public, so Scorecard reads them without a token. Adding `pull_request` with zero required approvals keeps a solo maintainer's flow intact while routing every change through the checks. Confirm first that the Version Packages branch still merges, because `changesets/action` pushes to `changeset-release/main` and opens a pull request rather than pushing to `main`. [SECURITY.md](SECURITY.md) records the finding meanwhile.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Nothing
+
+### Confirm the Codecov upload on a fork pull request
+
+**What:** Establish whether the coverage upload succeeds on a pull request from a fork, and add a fallback if it does not.
+
+**Why:** `test` is a required status check. The upload step passes `secrets.CODECOV_TOKEN` and sets `fail_ci_if_error: true`, and a fork pull request cannot read that secret, so a failing upload would block every outside contribution.
+
+**Context:** `.github/workflows/test.yml` runs the upload only on Linux Node 24.20.0. codecov-action v7 documents a tokenless flow for public repositories, which this repository has never exercised because no fork pull request has been opened. Either confirm the tokenless path or skip the step when the token is empty. [TESTING.md](TESTING.md) records the current state.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** A fork pull request, or a deliberate test of one
+
 ## Completed
 
 ### Claim the Vitest vmForks pool
 
-Completed for `vitest-environment-happy-dom-extended` 0.1.0. The behavior suite, the installed consumer and the React product fixture run in `vmForks` on Vitest 4.0.0, 4.1.11 and 5.0.1. Setup records prove a child process with a VM context.
+Completed for the unreleased `vitest-environment-happy-dom-extended` 0.1.0. The behavior suite, the installed consumer and the React product fixture run in `vmForks` on Vitest 4.0.0, 4.1.11 and 5.0.1. Setup records prove a child process with a VM context.
 
 ### Investigate Vitest threads plus Skia
 
-Completed for 0.1.0. skia-canvas loads in each worker thread. The behavior suite, dedicated Worker tests and pixel checks pass in `threads` and `vmThreads` with two concurrent workers, and setup records prove worker threads inside the CLI process. laststance/corelive and laststance/gitbox produce the same results in `threads` as in `forks`.
+Completed for the same unreleased 0.1.0. skia-canvas loads in each worker thread. The behavior suite, dedicated Worker tests and pixel checks pass in `threads` and `vmThreads` with two concurrent workers, and setup records prove worker threads inside the CLI process. laststance/corelive and laststance/gitbox produce the same results in `threads` as in `forks`.
 
 On Windows, a thread-pool run could crash after its tests passed, because Windows unloaded skia.node when the last worker thread that loaded it exited. The `vitest-environment-happy-dom-extended/global-setup` entry loads skia-canvas in Vitest's main thread first; [Verification](docs/verification.md#windows-thread-pool-crash) records the experiments.

@@ -8,6 +8,8 @@ The font's embedded copyright record states:
 
 > The Ahem font belongs to the public domain. In jurisdictions that do not recognize public domain ownership of these files, the following Creative Commons Zero declaration applies: http://labs.creativecommons.org/licenses/zero-waive/1.0/us/legalcode
 
+That declaration's address is quoted as the font records it and no longer resolves; Creative Commons retired the `labs` host, and the same waiver is now published as the [CC0 1.0 deed](https://creativecommons.org/publicdomain/zero/1.0/).
+
 Embedded license reference: [W3C Ahem COPYING](https://dev.w3.org/CSS/fonts/ahem/COPYING).
 
 This fixture is only used by repository verification. It is not included in the published npm package.

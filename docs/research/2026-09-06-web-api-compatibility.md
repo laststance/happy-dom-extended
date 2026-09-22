@@ -2,6 +2,8 @@
 
 Research date: 2026-09-06. Primary lane: **local-plus-external**, with OSS repository and recent-release verification.
 
+This document is historical evidence from that date, not the current support contract. The Vitest workspace it calls reserved now ships as `vitest-environment-happy-dom-extended`; [Verification](../verification.md) records what that package does today.
+
 ## Executive Summary
 
 The project implements a small Jest adapter over `@happy-dom/jest-environment` and a private, runner-independent compatibility workspace. This follows Jest's documented environment lifecycle and the working structure of `jest-fixed-jsdom`; the local integration tests exercise the installed environment rather than just calling installers in isolation. [Jest environment lifecycle](https://jestjs.io/docs/30.0/test-environment), [jest-fixed-jsdom implementation](https://github.com/mswjs/jest-fixed-jsdom/blob/main/index.js), [integration tests](../../packages/jest-happy-dom-extended/test/environment.test.ts).
