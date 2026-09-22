@@ -28,6 +28,20 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
+## Worker lifecycle
+
+### Decide how a worker reports a failed teardown
+
+**What:** Choose whether a discarded teardown promise should be reported or suppressed, and apply one rule to every `void` call that starts asynchronous cleanup.
+
+**Why:** An unhandled rejection ends a Node process. A worker that rejects while closing therefore takes the whole run with it, the way a throwing finalizer did before `runFinalizer` existed, and the run reports an abort rather than a failing test.
+
+**Context:** `close` in `packages/compat/src/workers/worker-runtime.ts` ends with `disposeAll`, which throws the original error or an aggregate by design, so it rejects on any cleanup failure. It is started as `void close()` from two message handlers in that file. `packages/compat/src/workers/install-workers.ts` starts `#stop`, `terminate` and each child's `stop` the same way, and `dispose` in `packages/compat/src/canvas/videos.ts` twice more. The file already shows the opposite convention in `void this.completion.catch(() => {})` and `void this.play().catch(() => {})`, so the bare calls are the inconsistency. Suppressing every rejection hides a real cleanup failure; routing one to the existing parent error channel keeps it visible. Decide which before editing the call sites.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Nothing
+
 ## Release automation
 
 ### Run Version Packages PR checks without manual approval
