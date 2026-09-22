@@ -76,7 +76,7 @@ export default defineConfig({
 npx vitest run
 ```
 
-Every Vitest pool is supported: `forks` (the default), `threads`, `vmThreads` and `vmForks`. In `vmThreads` and `vmForks`, the Happy DOM Window is each test file's global object, as with Vitest's built-in `happy-dom` environment. With `isolate: false`, test files that share a `forks` or `threads` worker also share one Window. File-level options use `@vitest-environment-options` and are read from the `happy-dom-extended` wrapper key as well as `happyDOM`.
+Every Vitest pool is supported: `forks` (the default), `threads`, `vmThreads` and `vmForks`. `threads` and `vmThreads` also need the [global setup](#thread-pools) below. In `vmThreads` and `vmForks`, the Happy DOM Window is each test file's global object, as with Vitest's built-in `happy-dom` environment. With `isolate: false`, test files that share a `forks` or `threads` worker also share one Window. File-level options use `@vitest-environment-options` and are read from the `happy-dom-extended` wrapper key as well as `happyDOM`.
 
 Programmatic custom adapters keep their identity when constructed through the factory:
 
@@ -85,6 +85,25 @@ import { createHappyDomExtendedEnvironment } from 'vitest-environment-happy-dom-
 
 export default createHappyDomExtendedEnvironment({ canvasAdapter })
 ```
+
+### Thread pools
+
+With `threads` or `vmThreads`, add the package's global setup:
+
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    pool: 'threads',
+    environment: 'happy-dom-extended',
+    globalSetup: ['vitest-environment-happy-dom-extended/global-setup'],
+  },
+})
+```
+
+The global setup loads skia-canvas once in Vitest's main thread before any worker starts. Without it, a Windows run can crash with exit code 3221225477 (`0xC0000005`, an access violation) even after its tests pass. Windows unloads skia-canvas's native binary when the last worker thread that loaded it exits, while threads that skia-canvas started keep running its code. CI has seen this crash only on Windows. The setup is harmless on Linux and macOS, so configurations shared across platforms can keep it. `forks` and `vmForks` load skia-canvas in each child process's main thread and do not need it. In a Vitest project list, put `globalSetup` in each project that runs a thread pool.
 
 ## Included behavior
 
@@ -156,7 +175,7 @@ The package owns the Canvas/media/Worker resources it creates. Close ports trans
 
 ## Runtime boundaries
 
-- Runtime dependencies are pinned to Happy DOM 20.14.0 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows. Installed Vitest 4.0.0, 4.1.11 and 5.0.1 consumers run in every pool with two workers and in `forks` with one worker, next to a React Testing Library product fixture in every pool. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
+- Runtime dependencies are pinned to Happy DOM 20.14.0 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows. Installed Vitest 4.0.0, 4.1.11 and 5.0.1 consumers run in every pool with two workers and in `forks` with one worker, next to a React Testing Library product fixture in every pool. Their `threads` and `vmThreads` runs use the global setup. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
 - Canvas contexts use effective sRGB/unorm8 backing. Byte ImageData supports sRGB/display-p3 conversion; float16 ImageData is not supported. Font availability, edge rasterization and decoder rounding can differ from browsers.
 - 2D support does not include a Window Path2D constructor, WebGL, WebGPU or bitmaprenderer. Real layout and browser scheduling require a browser.
 - Dedicated Workers use actual node:worker_threads and the documented classic/module script loader. They are for trusted test code; their VM contexts are not a security sandbox. Node/file imports, service/shared workers and arbitrary browser-platform serialization are outside the supported contract.
@@ -172,6 +191,8 @@ Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-
 **`skia-canvas cannot load its native binary (lib/skia.node)`** means the package manager skipped Skia's install script. The error lists the approval commands for pnpm, npm 12 and Bun, and keeps the original loader error as its `cause`. Approve and run the script as described in [Installation](#installation), then rerun Vitest.
 
 When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
+
+**Exit code 3221225477 on Windows** with `threads` or `vmThreads` usually means the global setup is missing. Add it as shown in [Thread pools](#thread-pools), or use the default `forks` pool.
 
 ## Contributing and releases
 

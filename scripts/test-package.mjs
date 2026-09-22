@@ -108,6 +108,12 @@ const vitestModes = [
 const vitestPools = [
   ...new Set(vitestModes.map((vitestMode) => vitestMode.pool)),
 ]
+// Pools whose workers are threads of the Vitest process; their runs use the global setup the README prescribes.
+const threadPools = new Set(
+  vitestModes
+    .filter((vitestMode) => vitestMode.workerThread)
+    .map((vitestMode) => vitestMode.pool),
+)
 
 /** Throws when a spawnSync result could not start or exited unsuccessfully.
  * {@link spawnChecked} calls this after replaying piped stderr.
@@ -404,6 +410,21 @@ function withNodeWebStorage(nodeOptions) {
   return [nodeOptions, NODE_WEB_STORAGE_FLAG].filter(Boolean).join(' ')
 }
 
+/** Sets the switch the Vitest fixture configs read to add `vitest-environment-happy-dom-extended/global-setup`.
+ * Thread-pool runs follow the README; process-pool runs keep the plain config most consumers use.
+ * @param environment - Child environment for one Vitest run.
+ * @param pool - Vitest pool the run uses.
+ * @returns
+ * - `threads` or `vmThreads`: a copy with `HAPPY_DOM_THREAD_POOL=1`
+ * - Any other pool: the same environment
+ * @example withThreadPoolSetup(process.env, 'threads').HAPPY_DOM_THREAD_POOL // => '1'
+ */
+function withThreadPoolSetup(environment, pool) {
+  return threadPools.has(pool)
+    ? { ...environment, HAPPY_DOM_THREAD_POOL: '1' }
+    : environment
+}
+
 /** Runs installed Vitest through `process.execPath` so Windows does not treat a drive-letter shim as an ESM URL.
  * Clears Vite's default cache, points `VITE_CACHE_DIR` at a per-run directory, enables Node Web Storage, and pipes stderr for warning checks.
  * @param consumer - Isolated consumer directory with Vitest installed.
@@ -505,25 +526,29 @@ function vitestManifest(fixture, vitestVersion, tarball) {
  * @param consumer - Installed consumer whose runner loads the environment.
  * @param argumentsList - Runner arguments after `process.execPath`, limited to one test file.
  * @param label - Failure prefix naming the runner and version.
- * @returns Nothing; throws when the run passes or omits the guidance. The binary is restored either way.
+ * @param options - `environment` for the child, and `expectedOutput`, the text the run must print; defaults to {@link SKIA_GUIDANCE_LINES}.
+ * @returns Nothing; throws when the run passes or omits any expected text. The binary is restored either way.
  * @example assertMissingSkiaGuidance(consumer, ['node_modules/jest/bin/jest.js', 'canvas.test.cjs'], 'Jest 30.5.1')
  */
-function assertMissingSkiaGuidance(consumer, argumentsList, label) {
+function assertMissingSkiaGuidance(
+  consumer,
+  argumentsList,
+  label,
+  { environment = process.env, expectedOutput = SKIA_GUIDANCE_LINES } = {},
+) {
   const binary = path.join(consumer, 'node_modules/skia-canvas/lib/skia.node')
   const hiddenBinary = `${binary}.hidden`
   renameSync(binary, hiddenBinary)
   try {
     const result = spawn.sync(process.execPath, argumentsList, {
       cwd: resolveExistingPath(consumer),
-      env: process.env,
+      env: environment,
       encoding: 'utf8',
       maxBuffer: CAPTURED_OUTPUT_MAX_BYTES,
     })
     if (result.error) throw result.error
     const output = `${result.stdout}${result.stderr}`
-    const explainsFix = SKIA_GUIDANCE_LINES.every((line) =>
-      output.includes(line),
-    )
+    const explainsFix = expectedOutput.every((line) => output.includes(line))
     if (result.status === 0 || !explainsFix) {
       process.stderr.write(output)
       throw new Error(
@@ -669,7 +694,10 @@ try {
           '--reporter=json',
           `--outputFile=${testReport}`,
         ],
-        { ...process.env, HAPPY_DOM_WORKER_RECORD_DIRECTORY: workerRecords },
+        withThreadPoolSetup(
+          { ...process.env, HAPPY_DOM_WORKER_RECORD_DIRECTORY: workerRecords },
+          vitestMode.pool,
+        ),
         vitestMode.mode,
       )
       assertVitestWorkerRecords(workerRecords, runnerPid, vitestMode)
@@ -704,7 +732,7 @@ try {
           '--reporter=json',
           `--outputFile=${testReport}`,
         ],
-        process.env,
+        withThreadPoolSetup(process.env, pool),
         pool,
       )
       assertNoUnexpectedWarnings(stderr, label)
@@ -730,6 +758,23 @@ try {
           'src/components/SalesChart.test.tsx',
         ],
         `Vitest ${vitestVersion} product`,
+      )
+      // With the global setup, the main thread loads skia-canvas first, so it must report the blocked install before any worker starts.
+      assertMissingSkiaGuidance(
+        product,
+        [
+          path.join(product, 'node_modules/vitest/vitest.mjs'),
+          'run',
+          '--pool=threads',
+          '--no-cache',
+          'src/components/SalesChart.test.tsx',
+        ],
+        `Vitest ${vitestVersion} product (threads, global setup)`,
+        {
+          environment: withThreadPoolSetup(process.env, 'threads'),
+          // The global setup's stack frame proves the main thread reported the blocked install.
+          expectedOutput: [...SKIA_GUIDANCE_LINES, 'global-setup.mjs'],
+        },
       )
     }
   }

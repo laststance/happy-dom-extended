@@ -101,7 +101,7 @@ npx jest
 npx vitest run
 ```
 
-CommonJS Jest projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal runner configuration. Jest extensions are available before `setupFiles` and `setupFilesAfterEnv` run. Vitest resolves `environment: 'happy-dom-extended'` to `vitest-environment-happy-dom-extended`. Every Vitest pool is supported: `forks` (the default), `threads`, `vmThreads` and `vmForks`.
+CommonJS Jest projects can put the same configuration object in `jest.config.cjs` with `module.exports`. Your existing transforms, test files and application fixtures continue to use normal runner configuration. Jest extensions are available before `setupFiles` and `setupFilesAfterEnv` run. Vitest resolves `environment: 'happy-dom-extended'` to `vitest-environment-happy-dom-extended`. Every Vitest pool is supported: `forks` (the default), `threads`, `vmThreads` and `vmForks`. With `threads` or `vmThreads`, also add `globalSetup: ['vitest-environment-happy-dom-extended/global-setup']`; the [Vitest package guide](packages/vitest-happy-dom-extended/README.md#thread-pools) explains the Windows crash it prevents.
 
 ## What this library provides
 

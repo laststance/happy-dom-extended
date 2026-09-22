@@ -39,7 +39,7 @@ Code and documentation use English. Test names use `test`, describe what breaks 
 - `pnpm health`, `pnpm dupes`, `pnpm dead-code`: Fallow checks. Run `pnpm test` first for health's measured coverage.
 - `pnpm check:package`: publint and Are the Types Wrong export/type validation.
 
-Fallow excludes test procedures from complexity and duplication scoring. It recognizes callbacks implementing Happy DOM's ICanvasAdapter and the private Worker entry points. Its explicitly ignored dependency names (`happy-dom`, `buffer-image-size`, `culori`, `skia-canvas`, and `webidl-conversions`) are runtime imports from the bundled private workspace; the public manifest must declare them even though static per-workspace analysis cannot follow that bundling. Isolated consumers verify their presence and shared Happy DOM class identity. Do not add ignore entries without equivalent evidence.
+Fallow excludes test procedures from complexity and duplication scoring. It recognizes callbacks implementing Happy DOM's ICanvasAdapter, the private Worker entry points and the Vitest global setup entry. Its explicitly ignored dependency names (`happy-dom`, `buffer-image-size`, `culori`, `skia-canvas`, and `webidl-conversions`) are runtime imports from the bundled private workspace; the public manifest must declare them even though static per-workspace analysis cannot follow that bundling. Isolated consumers verify their presence and shared Happy DOM class identity. Do not add ignore entries without equivalent evidence.
 
 ## Releases
 

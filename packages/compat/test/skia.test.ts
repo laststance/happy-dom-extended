@@ -3,7 +3,8 @@ import { test } from 'node:test'
 
 import * as esmSkiaCanvas from 'skia-canvas'
 
-import { Canvas, ImageData, loadSkiaCanvas } from '../src/canvas/skia.ts'
+import { loadSkiaCanvas } from '../src/canvas/load-skia-canvas.ts'
+import { Canvas, ImageData } from '../src/canvas/skia.ts'
 
 test('Canvas modules share the exact skia-canvas classes that ESM consumers import', () => {
   // Act

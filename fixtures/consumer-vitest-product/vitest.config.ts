@@ -4,6 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 const fixtureRoot = path.dirname(fileURLToPath(import.meta.url))
+// Thread-pool runs load skia-canvas in the main thread first, as the README tells thread-pool users to.
+const globalSetup = process.env.HAPPY_DOM_THREAD_POOL
+  ? ['vitest-environment-happy-dom-extended/global-setup']
+  : []
 
 // Mirrors a React product's setup: `@` alias, globals, jest-dom and a named inline project that extends the root.
 export default defineConfig({
@@ -23,6 +27,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'happy-dom-extended',
+          globalSetup,
           environmentOptions: {
             happyDOM: { url: 'https://shop.example.test/dashboard' },
           },

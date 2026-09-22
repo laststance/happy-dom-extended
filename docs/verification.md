@@ -6,16 +6,16 @@ The current implementation owns Canvas semantics around CPU skia-canvas 3.0.8, i
 
 The full local gate ran on macOS arm64 with Node.js 24.19.0, pnpm 12.3.4 and npm 12.0.2. Source integration used Jest 30.5.1 and Vitest 5.0.1. Installed consumers used Jest 30.0.0 and 30.5.1 plus Vitest 4.0.0, 4.1.11 and 5.0.1, installed by npm 12.0.2 after their generated manifests approved Skia's install script. `pnpm test:package` also passed with Node.js 26.10.0, which defines Node's own Web Storage globals by default. Test output, not a zero process exit alone, determines completion.
 
-| Layer                                 | Expected successful execution                                                                                                                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node source regressions               | 231 tests, including the Vitest entry loader, the Web Storage override and the skia-canvas install guidance                                                                                     |
-| Jest integration                      | 20 tests in 4 suites                                                                                                                                                                            |
-| Vitest integration                    | 100 tests in 24 files: the same 24 tests in 5 files for each of `forks`, `threads`, `vmThreads` and `vmForks`, plus `isolate: false` files in `forks` and `threads`                             |
-| Installed consumer per Jest version   | 11 lifecycle tests; 10 Jest tests in 3 suites in serial mode; the same 10 tests with two worker processes                                                                                       |
-| Installed consumer per Vitest version | 7 lifecycle tests; 11 Vitest tests in 3 files with one `forks` worker and with two workers in every pool; 8 React product tests in 4 files in every pool                                        |
-| Node Web Storage                      | Below Node 25, Vitest runs add `--experimental-webstorage`. Tests must receive the Window's `localStorage` and `sessionStorage`, and Node 25+ runs must not print Node's `localStorage` warning |
-| Missing native binary                 | The development Jest and Vitest versions fail with every approval command after the Skia binary is hidden                                                                                       |
-| Public entry points                   | Jest shared ESM/CommonJS runtime; Vitest ESM-only entry; consistent Happy DOM class identity; removed `/canvas` rejected; no `vitest/environments` warning on Vitest 4.1 or 5                   |
+| Layer                                 | Expected successful execution                                                                                                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node source regressions               | 233 tests, including the Vitest entry loader, the Web Storage override, the thread-pool global setup and the skia-canvas install guidance                                                                |
+| Jest integration                      | 20 tests in 4 suites                                                                                                                                                                                     |
+| Vitest integration                    | 100 tests in 24 files: the same 24 tests in 5 files for each of `forks`, `threads`, `vmThreads` and `vmForks`, plus `isolate: false` files in `forks` and `threads`                                      |
+| Installed consumer per Jest version   | 11 lifecycle tests; 10 Jest tests in 3 suites in serial mode; the same 10 tests with two worker processes                                                                                                |
+| Installed consumer per Vitest version | 7 lifecycle tests; 11 Vitest tests in 3 files with one `forks` worker and with two workers in every pool; 8 React product tests in 4 files in every pool; `threads` and `vmThreads` use the global setup |
+| Node Web Storage                      | Below Node 25, Vitest runs add `--experimental-webstorage`. Tests must receive the Window's `localStorage` and `sessionStorage`, and Node 25+ runs must not print Node's `localStorage` warning          |
+| Missing native binary                 | The development Jest and Vitest versions fail with every approval command after the Skia binary is hidden, and so does the Vitest global setup before any worker starts                                  |
+| Public entry points                   | Jest shared ESM/CommonJS runtime; Vitest ESM-only environment and global setup; consistent Happy DOM class identity; removed `/canvas` rejected; no `vitest/environments` warning on Vitest 4.1 or 5     |
 
 `pnpm test` reported 99.31% source line coverage. `pnpm test:package` took about 90 seconds for all eight installed consumers on Node.js 24 and on Node.js 26.
 
@@ -39,15 +39,34 @@ pnpm 10.33.4 gave a `pnpm.onlyBuiltDependencies` list in `package.json` preceden
 
 These runs installed the packed Vitest tarball into disposable copies of two public Laststance applications, using the procedure in [TESTING.md](../TESTING.md#try-an-application-before-release). Each run was compared with Vitest's plain `happy-dom` environment.
 
-| Application                                                   | Vitest | Pools compared             | Result with happy-dom-extended                                                   |
-| ------------------------------------------------------------- | ------ | -------------------------- | -------------------------------------------------------------------------------- |
-| [laststance/corelive](https://github.com/laststance/corelive) | 5.0.0  | `forks`, `threads`         | 879 passed and 20 skipped of 899 tests, the same as `happy-dom`                  |
-| [laststance/corelive](https://github.com/laststance/corelive) | 5.0.0  | `vmThreads`, `vmForks`     | One failure, identical with `happy-dom`: the test deletes `globalThis.navigator` |
-| [laststance/gitbox](https://github.com/laststance/gitbox)     | 4.1.11 | `forks`, `threads`         | 959 of 959 unit tests passed; no `vitest/environments` warning                   |
-| [laststance/gitbox](https://github.com/laststance/gitbox)     | 4.1.11 | `vmThreads`, `vmForks`     | Two failures, identical with `happy-dom`: a `dispatchEvent` spy count            |
-| [laststance/gitbox](https://github.com/laststance/gitbox)     | 4.1.11 | `forks` on Node.js 26.10.0 | 959 of 959 unit tests passed, the same as `happy-dom`                            |
+| Application                                                   | Vitest | Pools compared                | Result with happy-dom-extended                                                   |
+| ------------------------------------------------------------- | ------ | ----------------------------- | -------------------------------------------------------------------------------- |
+| [laststance/corelive](https://github.com/laststance/corelive) | 5.0.0  | `forks`, `threads`            | 879 passed and 20 skipped of 899 tests, the same as `happy-dom`                  |
+| [laststance/corelive](https://github.com/laststance/corelive) | 5.0.0  | `vmThreads`, `vmForks`        | One failure, identical with `happy-dom`: the test deletes `globalThis.navigator` |
+| [laststance/corelive](https://github.com/laststance/corelive) | 5.0.0  | Every pool on Node.js 26.10.0 | The same results as on Node.js 24.19.0; `forks` matched `happy-dom`              |
+| [laststance/gitbox](https://github.com/laststance/gitbox)     | 4.1.11 | `forks`, `threads`            | 959 of 959 unit tests passed; no `vitest/environments` warning                   |
+| [laststance/gitbox](https://github.com/laststance/gitbox)     | 4.1.11 | `vmThreads`, `vmForks`        | Two failures, identical with `happy-dom`: a `dispatchEvent` spy count            |
+| [laststance/gitbox](https://github.com/laststance/gitbox)     | 4.1.11 | `forks` on Node.js 26.10.0    | 959 of 959 unit tests passed, the same as `happy-dom`                            |
 
-Rows without a Node.js version ran on Node.js 24.19.0. The corelive `forks` suite took 11.24 seconds with this environment and 10.61 seconds with `happy-dom`. gitbox replaces `localStorage` with its own mock in a setup file, so its Node.js 26 result does not depend on the Web Storage override. Its one Node `localStorage` warning came from @code-inspector/core loading in Vitest's main process, outside the test environment, with either environment. corelive is not written for `isolate: false` and failed 32 to 162 tests there with both environments. One gitbox `isolate: false` run with this environment had two order-dependent `vi.mock` failures, and three further runs per environment passed. One corelive `--no-isolate` run with this environment hung at full CPU for over ten minutes. Seven further attempts, including an exact replay, did not reproduce it, and no environment-specific cause was found.
+Rows without a Node.js version ran on Node.js 24.19.0. The corelive `forks` suite took 11.24 seconds with this environment and 10.61 seconds with `happy-dom`.
+
+corelive's setup file installs its own Happy DOM storage because Node's Web Storage globals shadowed the Window's. With that workaround removed, corelive still passed 879 tests on Node.js 26.10.0, and on Node.js 24.19.0 with `--experimental-webstorage`. gitbox replaces `localStorage` with its own mock in a setup file, so its Node.js 26 result does not depend on the Web Storage override. Its one Node `localStorage` warning came from @code-inspector/core loading in Vitest's main process, outside the test environment, with either environment.
+
+corelive is not written for `isolate: false` and failed 32 to 162 tests there with both environments. One gitbox `isolate: false` run with this environment had two order-dependent `vi.mock` failures, and three further runs per environment passed. One corelive `--no-isolate` run with this environment hung at full CPU for over ten minutes. Seven further attempts, including an exact replay, did not reproduce it, and no environment-specific cause was found.
+
+## Windows thread-pool crash
+
+A Windows CI run of `pnpm test:package` once exited with code 3221225477 (`0xC0000005`, an access violation) after a Vitest thread pool's tests had passed. Temporary experiments on GitHub's Windows runners then repeated the installed consumer's `threads` and `vmThreads` runs with Vitest 4.0.0 and 5.0.1 on Node.js 24.20.0. A second experiment started 300 worker threads that each loaded skia-canvas, encoded a PNG and exited.
+
+| Condition                                                                         | Runs                   | Crashes       |
+| --------------------------------------------------------------------------------- | ---------------------- | ------------- |
+| Vitest thread pools, skia-canvas loaded only in workers                           | 800                    | 20            |
+| Vitest thread pools, a global setup loads skia-canvas in the main thread          | 160                    | 0             |
+| 300 worker threads on Node.js 24.20.0 and on 26.8.1, skia-canvas only in them     | 5 attempts per version | 2 per version |
+| 300 worker threads on Node.js 22.18.0, skia-canvas only in them                   | 5 attempts             | 0             |
+| 300 worker threads on Node.js 24.20.0, skia-canvas also loaded in the main thread | 5 attempts             | 0             |
+
+Crashes occurred with and without `--experimental-webstorage`, and with skia-canvas's synchronous encoder in place of the asynchronous one. A crash dump showed the processor executing code inside skia.node after Windows had unloaded it. skia-canvas's thread-pool threads were still parked in that module. Node releases a worker thread's handle to a native addon when the thread exits. Windows unloads the addon when no handle remains, and a handle the main thread opened lasts until the process ends. The Vitest package therefore provides `vitest-environment-happy-dom-extended/global-setup`, and the installed consumers use it for `threads` and `vmThreads`.
 
 ## Reproduce the complete gate
 

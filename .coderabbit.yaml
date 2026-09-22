@@ -53,7 +53,8 @@ reviews:
         Preserve working upstream APIs except for documented method repairs. Do not replace
         the fetch, Blob, File, FileReader, and DOM event families wholesale with Node globals.
         Check cross-VM ArrayBuffers and views, byte offsets, constructor identity, inheritance,
-        and ImageData shared storage. Blob.text must preserve UTF-8 semantics and leading-BOM handling.
+        and ImageData shared storage. Blob.text must preserve UTF-8 semantics and leading-BOM
+        handling.
         Shared prototype repairs must survive overlapping environments until the final release.
         Require rollback after partial installation, idempotent disposal, restored descriptors,
         and cleanup of owned native resources. Preserve native channel reference behavior so
@@ -87,7 +88,8 @@ reviews:
     - path: 'fixtures/consumer/**'
       instructions: |
         These fixtures exercise the installed npm tarball outside the workspace. Keep imports
-        on public package entry points and cover both ESM and CommonJS, with real Canvas through the environment.
+        on public package entry points and cover both ESM and CommonJS, with real Canvas through
+        the environment.
         Exercise APIs during setupFiles and setupFilesAfterEnv, with actual native message
         delivery. Use descriptive test calls and literal expectations. Do not replace these
         checks with mocks or assume a successful process exit means the tests executed.
@@ -133,15 +135,19 @@ reviews:
         a dependency's missing export must surface. Published types must import neither entry.
         additionalKeys must overwrite Node globals including structuredClone, MessageChannel,
         BroadcastChannel, localStorage, and sessionStorage without running Node's lazy Web Storage
-        getters, and teardown must restore the exact pre-setup descriptors. Teardown joins with adapter.drain() then window.happyDOM.close(); abort() is
-        not the join. forks (default), threads, vmThreads, and vmForks are all supported pools;
-        setupVM returns the Window itself as the VM context.
+        getters, and teardown must restore the exact pre-setup descriptors. Teardown joins with
+        adapter.drain() then window.happyDOM.close(); abort() is not the join. forks (default),
+        threads, vmThreads, and vmForks are all supported pools; setupVM returns the Window itself
+        as the VM context. The ./global-setup export must load skia-canvas only when Vitest calls
+        setup in its main thread, never at import, so Windows cannot unload skia.node while
+        skia-canvas threads still run; threads and vmThreads runs must use it.
 
     - path: 'fixtures/consumer-vitest/**'
       instructions: |
         These fixtures exercise the installed Vitest npm tarball outside the workspace.
         Keep imports on public package entry points. Exercise Canvas/File at setupFiles
-        module evaluation. Use descriptive test calls and literal expectations.
+        module evaluation. Use descriptive test calls and literal expectations. Thread-pool
+        runs add the package's global setup when HAPPY_DOM_THREAD_POOL is set.
 
     - path: 'fixtures/consumer-vitest-product/**'
       instructions: |

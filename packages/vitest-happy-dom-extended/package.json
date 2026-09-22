@@ -32,6 +32,11 @@
       "import": "./dist/index.mjs",
       "default": "./dist/index.mjs"
     },
+    "./global-setup": {
+      "types": "./dist/global-setup.d.mts",
+      "import": "./dist/global-setup.mjs",
+      "default": "./dist/global-setup.mjs"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

@@ -3,6 +3,7 @@
   "entry": [
     "packages/*/src/index.ts",
     "packages/*/src/worker.ts",
+    "packages/vitest-happy-dom-extended/src/global-setup.ts",
     "packages/compat/src/workers/worker-bootstrap.ts",
     "packages/*/tsdown.config.ts",
     "packages/*/test/**/*.test.ts",
