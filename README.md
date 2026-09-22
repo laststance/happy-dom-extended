@@ -117,6 +117,7 @@ Happy DOM supplies the DOM and browser object families. The public packages add 
 | Blob / File                   | Binary VM inputs, FileReader compatibility, UTF-8 BOM handling and bytes()                                                                                                      |
 | Streams and messaging         | Encoding/compression streams, native structuredClone, MessagePort and environment-isolated BroadcastChannel                                                                     |
 | Events, animation and XHR     | CompositionEvent text, observable animation cancellation rejection and XHR instance constants                                                                                   |
+| Web Storage                   | The Window's localStorage and sessionStorage in Jest and in every Vitest version and pool, also on Node 25+, which defines its own                                              |
 
 Application-specific mocks and fixtures stay in your tests. Real browsers remain necessary for layout, WebGL/WebGPU, browser-specific scheduling and exact browser rendering. The [Canvas compatibility contract](docs/canvas-compatibility.md) records precise supported APIs, limits and comparison evidence.
 

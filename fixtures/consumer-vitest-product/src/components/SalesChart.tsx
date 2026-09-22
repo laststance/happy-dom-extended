@@ -13,7 +13,16 @@ type SalesChartProps = {
  */
 export function SalesChart({ monthlySales, barColor }: SalesChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const isMountedRef = useRef(false)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+
+  // Tracks whether an encoding that finishes later can still hand its URL to the revoke cleanup below.
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -45,7 +54,10 @@ export function SalesChart({ monthlySales, barColor }: SalesChartProps) {
 
   function exportPng() {
     canvasRef.current?.toBlob((png) => {
-      if (png) setDownloadUrl(URL.createObjectURL(png))
+      // After unmount no cleanup would revoke a new URL, so none is created.
+      if (png && isMountedRef.current) {
+        setDownloadUrl(URL.createObjectURL(png))
+      }
     }, 'image/png')
   }
 

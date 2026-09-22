@@ -111,8 +111,10 @@ reviews:
         Jest and Vitest versions, the last Vitest 4 minor, and the development pins. Check runner
         JSON reports for actual passed tests; an exit code of zero alone can hide early termination.
         Vitest runs must prove each pool's process, thread, and VM context, and fail when stderr
-        mentions vitest/environments. Keep build and pack steps ordered, restore any hidden native
-        binary, and clean up only temporary directories created by the current invocation.
+        mentions vitest/environments or Node's localStorage warning. Below Node 25, Vitest runs add
+        --experimental-webstorage so every cell has Node's Web Storage globals. Keep build and pack
+        steps ordered, restore any hidden native binary, and clean up only temporary directories
+        created by the current invocation.
 
     - path: '.github/**'
       instructions: |
@@ -127,10 +129,11 @@ reviews:
         This public Vitest environment supports Vitest 4 and 5 and must reuse runner-independent
         compat code without a Jest dependency. Construct the Window with canvasAdapter already set,
         then installCompatibility. Load populateGlobal from vitest/runtime and fall back to
-        vitest/environments only when runtime is not exported (Vitest 4.0); published types must
-        import neither entry. additionalKeys must overwrite Node globals including structuredClone,
-        MessageChannel, and BroadcastChannel, and teardown must restore the exact pre-setup
-        descriptors. Teardown joins with adapter.drain() then window.happyDOM.close(); abort() is
+        vitest/environments only when Vitest's own manifest does not export runtime (Vitest 4.0);
+        a dependency's missing export must surface. Published types must import neither entry.
+        additionalKeys must overwrite Node globals including structuredClone, MessageChannel,
+        BroadcastChannel, localStorage, and sessionStorage without running Node's lazy Web Storage
+        getters, and teardown must restore the exact pre-setup descriptors. Teardown joins with adapter.drain() then window.happyDOM.close(); abort() is
         not the join. forks (default), threads, vmThreads, and vmForks are all supported pools;
         setupVM returns the Window itself as the VM context.
 

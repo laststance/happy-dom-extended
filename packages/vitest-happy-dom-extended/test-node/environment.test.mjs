@@ -649,3 +649,40 @@ test('Teardown restores an accessor Node global without invoking its lazy getter
   })
   assert.equal(getterReads, readsBeforeTeardown)
 })
+
+test("Tests use the Window's Web Storage over Node's lazy globals, and teardown hands Node's getters back", async () => {
+  // Arrange
+  let getterReads = 0
+  // Node 22/24 --experimental-webstorage throws here without --localstorage-file; Node 25+ warns and returns undefined.
+  const readNodeLocalStorage = () => {
+    getterReads += 1
+    throw new TypeError(
+      "The argument '--localstorage-file' is an invalid localStorage location. Received ''",
+    )
+  }
+  const sandbox = Object.create(null)
+  Object.defineProperty(sandbox, 'localStorage', {
+    configurable: true,
+    enumerable: false,
+    get: readNodeLocalStorage,
+  })
+  const result = await environment.setup(sandbox, {})
+  try {
+    // Act
+    sandbox.localStorage.setItem('theme', 'dark')
+    // Assert
+    assert.equal(sandbox.localStorage.getItem('theme'), 'dark')
+    assert.equal(sandbox.localStorage instanceof sandbox.Storage, true)
+    assert.equal(sandbox.sessionStorage.getItem('theme'), null)
+  } finally {
+    await result.teardown(sandbox)
+  }
+  assert.equal(getterReads, 0)
+  assert.deepEqual(Object.getOwnPropertyDescriptor(sandbox, 'localStorage'), {
+    configurable: true,
+    enumerable: false,
+    get: readNodeLocalStorage,
+    set: undefined,
+  })
+  assert.equal(Object.hasOwn(sandbox, 'sessionStorage'), false)
+})

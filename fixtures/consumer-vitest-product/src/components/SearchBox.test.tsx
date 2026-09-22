@@ -44,3 +44,22 @@ test('recent searches are still listed after the page reloads', async () => {
   expect(within(recentSearches).getByText('canvas')).toBeVisible()
   expect(localStorage.getItem('recent-searches')).toBe('["canvas"]')
 })
+
+test('a corrupted recent-searches entry leaves the search box usable with an empty history', async () => {
+  // Arrange
+  localStorage.setItem('recent-searches', '["canvas"')
+  const user = userEvent.setup()
+  const onSearch = vi.fn()
+  // Act
+  render(<SearchBox onSearch={onSearch} />)
+  await user.type(
+    screen.getByRole('searchbox', { name: 'Search products' }),
+    'chart{Enter}',
+  )
+  // Assert
+  const recentSearches = screen.getByRole('list', { name: 'Recent searches' })
+  expect(within(recentSearches).getAllByRole('listitem')).toHaveLength(1)
+  expect(within(recentSearches).getByText('chart')).toBeVisible()
+  expect(onSearch).toHaveBeenCalledWith('chart')
+  expect(localStorage.getItem('recent-searches')).toBe('["chart"]')
+})

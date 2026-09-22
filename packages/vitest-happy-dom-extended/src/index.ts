@@ -7,7 +7,10 @@ import { GlobalWindow, Window } from 'happy-dom'
 // Type-only: checks conformance against the development Vitest without emitting a runtime import.
 import type { Environment as VitestEnvironment } from 'vitest/runtime'
 
-import { importPopulateGlobal } from './populate-global.ts'
+import {
+  importPopulateGlobal,
+  populateWindowGlobals,
+} from './populate-global.ts'
 import {
   prepareEnvironment,
   type HappyDomExtendedFactoryOptions,
@@ -93,38 +96,6 @@ function restoreOwnProperties(target: object, snapshot: OwnPropertySnapshot) {
   deleteUnknownOwnProperties(target, new Set(snapshot.map(([key]) => key)))
   applyOwnPropertySnapshot(target, snapshot)
 }
-
-// Keys that already exist on Node's globalThis must still receive the Window/compat implementations.
-const additionalKeys = [
-  'Request',
-  'Response',
-  'MessagePort',
-  'fetch',
-  'Headers',
-  'AbortController',
-  'AbortSignal',
-  'URL',
-  'URLSearchParams',
-  'FormData',
-  'structuredClone',
-  'MessageChannel',
-  'BroadcastChannel',
-  'Blob',
-  'File',
-  'FileReader',
-  'ImageData',
-  'ImageBitmap',
-  'createImageBitmap',
-  'OffscreenCanvas',
-  'Worker',
-  'Animation',
-  'XMLHttpRequest',
-  'CompositionEvent',
-  'TextEncoderStream',
-  'TextDecoderStream',
-  'CompressionStream',
-  'DecompressionStream',
-]
 
 /** Drains owned Canvas output, closes the Window to join Workers/media, then restores compatibility patches.
  * @param window - Happy DOM window created for this environment lifetime.
@@ -295,7 +266,7 @@ async function createExtendedWindow(
 export type { HappyDomExtendedFactoryOptions } from './prepare-environment.ts'
 
 /** Builds the Vitest 4/5 {@link HappyDomExtendedEnvironment} that installs the same Happy DOM extensions as the Jest package.
- * setup: populateGlobal import → options → Window → compat → populateGlobal(+additionalKeys). teardown: drain → happyDOM.close → dispose → restore descriptors.
+ * setup: populateGlobal import → options → Window → compat → {@link populateWindowGlobals}. teardown: drain → happyDOM.close → dispose → restore descriptors.
  * @param factoryOptions - Optional caller-owned `canvasAdapter`; omitted adapters are created per setup.
  * @returns An environment whose `setup` (forks/threads) and `setupVM` (vmThreads/vmForks) expose Canvas before tests and setupFiles evaluate.
  * @example export default createHappyDomExtendedEnvironment()
@@ -344,10 +315,7 @@ export function createHappyDomExtendedEnvironment(
       const globalSnapshot = snapshotOwnProperties(global)
       try {
         // populateGlobal can throw after Window+compat exist; join so ports/Workers do not leak.
-        ;({ keys } = populateGlobal(global, created.window, {
-          bindFunctions: true,
-          additionalKeys,
-        }))
+        keys = populateWindowGlobals(global, created.window, populateGlobal)
       } catch (error) {
         await recoverFailedPopulate(global, globalSnapshot, created, error)
       }

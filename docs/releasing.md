@@ -31,7 +31,13 @@ A trusted publisher can only be attached to a package that already exists, so OI
    npm trust github vitest-environment-happy-dom-extended --file release.yml --repo laststance/happy-dom-extended --allow-publish
    ```
 
-3. Confirm that `jest-happy-dom-extended` lists the same publisher with `npm trust list jest-happy-dom-extended`.
+3. Confirm that both packages list the same publisher. Release publishes them in one job, so a missing publisher on either package fails that package's publish:
+
+   ```sh
+   npm trust list vitest-environment-happy-dom-extended
+   npm trust list jest-happy-dom-extended
+   ```
+
 4. Merge the Version Packages PR. Release publishes 0.1.0 with provenance and moves `latest` to it.
 
 ## Prepare a version

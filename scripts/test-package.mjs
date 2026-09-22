@@ -58,6 +58,14 @@ const SKIA_GUIDANCE_LINES = [
 ]
 // Upper bound for a piped Vitest stderr stream; verbose reporters stay far below it.
 const CAPTURED_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
+// Node 25+ defines lazy localStorage/sessionStorage globals by default; this flag gives Node 22/24 the same globals.
+const NODE_WEB_STORAGE_FLAG = '--experimental-webstorage'
+const NODE_DEFAULT_WEB_STORAGE_MAJOR = 25
+const nodeMajor = Number(process.versions.node.split('.')[0])
+// Node 25+ prints this only when its own localStorage getter runs; Node 22/24 throw there instead, which fails the tests.
+// Their flagged "Web Storage is an experimental feature" warning is not checked: reading the `Storage` descriptor, as populateGlobal does, prints it.
+const NODE_LOCAL_STORAGE_WARNING =
+  'localStorage is not available because --localstorage-file was not provided'
 // Each supported Vitest pool with the workers it must use and the execution context its setup files must observe.
 const vitestModes = [
   {
@@ -383,8 +391,21 @@ function installConsumer(consumer) {
   }
 }
 
+/** Adds Node's Web Storage flag below Node 25 so every CI cell has the lazy globals the environment must replace.
+ * {@link runVitest} calls this for each Vitest process; existing NODE_OPTIONS are kept.
+ * @param nodeOptions - The inherited NODE_OPTIONS value, if any.
+ * @returns
+ * - Node 22/24: the inherited options followed by `--experimental-webstorage`
+ * - Node 25+: the inherited options unchanged, possibly undefined
+ * @example withNodeWebStorage(undefined) // => '--experimental-webstorage' on Node 24, undefined on Node 26
+ */
+function withNodeWebStorage(nodeOptions) {
+  if (nodeMajor >= NODE_DEFAULT_WEB_STORAGE_MAJOR) return nodeOptions
+  return [nodeOptions, NODE_WEB_STORAGE_FLAG].filter(Boolean).join(' ')
+}
+
 /** Runs installed Vitest through `process.execPath` so Windows does not treat a drive-letter shim as an ESM URL.
- * Clears Vite's default cache, points `VITE_CACHE_DIR` at a per-run directory, and pipes stderr for warning checks.
+ * Clears Vite's default cache, points `VITE_CACHE_DIR` at a per-run directory, enables Node Web Storage, and pipes stderr for warning checks.
  * @param consumer - Isolated consumer directory with Vitest installed.
  * @param argumentsList - Vitest CLI arguments.
  * @param environment - Child environment, including the worker record directory when the fixture writes records.
@@ -397,28 +418,36 @@ function runVitest(consumer, argumentsList, environment, cacheLabel) {
     recursive: true,
     force: true,
   })
+  const childEnvironment = {
+    ...environment,
+    VITE_CACHE_DIR: path.join(consumer, `.vite-cache-${cacheLabel}`),
+  }
+  const nodeOptions = withNodeWebStorage(environment.NODE_OPTIONS)
+  // An undefined value must stay absent rather than reach the child as text.
+  if (nodeOptions !== undefined) childEnvironment.NODE_OPTIONS = nodeOptions
   const result = spawnChecked(
     process.execPath,
     [path.join(consumer, 'node_modules/vitest/vitest.mjs'), ...argumentsList],
     consumer,
-    {
-      ...environment,
-      VITE_CACHE_DIR: path.join(consumer, `.vite-cache-${cacheLabel}`),
-    },
+    childEnvironment,
     ['inherit', 'inherit', 'pipe'],
   )
   return { pid: result.pid, stderr: result.stderr }
 }
 
-/** Fails a Vitest run whose stderr mentions the deprecated entry, which Vitest 4.1 prints once per imported worker.
+/** Fails a Vitest run whose stderr shows the deprecated entry or Node's own localStorage getter running.
+ * Vitest 4.1 warns once per worker that imports the legacy entry; Node 25+ warns when setup or a test reaches its localStorage instead of the Window's.
  * @param stderr - Captured Vitest stderr.
  * @param label - Failure prefix naming the Vitest version and pool.
- * @returns Nothing; throws when the legacy entry appears.
- * @example assertNoLegacyEntryWarning(stderr, 'Vitest 4.1.11 (threads)')
+ * @returns Nothing; throws on the first unexpected warning.
+ * @example assertNoUnexpectedWarnings(stderr, 'Vitest 4.1.11 (threads)')
  */
-function assertNoLegacyEntryWarning(stderr, label) {
+function assertNoUnexpectedWarnings(stderr, label) {
   if (stderr.includes(LEGACY_VITEST_ENTRY)) {
     throw new Error(`${label} printed a ${LEGACY_VITEST_ENTRY} warning.`)
+  }
+  if (stderr.includes(NODE_LOCAL_STORAGE_WARNING)) {
+    throw new Error(`${label} ran Node's own localStorage getter.`)
   }
 }
 
@@ -644,11 +673,11 @@ try {
         vitestMode.mode,
       )
       assertVitestWorkerRecords(workerRecords, runnerPid, vitestMode)
-      assertNoLegacyEntryWarning(stderr, label)
+      assertNoUnexpectedWarnings(stderr, label)
       assertConsumerReport(
         readJson(testReport),
         new Map([
-          ['package.test.mjs', 5],
+          ['package.test.mjs', 6],
           ['canvas.test.mjs', 3],
           ['offscreen.test.mjs', 2],
         ]),
@@ -678,13 +707,13 @@ try {
         process.env,
         pool,
       )
-      assertNoLegacyEntryWarning(stderr, label)
+      assertNoUnexpectedWarnings(stderr, label)
       assertConsumerReport(
         readJson(testReport),
         new Map([
           ['SalesChart.test.tsx', 2],
           ['AvatarUploader.test.tsx', 1],
-          ['SearchBox.test.tsx', 2],
+          ['SearchBox.test.tsx', 3],
           ['AccountMenu.test.tsx', 2],
         ]),
         label,

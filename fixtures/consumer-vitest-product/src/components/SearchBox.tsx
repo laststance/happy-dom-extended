@@ -8,9 +8,14 @@ const MAX_RECENT_SEARCHES = 3
  * @example readRecentSearches() // => ['canvas']
  */
 function readRecentSearches(): string[] {
-  const saved: unknown = JSON.parse(
-    localStorage.getItem(RECENT_SEARCHES_KEY) ?? '[]',
-  )
+  let saved: unknown
+  try {
+    saved = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) ?? '[]')
+  } catch (error) {
+    // Text that is not JSON, such as a hand-edited entry, must not break the page.
+    if (error instanceof SyntaxError) return []
+    throw error
+  }
   return Array.isArray(saved)
     ? saved.filter((entry) => typeof entry === 'string')
     : []
