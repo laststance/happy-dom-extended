@@ -4,21 +4,34 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-const fencePattern = /^ {0,3}(`{3,}|~{3,})/
+const fenceOpenerPattern = /^ {0,3}(`{3,}|~{3,})/
+const fenceCloserPattern = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
+const commentPattern = /<!--[\s\S]*?-->/g
 const spanPattern = /(`+)[^\n]*?\1/g
 const headingPattern = /^#{1,6}[ \t]+(.+)$/gm
+const trailingHashPattern = /[ \t]+#+[ \t]*$/
 const definitionPattern =
-  /^ {0,3}\[[^\]]+\]:[ \t]*(\S+)(?:[ \t]+["'(][^\n]*)?[ \t]*$/gm
+  /^ {0,3}\[[^\]]+\]:[ \t]*(?:\r?\n[ \t]*)?(<[^>\n]*>|\S+)(?:[ \t]+["'(][^\n]*)?[ \t]*$/gm
 const inlineOpenerPattern = /\[[^\]]*\]\(/g
+const angleTargetPattern = /^<([^>]*)>/
 const externalPattern = /^(?:[a-z][a-z\d+.-]*:|\/\/)/i
 
 /**
- * Reads the fence marker a line opens or closes with, so its family and length stay known.
+ * Reads the marker a line opens a fence with, whose info string may follow it.
  *
- * @example fenceMarkerOf('````sh') === '````'
+ * @example fenceOpenerOf('````sh') === '````'
  */
-function fenceMarkerOf(line) {
-  return fencePattern.exec(line)?.[1]
+function fenceOpenerOf(line) {
+  return fenceOpenerPattern.exec(line)?.[1]
+}
+
+/**
+ * Reads the marker a line could close a fence with, which only whitespace may follow.
+ *
+ * @example fenceCloserOf('```javascript') === undefined
+ */
+function fenceCloserOf(line) {
+  return fenceCloserPattern.exec(line)?.[1]
 }
 
 /**
@@ -40,20 +53,23 @@ function closesFence(marker, fence) {
  * @example stepFence('```sh', '') → { text: '', fence: '```' }
  */
 function stepFence(line, fence) {
-  const marker = fenceMarkerOf(line)
   // Inside a fence every line is content, so only a closing marker can end it.
   if (fence !== '')
-    return { text: '', fence: closesFence(marker, fence) ? '' : fence }
-  if (marker !== undefined) return { text: '', fence: marker }
-  return { text: line.replaceAll(spanPattern, ''), fence: '' }
+    return {
+      text: '',
+      fence: closesFence(fenceCloserOf(line), fence) ? '' : fence,
+    }
+  const opener = fenceOpenerOf(line)
+  if (opener !== undefined) return { text: '', fence: opener }
+  return { text: line, fence: '' }
 }
 
 /**
- * Blanks fenced blocks and inline spans so example commands cannot look like links or headings.
+ * Blanks fenced blocks so their examples cannot look like links, definitions or headings.
  *
- * @example stripCode('````\n```\n````\n# T').split('\n').at(-1) === '# T'
+ * @example stripFences('````\n```\n````\n# T').split('\n').at(-1) === '# T'
  */
-function stripCode(markdown) {
+function stripFences(markdown) {
   let fence = ''
   const kept = []
   for (const line of markdown.split('\n')) {
@@ -65,13 +81,42 @@ function stripCode(markdown) {
 }
 
 /**
- * Converts heading text to GitHub's fragment identifier, so anchors compare without rendering.
- * Headings containing raw HTML are rejected by {@link htmlHeadingsIn} instead of slugged here.
+ * Blanks HTML comments while keeping their line breaks, so the lines around them stay apart.
  *
- * @example headingSlug('Configure Jest or Vitest') === 'configure-jest-or-vitest'
+ * @example stripComments('a <!-- [x](y) --> b') === 'a  b'
+ */
+function stripComments(markdown) {
+  let previous = ''
+  let text = markdown
+  // Removing one comment can reveal another, so repeat until the document stops changing.
+  while (text !== previous) {
+    previous = text
+    text = text.replaceAll(commentPattern, (comment) =>
+      comment.replaceAll(/[^\n]/g, ''),
+    )
+  }
+  return text
+}
+
+/** Returns a document's prose: everything outside its fenced blocks and HTML comments. */
+function proseOf(markdown) {
+  return stripComments(stripFences(markdown))
+}
+
+/** Blanks inline spans, pairing a backtick run with the next run of the same length. */
+function stripSpans(prose) {
+  return prose.replaceAll(spanPattern, '')
+}
+
+/**
+ * Converts heading text to GitHub's fragment identifier, so anchors compare without rendering.
+ * Inline code keeps its text, because GitHub slugs a heading's rendered characters.
+ *
+ * @example headingSlug('Run `pnpm check` ##') === 'run-pnpm-check'
  */
 function headingSlug(heading) {
   return heading
+    .replace(trailingHashPattern, '')
     .replaceAll(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replaceAll(/[*_~]/g, '')
     .trim()
@@ -85,8 +130,8 @@ function headingSlug(heading) {
  *
  * @example htmlHeadingsIn('# A <b>B</b>') → ['A <b>B</b>']
  */
-function htmlHeadingsIn(body) {
-  return [...body.matchAll(headingPattern)]
+function htmlHeadingsIn(prose) {
+  return [...prose.matchAll(headingPattern)]
     .map(([, heading]) => heading)
     .filter((heading) => heading.includes('<'))
 }
@@ -96,10 +141,10 @@ function htmlHeadingsIn(body) {
  *
  * @example anchorsOf('# A\n# A') → Set { 'a', 'a-1' }
  */
-function anchorsOf(body) {
+function anchorsOf(prose) {
   const anchors = new Set()
   const seen = new Map()
-  for (const [, heading] of body.matchAll(headingPattern)) {
+  for (const [, heading] of prose.matchAll(headingPattern)) {
     const slug = headingSlug(heading)
     const used = seen.get(slug) ?? 0
     seen.set(slug, used + 1)
@@ -114,14 +159,14 @@ const anchorCache = new Map()
 /** Reads a target file's anchors once per run, because several documents link into the same guide. */
 function cachedAnchorsOf(path) {
   if (!anchorCache.has(path))
-    anchorCache.set(path, anchorsOf(stripCode(readFileSync(path, 'utf8'))))
+    anchorCache.set(path, anchorsOf(proseOf(readFileSync(path, 'utf8'))))
   return anchorCache.get(path)
 }
 
 /**
- * Yields the destination of every reference definition, which stands alone or before a quoted title.
+ * Yields the destination of every reference definition, which may sit on the following line.
  *
- * @example [...definitionDestinations('[a]: b.md')] → ['b.md']
+ * @example [...definitionDestinations('[a]:\n  b.md')] → ['b.md']
  */
 function* definitionDestinations(body) {
   for (const [, destination] of body.matchAll(definitionPattern))
@@ -165,10 +210,13 @@ function* destinationsIn(body) {
 /**
  * Splits a destination into its target and fragment, dropping any title and angle brackets.
  *
- * @example targetOf('<a.md#b> "t"') → { target: 'a.md#b', path: 'a.md', anchor: 'b' }
+ * @example targetOf('<a b.md#c> "t"') → { target: 'a b.md#c', path: 'a b.md', anchor: 'c' }
  */
 function targetOf(destination) {
-  const target = destination.trim().split(/\s+/)[0].replace(/^<|>$/g, '')
+  const trimmed = destination.trim()
+  // An angle-bracket destination may hold spaces, so read it before splitting off a title.
+  const target =
+    angleTargetPattern.exec(trimmed)?.[1] ?? trimmed.split(/\s+/)[0]
   const [path, ...rest] = target.split('#')
   return { target, path, anchor: rest.join('#') }
 }
@@ -203,7 +251,7 @@ function fileProblem(target, path, anchor, absolute) {
 /**
  * Tells whether a target leaves the repository, so this check cannot resolve it.
  *
- * @example isExternal('mailto:a@example.com') === true
+ * @example isExternal('mailto:someone@example.com') === true
  */
 function isExternal(target) {
   return target === '' || externalPattern.test(target)
@@ -230,13 +278,13 @@ function problemWith(destination, absolute, ownAnchors) {
  */
 function problemsIn(file) {
   const absolute = resolve(repositoryRoot, file)
-  const body = stripCode(readFileSync(absolute, 'utf8'))
-  const ownAnchors = anchorsOf(body)
+  const prose = proseOf(readFileSync(absolute, 'utf8'))
+  const ownAnchors = anchorsOf(prose)
   // A heading with HTML would be slugged wrongly, so name it rather than guess its anchor.
-  const found = htmlHeadingsIn(body).map(
+  const found = htmlHeadingsIn(prose).map(
     (heading) => `heading "${heading}" contains HTML this check cannot slug`,
   )
-  for (const destination of destinationsIn(body)) {
+  for (const destination of destinationsIn(stripSpans(prose))) {
     const problem = problemWith(destination, absolute, ownAnchors)
     if (problem !== '') found.push(problem)
   }
