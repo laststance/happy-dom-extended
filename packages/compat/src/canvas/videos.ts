@@ -9,6 +9,7 @@ import conversions from 'webidl-conversions'
 import type { DisposeCompatibility } from '../types.ts'
 import { registerWindowClose } from '../utils/register-window-close.ts'
 import { replaceProperty } from '../utils/replace-property.ts'
+import { runFinalizer } from '../utils/run-finalizer.ts'
 
 import type { ExtendedCanvasAdapter } from './adapter.ts'
 import {
@@ -38,10 +39,8 @@ const environments = new WeakMap<
     sources: Set<WeakRef<CanvasVideoSource>>
   }
 >()
-const collectedSources = new FinalizationRegistry<CanvasVideoSource>(
-  (state) => {
-    void state.dispose()
-  },
+const collectedSources = new FinalizationRegistry<CanvasVideoSource>((state) =>
+  runFinalizer(async () => state.dispose()),
 )
 
 /** Owns real video source bytes, decoded frames and one serial decoder for an element's Canvas input lifecycle.

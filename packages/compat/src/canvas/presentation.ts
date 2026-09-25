@@ -9,6 +9,7 @@ import type { Window, BrowserWindow } from 'happy-dom'
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
 import { replaceProperty } from '../utils/replace-property.ts'
+import { runFinalizer } from '../utils/run-finalizer.ts'
 
 import type { ExtendedCanvasAdapter } from './adapter.ts'
 import { ImageData } from './skia.ts'
@@ -26,7 +27,7 @@ const presentationClosers = new WeakMap<
   { adapter: ExtendedCanvasAdapter; closers: Set<DisposeCompatibility> }
 >()
 const collectedPlaceholders = new FinalizationRegistry<MessagePort>((port) =>
-  port.close(),
+  runFinalizer(() => port.close()),
 )
 
 /** Registers a native presentation endpoint with its Window and drops it promptly when a transfer closes the old endpoint.

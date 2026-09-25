@@ -8,6 +8,7 @@ import conversions from 'webidl-conversions'
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
 import { replaceProperty } from '../utils/replace-property.ts'
+import { runFinalizer } from '../utils/run-finalizer.ts'
 
 import type { ExtendedCanvasAdapter } from './adapter.ts'
 import {
@@ -38,7 +39,7 @@ const environments = new WeakMap<
   { adapter: ExtendedCanvasAdapter; sources: Set<WeakRef<ImageSourceState>> }
 >()
 const collectedSources = new FinalizationRegistry<() => void>((release) =>
-  release(),
+  runFinalizer(release),
 )
 
 /** Builds finalizer cleanup outside the loading closure so it cannot retain the source element it is meant to collect.
