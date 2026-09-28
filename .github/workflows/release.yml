@@ -14,7 +14,7 @@ jobs:
       contains(github.event.head_commit.message, 'release jest@') ||
       contains(github.event.head_commit.message, 'release vitest@')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     permissions:
       contents: write # push the release tag and create the GitHub Release
       id-token: write # npm trusted publishing (OIDC); no NPM_TOKEN
@@ -55,9 +55,9 @@ jobs:
             fi
             # -VV prints the output of release-it's own commands, including pnpm publish; a single -V shows hook output only.
             pnpm --dir "$directory" exec release-it --no-increment --ci -VV
-            # The registry can serve a new version's attestation a few seconds after publication.
+            # The registry can take several minutes to serve a new version: jest 0.2.1 appeared 5 minutes after its upload.
             predicate=''
-            for _ in 1 2 3 4 5 6; do
+            for _ in $(seq 1 90); do
               predicate="$(npm view "${name}@${version}" dist.attestations.provenance.predicateType --registry=https://registry.npmjs.org 2>/dev/null || true)"
               if [ "$predicate" = 'https://slsa.dev/provenance/v1' ]; then
                 break
@@ -65,7 +65,7 @@ jobs:
               sleep 10
             done
             if [ "$predicate" != 'https://slsa.dev/provenance/v1' ]; then
-              echo "::error::${name}@${version} was published without an npm provenance attestation."
+              echo "::error::The registry shows no npm provenance attestation for ${name}@${version} 15 minutes after publication."
               exit 1
             fi
             echo "${name}@${version} has an SLSA provenance attestation."

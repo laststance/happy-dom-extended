@@ -22,7 +22,7 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
    ```
 
 4. Merge the pull request after its checks pass. The repository puts the PR title in the merge commit's message, so the `main` push that the merge creates is the release commit.
-5. The Release job runs for that push. For each package the message names, it checks that the named version matches `package.json`, builds, and runs `release-it --no-increment` in the package directory. release-it publishes with `pnpm publish --provenance`, tags the commit as `jest@<version>` or `vitest@<version>`, pushes the tag, and creates a GitHub Release with generated notes. The job then fails if the registry has no SLSA provenance attestation for the new version.
+5. The Release job runs for that push. For each package the message names, it checks that the named version matches `package.json`, builds, and runs `release-it --no-increment` in the package directory. release-it publishes with `pnpm publish --provenance`, tags the commit as `jest@<version>` or `vitest@<version>`, pushes the tag, and creates a GitHub Release with generated notes. The job then waits for the registry to serve the new version and fails if it has no SLSA provenance attestation.
 6. Confirm the published versions:
 
    ```sh
@@ -33,7 +33,7 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
 
    The last command prints `https://slsa.dev/provenance/v1` for a version that Release published.
 
-Each package has its own release-it configuration in `packages/<package>/.release-it.json`. It sets the tag name, publishes with pnpm, and turns off release-it's `npm whoami` checks, which an OIDC-authenticated job cannot pass. A PR that bumps a version but whose title lacks the matching `release <short>@<version>` publishes nothing; merge a follow-up PR with the right title, because a re-run reads the same commit message. When the job fails before `pnpm publish` uploads anything, fix the cause and re-run the failed job. If release-it already pushed the tag and created the GitHub Release but the registry has no such version, delete both first (`gh release delete jest@<version> --yes --cleanup-tag`), because release-it cannot create a tag that already exists.
+Each package has its own release-it configuration in `packages/<package>/.release-it.json`. It sets the tag name, publishes with pnpm, and turns off release-it's `npm whoami` checks, which an OIDC-authenticated job cannot pass. A PR that bumps a version but whose title lacks the matching `release <short>@<version>` publishes nothing; merge a follow-up PR with the right title, because a re-run reads the same commit message. When the job fails before `pnpm publish` uploads anything, fix the cause and re-run the failed job. npm can take several minutes to show a version after accepting its upload, so the job polls for up to 15 minutes, and a version missing from `npm view` right after the job may still appear. Once the registry has the version, npm rejects any further upload of it with `You cannot publish over the previously published versions`, so do not re-run a job whose `pnpm publish` succeeded.
 
 ## Trusted publishers
 
