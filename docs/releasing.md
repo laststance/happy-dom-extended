@@ -33,7 +33,7 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
 
    The last command prints `https://slsa.dev/provenance/v1` for a version that Release published.
 
-Each package has its own release-it configuration in `packages/<package>/.release-it.json`. It sets the tag name, publishes with pnpm, and turns off release-it's `npm whoami` checks, which an OIDC-authenticated job cannot pass. A PR that bumps a version but whose title lacks the matching `release <short>@<version>` publishes nothing; merge a follow-up PR with the right title, because a re-run reads the same commit message. When the job fails before `pnpm publish` uploads anything, fix the cause and re-run the failed job.
+Each package has its own release-it configuration in `packages/<package>/.release-it.json`. It sets the tag name, publishes with pnpm, and turns off release-it's `npm whoami` checks, which an OIDC-authenticated job cannot pass. A PR that bumps a version but whose title lacks the matching `release <short>@<version>` publishes nothing; merge a follow-up PR with the right title, because a re-run reads the same commit message. When the job fails before `pnpm publish` uploads anything, fix the cause and re-run the failed job. If release-it already pushed the tag and created the GitHub Release but the registry has no such version, delete both first (`gh release delete jest@<version> --yes --cleanup-tag`), because release-it cannot create a tag that already exists.
 
 ## Trusted publishers
 
