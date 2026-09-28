@@ -53,7 +53,8 @@ jobs:
               echo "::error::The release commit names ${short}@${requested}, but ${directory}/package.json is ${version}."
               exit 1
             fi
-            pnpm --dir "$directory" exec release-it --no-increment --ci --verbose
+            # -VV prints the output of release-it's own commands, including pnpm publish; a single -V shows hook output only.
+            pnpm --dir "$directory" exec release-it --no-increment --ci -VV
             # The registry can serve a new version's attestation a few seconds after publication.
             predicate=''
             for _ in 1 2 3 4 5 6; do
