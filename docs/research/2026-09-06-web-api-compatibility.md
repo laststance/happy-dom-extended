@@ -72,7 +72,7 @@ tsdown supports bundled private workspace sources and separate declaration files
 
 1. Run `pnpm check` for source checks, actual Jest integration, export/type validation, and a clean tarball consumer. [scripts](../../package.json).
 2. Re-run `pnpm probe:upstream` when updating Happy DOM, then remove repairs whose upstream behavior and regression tests agree. [probe source](../../packages/compat/test/upstream-probe.ts).
-3. Use Changesets for release preparation. GitHub hosting, npm ownership, and a registry publication are separate delivery steps, not evidence implied by the local setup. [release instructions](../../.changeset/README.md).
+3. Use Changesets for release preparation. GitHub hosting, npm ownership, and a registry publication are separate delivery steps, not evidence implied by the local setup. On 2026-09-28 release-it replaced Changesets; see the current [release instructions](../releasing.md).
 4. In the user-requested later Vitest phase, validate its current custom-environment lifecycle and pool semantics before implementing the reserved adapter. [reserved workspace](../../packages/vitest-happy-dom-extended/README.md).
 
 ## Query Log

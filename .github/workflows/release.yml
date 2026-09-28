@@ -1,8 +1,6 @@
 name: Release
 on:
-  workflow_run:
-    workflows: [Test]
-    types: [completed]
+  push:
     branches: [main]
 permissions:
   contents: read
@@ -11,64 +9,63 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
+    # Only a release commit publishes: a merged PR titled e.g. "release vitest@0.1.0" or "release jest@0.2.1 vitest@0.1.0".
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+      contains(github.event.head_commit.message, 'release jest@') ||
+      contains(github.event.head_commit.message, 'release vitest@')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: write
-      id-token: write
-      pull-requests: write
+      contents: write # push the release tag and create the GitHub Release
+      id-token: write # npm trusted publishing (OIDC); no NPM_TOKEN
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-          persist-credentials: false
-      - name: Confirm the successful Test SHA is still origin/main
-        run: |
-          git fetch --no-tags origin main
-          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+          # release-it pushes the release tag with these credentials.
+          persist-credentials: true
       - uses: ./.github/actions/prepare
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24.20.0'
           registry-url: https://registry.npmjs.org
       - run: pnpm build
-      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
-        id: changesets
-        with:
-          version-script: pnpm version:packages
-          publish-script: pnpm exec changeset publish
-          commit-message: 'chore: version packages'
-          pr-title: 'chore: version packages'
-          create-github-releases: false
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: git config user.name "${{ github.actor }}"
+      - run: git config user.email "${{ github.actor }}@users.noreply.github.com"
+      # ⚠️ Do NOT set NODE_AUTH_TOKEN or NPM_TOKEN: OIDC trusted publishing authenticates and adds provenance.
+      - name: Publish released packages
         env:
-          # OIDC trusted publishing adds provenance itself; pnpm 11+ ignores NPM_CONFIG_PROVENANCE.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify npm provenance
-        if: steps.changesets.outputs.published == 'true'
-        env:
-          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.published-packages }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
-          # The registry can serve a new version's attestation a few seconds after publication.
-          specs="$(node -e 'for (const pkg of JSON.parse(process.env.PUBLISHED_PACKAGES)) console.log(pkg.name + "@" + pkg.version)')"
-          for spec in $specs; do
+          for short in jest vitest; do
+            requested="$(grep -Eo "release ${short}@[0-9]+\.[0-9]+\.[0-9]+" <<<"$COMMIT_MESSAGE" | head -n 1 | sed "s/^release ${short}@//" || true)"
+            # A package the release commit does not name is left alone.
+            if [ -z "$requested" ]; then
+              continue
+            fi
+            directory="packages/${short}-happy-dom-extended"
+            name="$(node -p "require('./${directory}/package.json').name")"
+            version="$(node -p "require('./${directory}/package.json').version")"
+            # The commit message must name the version that package.json already carries.
+            if [ "$requested" != "$version" ]; then
+              echo "::error::The release commit names ${short}@${requested}, but ${directory}/package.json is ${version}."
+              exit 1
+            fi
+            pnpm --dir "$directory" exec release-it --no-increment --ci --verbose
+            # The registry can serve a new version's attestation a few seconds after publication.
             predicate=''
             for _ in 1 2 3 4 5 6; do
-              predicate="$(npm view "$spec" dist.attestations.provenance.predicateType --registry=https://registry.npmjs.org 2>/dev/null || true)"
+              predicate="$(npm view "${name}@${version}" dist.attestations.provenance.predicateType --registry=https://registry.npmjs.org 2>/dev/null || true)"
               if [ "$predicate" = 'https://slsa.dev/provenance/v1' ]; then
                 break
               fi
               sleep 10
             done
             if [ "$predicate" != 'https://slsa.dev/provenance/v1' ]; then
-              echo "::error::$spec was published without an npm provenance attestation."
+              echo "::error::${name}@${version} was published without an npm provenance attestation."
               exit 1
             fi
-            echo "$spec has an SLSA provenance attestation."
+            echo "${name}@${version} has an SLSA provenance attestation."
           done

@@ -1,16 +1,29 @@
 # npm release
 
-The publishable packages are `jest-happy-dom-extended` and `vitest-environment-happy-dom-extended`. The repository root and compatibility workspace are private. GitHub Actions validate every change. After the Test workflow succeeds on a `main` push, the Release workflow either opens a Version Packages PR or publishes pending versions to npm with OIDC trusted publishing.
+The publishable packages are `jest-happy-dom-extended` and `vitest-environment-happy-dom-extended`. The repository root and compatibility workspace are private. Releases follow the [@laststance/npm-publish-tool](https://github.com/laststance/npm-publish-tool) setup used by other Laststance packages: a release commit on `main` names the package versions to publish, and the [Release workflow](../.github/workflows/release.yml) publishes them with [release-it](https://github.com/release-it/release-it) over OIDC trusted publishing. Nothing else publishes; ordinary merges to `main` skip the Release job.
 
-## Release with CI
+## Release a version
 
-1. In the feature PR, run `pnpm changeset`, select each public package the change affects and describe the observable behavior. Commit the generated `.changeset/*.md` file with the change. A change to the private compatibility workspace needs a changeset for every public package that bundles it.
-2. Merge the feature PR. Merging does not publish. After Test succeeds on that `main` push, Release runs `changeset version` and opens or updates the Version Packages PR (`chore: version packages`, branch `changeset-release/main`). That PR bumps each package version, writes its CHANGELOG entry and deletes the consumed changeset files.
-3. On the Version Packages PR, select **Approve workflows to run**. GitHub holds workflows on this bot-authored PR at `action_required`, and the required checks cannot pass until a maintainer approves them. Every later `main` push rebuilds the branch and needs a new approval.
-4. Review the versions and CHANGELOG entries, and [inspect the tarballs](#inspect-the-tarballs) when a release changes packaging. Merge the PR after its checks pass.
-5. Wait for Test on that merge. Release then runs `changeset publish`, which detects the pnpm workspace and publishes each version that is not yet on the registry with `pnpm publish` over OIDC trusted publishing. npm records a provenance attestation for each version and moves `latest` to it.
-6. Release fails if a published version has no SLSA provenance attestation on the registry.
-7. Confirm the published versions:
+1. Create a branch from an up-to-date `main` and bump each package you release. Use `patch`, `minor` or `major`:
+
+   ```sh
+   git switch main && git pull --ff-only
+   git switch -c release/vitest-0.1.0
+   pnpm --dir packages/vitest-happy-dom-extended exec npm version minor --no-git-tag-version
+   pnpm --dir packages/jest-happy-dom-extended exec npm version patch --no-git-tag-version
+   ```
+
+2. Add an entry for the new version at the top of the package's `CHANGELOG.md`, describing the observable changes since the previous release.
+3. Commit and open a pull request whose **title** names every bumped package as `release <short>@<version>`, where `<short>` is `jest` or `vitest`:
+
+   ```sh
+   git commit -am "release jest@0.2.1 vitest@0.1.0"
+   gh pr create --title "release jest@0.2.1 vitest@0.1.0" --fill
+   ```
+
+4. Merge the pull request after its checks pass. The repository puts the PR title in the merge commit's message, so the `main` push that the merge creates is the release commit.
+5. The Release job runs for that push. For each package the message names, it checks that the named version matches `package.json`, builds, and runs `release-it --no-increment` in the package directory. release-it publishes with `pnpm publish --provenance`, tags the commit as `jest@<version>` or `vitest@<version>`, pushes the tag, and creates a GitHub Release with generated notes. The job then fails if the registry has no SLSA provenance attestation for the new version.
+6. Confirm the published versions:
 
    ```sh
    npm view jest-happy-dom-extended dist-tags --registry=https://registry.npmjs.org
@@ -20,7 +33,7 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
 
    The last command prints `https://slsa.dev/provenance/v1` for a version that Release published.
 
-Release runs only after a successful Test run for a `main` push, and only when that run's commit is still the tip of `main`; a newer push releases through its own Test run instead. When Release fails before a version is uploaded, for example on a trusted publisher mismatch, fix the cause and re-run the failed Release run. `changeset publish` skips versions that the registry already holds, so a re-run publishes only what is missing.
+Each package has its own release-it configuration in `packages/<package>/.release-it.json`. It sets the tag name, publishes with pnpm, and turns off release-it's `npm whoami` checks, which an OIDC-authenticated job cannot pass. A PR that bumps a version but whose title lacks the matching `release <short>@<version>` publishes nothing; merge a follow-up PR with the right title, because a re-run reads the same commit message. When the job fails before `pnpm publish` uploads anything, fix the cause and re-run the failed job.
 
 ## Trusted publishers
 
@@ -37,17 +50,17 @@ Each public package on npmjs.com trusts this repository's Release workflow. The 
 
 The Release job declares no GitHub Actions environment, so a configuration naming one does not match its ID token. npm fixes these fields when the configuration is created; changing one means deleting the configuration and creating it again. `npm trust list <package>` prints the current configuration and asks for the account's second factor in the browser.
 
-Since 3 September 2026 every new configuration may stage a version, while direct publishing is opt-in, so the configuration needs direct publishing enabled on npmjs.com, or `--allow-publish` with `npm trust github`. Without it a configuration can only stage a version for manual approval, and this repository's Release job publishes directly. npm recommends the opposite, allowing only staged publishing so that a maintainer approves each version with a second factor; [TODOS.md](../TODOS.md) tracks that trade-off. Do not set `NODE_AUTH_TOKEN`, `NPM_TOKEN` or `NPM_CONFIG_PROVENANCE` on the Release job. pnpm 11 and later ignore `NPM_CONFIG_PROVENANCE`, and trusted publishing adds provenance for this public repository by itself.
+Since 3 September 2026 every new configuration may stage a version, while direct publishing is opt-in, so the configuration needs direct publishing enabled on npmjs.com, or `--allow-publish` with `npm trust github`. Without it a configuration can only stage a version for manual approval, and this repository's Release job publishes directly. npm recommends the opposite, allowing only staged publishing so that a maintainer approves each version with a second factor; [TODOS.md](../TODOS.md) tracks that trade-off. Do not set `NODE_AUTH_TOKEN`, `NPM_TOKEN` or `NPM_CONFIG_PROVENANCE` on the Release job.
 
-A trusted publisher can only be attached to a package that already exists, so OIDC cannot create a new package. A new public package needs one manual publish of a deprecated `0.0.0` placeholder from a clean `main` checkout, and a trusted publisher added afterwards, before its first Version Packages PR is merged. Without that, Release fails the new package's publish while the other packages still publish.
+A trusted publisher can only be attached to a package that already exists, so OIDC cannot create a new package. A new public package needs one manual `npm publish` of a deprecated `0.0.0` placeholder from a clean `main` checkout, and a trusted publisher added afterwards, before its first release commit.
 
 ## Provenance failures
 
-Release checks the registry for an attestation (step 6 above) because pnpm treats the two provenance failures differently, and only one of them leaves the registry untouched. A failure to sign the statement ends the run with `ERR_PNPM_PROVENANCE_SIGN` before the tarball is uploaded, so no version is created and the same merge can be released again. A failure to read the package's visibility only logs `Skipped setting provenance`, and pnpm publishes the version anyway, without an attestation; the check then fails on a version that already exists, which re-running cannot repair. Recovering from that means deprecating the unattested version and releasing the next patch, because npm does not accept a replacement for a version it already holds. Both orderings were measured against a local registry with pnpm 12.3.4, which resolves the publishing token by exchanging a GitHub Actions ID token at `/-/npm/v1/oidc/token/exchange/package/<name>` and prefers that token over any `_authToken` in the configuration.
+Release checks the registry for an attestation (step 5 above) because pnpm treats the two provenance failures differently, and only one of them leaves the registry untouched. A failure to sign the statement ends the run with `ERR_PNPM_PROVENANCE_SIGN` before the tarball is uploaded, so no version is created and the job can be re-run. A failure to read the package's visibility only logs `Skipped setting provenance`, and pnpm publishes the version anyway, without an attestation; the check then fails on a version that already exists, which re-running cannot repair. Recovering from that means deprecating the unattested version and releasing the next patch, because npm does not accept a replacement for a version it already holds. Both orderings were measured against a local registry with pnpm 12.3.4, which resolves the publishing token by exchanging a GitHub Actions ID token at `/-/npm/v1/oidc/token/exchange/package/<name>` and prefers that token over any `_authToken` in the configuration.
 
 ## Inspect the tarballs
 
-Run this on the Version Packages branch (`git switch changeset-release/main`) to inspect the exact artifacts that merging it will publish. Use the Node and pnpm versions supported by the repository, run `pnpm install --frozen-lockfile` first, and keep FFmpeg/ffprobe on PATH for the complete verification suite (`pnpm check`).
+Run this on the release branch, after the version bump, to inspect the exact artifacts that merging it will publish. Use the Node and pnpm versions supported by the repository, run `pnpm install --frozen-lockfile` first, and keep FFmpeg/ffprobe on PATH for the complete verification suite (`pnpm check`).
 
 Start in the repository root and keep the maintainer blocks in the same shell. Each build creates a new absolute archive path; a new shell must repeat this block before publication:
 
@@ -97,7 +110,7 @@ npm rebuild skia-canvas
 
 ## Publish locally as a fallback
 
-Publish from a local machine only when Release cannot publish, for example while npm or GitHub Actions has an outage. A local publish has no provenance attestation, and npm cannot replace a version once it exists, so that version stays unattested. Check out the `main` commit that merged the Version Packages PR, run the [inspect block](#inspect-the-tarballs) in one shell, then authenticate to the intended npm account and publish the same files that were inspected:
+Publish from a local machine only when Release cannot publish, for example while npm or GitHub Actions has an outage. A local publish has no provenance attestation, and npm cannot replace a version once it exists, so that version stays unattested. Check out the release commit on `main`, run the [inspect block](#inspect-the-tarballs) in one shell, then authenticate to the intended npm account and publish the same files that were inspected:
 
 ```sh
 set -eu
@@ -119,7 +132,7 @@ if [ -n "$vitest_release_tarball" ]; then
 fi
 ```
 
-Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal. The root `pnpm run release` command runs `pnpm check` and then publishes every pending version through Changesets from the local machine.
+Keep authentication in npm's user-level configuration. npm handles any account authentication/2FA prompt in the terminal.
 
 After publication, verify the registry version in the same shell:
 

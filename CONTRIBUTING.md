@@ -25,8 +25,7 @@ The workspace approves the Canvas build script and retains a one-day minimum rel
 2. Add a regression test for the observable behavior; see [TESTING.md](TESTING.md).
 3. Put shared compatibility work in `packages/compat`; keep runner configuration and lifecycle connections in the runner package.
 4. Update user documentation when configuration, supported behavior, or installation changes.
-5. Run `pnpm changeset` for public behavior changes. Before 1.0, breaking API changes use a minor Changeset. Use a patch for compatible fixes.
-6. Run `pnpm check` and submit a PR describing the problem, resulting behavior, and verification.
+5. Run `pnpm check` and submit a PR describing the problem, resulting behavior, and verification.
 
 Code and documentation use English. Test names use `test`, describe what breaks when they fail, and compare against literal expected values. Prefer independent readable test procedures, with Arrange/Act/Assert comments. Explain non-obvious functions concisely with JSDoc, including `@returns` and `@example`. Refer to project symbols as `{@link Symbol}`. Prettier uses `semi: false` and ESLint uses `eslint-config-ts-prefixer`.
 
@@ -44,6 +43,6 @@ Fallow excludes test procedures from complexity and duplication scoring. It reco
 
 ## Releases
 
-Changesets manages versions and changelogs. Merging a feature PR to `main` does not publish. After Test succeeds on that push, Release opens a Version Packages PR when `.changeset` files remain. A maintainer must select **Approve workflows to run** on that bot-authored PR before its checks run. Merging that version PR and a green Test run publishes the new versions with OIDC trusted publishing. Each package's npm trusted publisher must name `release.yml`; a new package needs a manual placeholder publish before one can be attached. See [docs/releasing.md](docs/releasing.md) for the steps, the [trusted publisher settings](docs/releasing.md#trusted-publishers) and the local fallback.
+Merging a feature PR to `main` does not publish. Before 1.0, breaking API changes take a minor version and compatible fixes a patch. A release is a PR that bumps the package versions, adds their `CHANGELOG.md` entries, and is titled `release <short>@<version>`, for example `release jest@0.2.1 vitest@0.1.0`. Merging it makes the Release workflow publish those versions with [release-it](https://github.com/release-it/release-it) over OIDC trusted publishing, as in other Laststance packages set up with [@laststance/npm-publish-tool](https://github.com/laststance/npm-publish-tool). Each package's npm trusted publisher must name `release.yml`; a new package needs a manual placeholder publish before one can be attached. See [docs/releasing.md](docs/releasing.md) for the steps, the [trusted publisher settings](docs/releasing.md#trusted-publishers) and the local fallback.
 
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.
