@@ -44,6 +44,6 @@ Fallow excludes test procedures from complexity and duplication scoring. It reco
 
 ## Releases
 
-Changesets manages versions and changelogs. Merging a feature PR to `main` does not publish. After Test succeeds on that push, Release opens a Version Packages PR when `.changeset` files remain. A maintainer must select **Approve workflows to run** on that bot-authored PR before its checks run. Merging that version PR and a green Test run publishes the new versions with OIDC trusted publishing. A new package needs the [first-publish bootstrap](docs/releasing.md#first-publish-of-a-new-package) before its first automated release. `pnpm version:packages` and `pnpm run release` remain a local fallback. See [docs/releasing.md](docs/releasing.md).
+Changesets manages versions and changelogs. Merging a feature PR to `main` does not publish. After Test succeeds on that push, Release opens a Version Packages PR when `.changeset` files remain. A maintainer must select **Approve workflows to run** on that bot-authored PR before its checks run. Merging that version PR and a green Test run publishes the new versions with OIDC trusted publishing. Each package's npm trusted publisher must name `release.yml`; a new package needs a manual placeholder publish before one can be attached. See [docs/releasing.md](docs/releasing.md) for the steps, the [trusted publisher settings](docs/releasing.md#trusted-publishers) and the local fallback.
 
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.
