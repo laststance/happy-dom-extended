@@ -1,6 +1,6 @@
 {
   "name": "vitest-environment-happy-dom-extended",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A Happy DOM Vitest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
   "keywords": [
     "vitest",
