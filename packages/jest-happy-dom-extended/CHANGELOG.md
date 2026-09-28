@@ -1,5 +1,23 @@
 # jest-happy-dom-extended
 
+## 0.2.1
+
+### Patch Changes
+
+- d7b63a2: Decode cross-realm MessageEvent envelopes and bind Canvas port `onmessage` so Worker and MessageChannel transfers still work after a runner replaces the global `MessageEvent` constructor.
+- a09226e: Stop a collected Canvas resource from aborting the process during worker teardown.
+
+  Canvas presentation ports, decoded images and video sources are released from
+  `FinalizationRegistry` callbacks. V8 reports a throw from such a callback as an
+  uncaught exception, and a worker collecting a handle while tearing its
+  environment down turned that into `SIGABRT`, which surfaced as a whole test run
+  exiting with code 134 rather than a failing test. The video finalizer also
+  discarded an async cleanup's promise, so a rejection from it had nothing
+  attached. Each finalizer now releases through a helper that keeps both a throw
+  and a rejection inside the callback.
+
+- d3c3b3e: Explain a skipped skia-canvas install script. When Skia's native binary is missing, the environment now fails with the approval commands for pnpm, npm 12, and Bun instead of `Cannot find module '../skia.node'`, and keeps the original error as its `cause`.
+
 ## 0.2.0
 
 ### Minor Changes
