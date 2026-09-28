@@ -162,14 +162,14 @@ When the install script ran but its download failed, rerun it with network acces
 
 ## Contribute and release
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md), [TESTING.md](TESTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md). Public behavior changes need an observable regression and a [Changeset](.changeset/README.md).
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), [TESTING.md](TESTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md). Public behavior changes need an observable regression.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
 ```
 
-Use the pnpm version pinned in the root package manifest. `pnpm check` runs source/Jest/Vitest tests with coverage, lint, format, documentation links, types, Sherif, Fallow, package export/type checks and isolated tarball consumers. After Test succeeds on `main`, [Release](.github/workflows/release.yml) opens a Version Packages PR or publishes with OIDC. [docs/releasing.md](docs/releasing.md) covers that workflow and the local pack/inspect fallback. Tracked follow-ups live in [TODOS.md](TODOS.md).
+Use the pnpm version pinned in the root package manifest. `pnpm check` runs source/Jest/Vitest tests with coverage, lint, format, documentation links, types, Sherif, Fallow, package export/type checks and isolated tarball consumers. Merging a PR titled `release <short>@<version>` makes [Release](.github/workflows/release.yml) publish that version with release-it over OIDC. [docs/releasing.md](docs/releasing.md) covers that workflow and the local pack/inspect fallback. Tracked follow-ups live in [TODOS.md](TODOS.md).
 
 Workflows are separated into [Test](.github/workflows/test.yml), [Lint](.github/workflows/lint.yml), [Format](.github/workflows/format.yml), [TypeCheck](.github/workflows/typecheck.yml), [Build](.github/workflows/build.yml), [Fallow](.github/workflows/fallow.yml), [Security](.github/workflows/security.yml), [Socket](.github/workflows/socket.yml), [OpenSSF Scorecard](.github/workflows/scorecard.yml) and [Release](.github/workflows/release.yml). Security includes CodeQL, dependency review and a production dependency audit. Codecov receives the Linux Node 24 coverage report.
 

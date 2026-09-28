@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/release-it@21/schema/release-it.json",
+  "git": {
+    "changelog": null,
+    "commit": false,
+    "tag": true,
+    "tagName": "jest@${version}",
+    "tagAnnotation": "Release jest@${version}",
+    "push": true
+  },
+  "github": {
+    "release": true,
+    "releaseName": "jest@${version}",
+    "autoGenerate": true
+  },
+  "npm": {
+    "skipChecks": true,
+    "publishPackageManager": "pnpm",
+    "publishArgs": ["--provenance", "--no-git-checks"]
+  }
+}

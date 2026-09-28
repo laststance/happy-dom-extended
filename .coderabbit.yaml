@@ -123,8 +123,9 @@ reviews:
         Preserve Linux and Windows coverage across the supported Node versions, including
         installed-tarball consumers. Keep remote actions pinned to full commit SHAs, permissions
         scoped to each job's needs, frozen-lockfile installs, and pnpm-store-only dependency caches.
-        Ensure build steps precede checks that import dist. Release publishes only after
-        Test succeeds on a main push, using Changesets and OIDC trusted publishing.
+        Ensure build steps precede checks that import dist. Release publishes only for a
+        release commit on main (a merged PR titled "release <short>@<version>"), using
+        release-it and OIDC trusted publishing.
 
     - path: 'packages/vitest-happy-dom-extended/**'
       instructions: |

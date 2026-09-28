@@ -44,18 +44,6 @@ Tracked follow-ups for the public packages and their release automation.
 
 ## Release automation
 
-### Run Version Packages PR checks without manual approval
-
-**What:** Let the Release workflow open the Version Packages PR with a GitHub App installation token instead of `GITHUB_TOKEN`.
-
-**Why:** Workflows on the bot's PR stop at `action_required` until a maintainer selects "Approve workflows to run". Every `main` push rebuilds the branch, so each new head needs approval again.
-
-**Context:** `workflow_dispatch` runs do not satisfy required status checks. Scope the App token to contents and pull requests, and keep npm publishing on OIDC.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** A Laststance GitHub App installed on this repository
-
 ### Drop the dangling declaration-map reference from the published types
 
 **What:** Stop shipping a `sourceMappingURL` comment for a declaration map that the tarball does not contain, and report it to tsdown.
@@ -74,11 +62,11 @@ Tracked follow-ups for the public packages and their release automation.
 
 **Why:** A staged version needs a maintainer's approval before consumers can install it, so a compromised workflow cannot reach the registry on its own.
 
-**Context:** npm's [trusted publishers guide](https://docs.npmjs.com/trusted-publishers) sets a configuration's default permissions by its creation date: one created before 20 May 2026 allows only `npm publish`, and one created after 3 September 2026 allows `npm stage publish`, with direct publishing opt-in. `npm trust` takes `--allow-publish` and `--allow-stage-publish` as separate permissions, and [npm's guide](https://docs.npmjs.com/cli/v12/commands/npm-stage) recommends allowing only staged publishing. Before switching, give every package a configuration that allows stage publishing and not direct publishing. npm rejects a second configuration for a package, so replace an existing one: read its ID with `npm trust list <package>`, remove it with `npm trust revoke --id <id> <package>`, then create it again with `--allow-stage-publish` and without `--allow-publish`. A package without stage publishing fails the staged upload's permission check, and one that still allows `npm publish` lets a compromised workflow skip approval, which defeats the point. Staging prompts for no second factor; approving does, and a trusted publisher's short-lived token can run `npm publish` and `npm stage publish` but no other `npm stage` subcommand, so approval stays a maintainer's action at the keyboard. Confirm the minimum npm and Node.js versions in that guide before adopting it; the commands above were read from npm 12.0.2. Changesets 3.0.2 detects this pnpm workspace and publishes with `pnpm pack` followed by `pnpm publish <tarball> --access public --tag <tag> --no-git-checks`, so it never stages. pnpm 12.3.4 carries its own `pnpm stage` command, whose subcommands are `publish`, `list`, `view`, `approve`, `reject` and `download`, and whose `approve` clears a batch in dependency order behind a single code. Staging therefore needs a publish script that runs `pnpm stage publish` in place of `changeset publish`, plus a configuration created with `--allow-stage-publish` and without `--allow-publish`. It cannot reuse `--batch`, which pnpm refuses to combine with either staging or provenance. The script also has to keep the Release job's contract. `changesets/action` 2.1.2 builds its `published` and `published-packages` outputs from the file named by `CHANGESETS_OUTPUT`, which the Changesets CLI writes; a script that does not write it reports nothing published, and the provenance step is skipped without an error. A staged version is not installable until a maintainer approves it either, so that step's `npm view` check cannot run in the same job and has to become a check after approval.
+**Context:** npm's [trusted publishers guide](https://docs.npmjs.com/trusted-publishers) sets a configuration's default permissions by its creation date: one created before 20 May 2026 allows only `npm publish`, and one created after 3 September 2026 allows `npm stage publish`, with direct publishing opt-in. `npm trust` takes `--allow-publish` and `--allow-stage-publish` as separate permissions, and [npm's guide](https://docs.npmjs.com/cli/v12/commands/npm-stage) recommends allowing only staged publishing. Before switching, give every package a configuration that allows stage publishing and not direct publishing. npm rejects a second configuration for a package, so replace an existing one: read its ID with `npm trust list <package>`, remove it with `npm trust revoke --id <id> <package>`, then create it again with `--allow-stage-publish` and without `--allow-publish`. A package without stage publishing fails the staged upload's permission check, and one that still allows `npm publish` lets a compromised workflow skip approval, which defeats the point. Staging prompts for no second factor; approving does, and a trusted publisher's short-lived token can run `npm publish` and `npm stage publish` but no other `npm stage` subcommand, so approval stays a maintainer's action at the keyboard. Confirm the minimum npm and Node.js versions in that guide before adopting it; the commands above were read from npm 12.0.2. release-it 21.1.0 has an `npm.stage` option that runs `<publishPackageManager> stage publish` instead of `publish` and logs the approval command, so the switch is `"stage": true` in each `packages/*/.release-it.json`; pnpm 12.3.4 carries its own `pnpm stage` command, whose subcommands are `publish`, `list`, `view`, `approve`, `reject` and `download`. A staged version is not installable until a maintainer approves it, so the Release job's provenance check cannot run in the same job and has to become a check after approval.
 
 **Effort:** M
 **Priority:** P3
-**Depends on:** A replacement for `changeset publish` in the Release job
+**Depends on:** Nothing
 
 ### Decide on a dependency update tool
 
@@ -98,7 +86,7 @@ Tracked follow-ups for the public packages and their release automation.
 
 **Why:** `main` accepts a direct push and a force push today, so the required status checks can be bypassed entirely by pushing to it. OpenSSF Scorecard scores branch protection 1 out of 10 for exactly these two gaps.
 
-**Context:** Ruleset 22409011 targets the default branch with `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage`, and no bypass actors. Repository rules are public, so Scorecard reads them without a token. Adding `pull_request` with zero required approvals keeps a solo maintainer's flow intact while routing every change through the checks. Confirm first that the Version Packages branch still merges, because `changesets/action` pushes to `changeset-release/main` and opens a pull request rather than pushing to `main`. [SECURITY.md](SECURITY.md) records the finding meanwhile.
+**Context:** Ruleset 22409011 targets the default branch with `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage`, and no bypass actors. Repository rules are public, so Scorecard reads them without a token. Adding `pull_request` with zero required approvals keeps a solo maintainer's flow intact while routing every change through the checks. Releases already go through a pull request titled `release <short>@<version>`, so the rule does not change that flow. [SECURITY.md](SECURITY.md) records the finding meanwhile.
 
 **Effort:** S
 **Priority:** P2

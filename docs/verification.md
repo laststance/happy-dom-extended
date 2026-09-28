@@ -91,10 +91,10 @@ Recorded execution: the [successful PR #16 Test run](https://github.com/laststan
 | 24.20.0 | 11.19.0     | 11.19.0                     |
 | 26.8.1  | 11.19.0     | 11.19.0                     |
 
-The workflow definitions describe the configured matrix beyond that recorded commit. A local macOS pass does not prove Windows/Linux execution: inspect the successful runs for the PR's exact commit. Scorecard runs on `main`, scheduled runs, and repository policy changes, so its first result follows merge. The Test workflow does not publish. After Test succeeds on a `main` push, the Release workflow may open a Version Packages PR or publish pending versions.
+The workflow definitions describe the configured matrix beyond that recorded commit. A local macOS pass does not prove Windows/Linux execution: inspect the successful runs for the PR's exact commit. Scorecard runs on `main`, scheduled runs, and repository policy changes, so its first result follows merge. The Test workflow does not publish. The Release workflow publishes only for a release commit, a merged PR titled `release <short>@<version>`.
 
 ## Boundaries and release status
 
 Jest 30.5.1 evaluates setup modules outside part of its teardown protection. Application setup that opens native channels must clean up if setup fails; preserving native references prevents silent early process exit. This runner boundary and rendering limitations are described in the [package guide](../packages/jest-happy-dom-extended/README.md#runtime-boundaries).
 
-`jest-happy-dom-extended` 0.2.0 is published on npm. Pending Changesets release `vitest-environment-happy-dom-extended` 0.1.0 and `jest-happy-dom-extended` 0.2.1. `packages/compat` remains private and bundled into both public runner packages. See [Canvas compatibility and verification](canvas-compatibility.md) for current guarantees, native prerequisites, selected WPT coverage and measured renderer differences. Earlier research documents are historical evidence, not the current support contract.
+`jest-happy-dom-extended` 0.2.0 is published on npm. `vitest-environment-happy-dom-extended` 0.0.0 is a deprecated placeholder that let its trusted publisher be configured; 0.1.0 is its first release. `packages/compat` remains private and bundled into both public runner packages. See [Canvas compatibility and verification](canvas-compatibility.md) for current guarantees, native prerequisites, selected WPT coverage and measured renderer differences. Earlier research documents are historical evidence, not the current support contract.
