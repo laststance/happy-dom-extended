@@ -16,33 +16,11 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** A reproduction
 
-## Release automation
-
-### Require a pull request and block force pushes on main
-
-**What:** Add the `pull_request` and `non_fast_forward` rules to the `main` ruleset.
-
-**Why:** `main` accepts a direct push and a force push today, so the required status checks can be bypassed entirely by pushing to it. OpenSSF Scorecard scores branch protection 1 out of 10 for exactly these two gaps.
-
-**Context:** Ruleset 22409011 targets the default branch with `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage`, and no bypass actors. Repository rules are public, so Scorecard reads them without a token. Adding `pull_request` with zero required approvals keeps a solo maintainer's flow intact while routing every change through the checks. Releases already go through a pull request titled `release <short>@<version>`, so the rule does not change that flow. [SECURITY.md](SECURITY.md) records the finding meanwhile.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** Nothing
+## Completed
 
 ### Confirm the Codecov upload on a fork pull request
 
-**What:** Establish whether the coverage upload succeeds on a pull request from a fork, and add a fallback if it does not.
-
-**Why:** `test` is a required status check. The upload step passes `secrets.CODECOV_TOKEN` and sets `fail_ci_if_error: true`, and a fork pull request cannot read that secret, so a failing upload would block every outside contribution.
-
-**Context:** `.github/workflows/test.yml` runs the upload only on Linux Node 24.20.0. codecov-action v7 documents a tokenless flow for public repositories, which this repository has never exercised because no fork pull request has been opened. Either confirm the tokenless path or skip the step when the token is empty. [TESTING.md](TESTING.md) records the current state.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** A fork pull request, or a deliberate test of one
-
-## Completed
+Resolved with a deterministic fallback: the upload step now also requires `secrets.CODECOV_TOKEN != ''`, so a fork pull request skips coverage upload instead of failing the required `test` check. Same-repo pull requests and `main` runs are unchanged. Tokenless upload remains unexercised — an acceptable trade since skipping never blocks an outside contribution. Issue: laststance/happy-dom-extended#35.
 
 ### Evaluate staged npm publishing
 
@@ -61,6 +39,10 @@ Reported as samizdatco/skia-canvas#303 with the measured crash matrix from [Veri
 Decided: suppress. Every fire-and-forget teardown call now owns its rejection with `.catch(() => {})`, matching the existing `void this.completion.catch(() => {})` convention in the canvas sources. A teardown rejection after `terminate()` or Window close has no observer — `#stop` has already set `#stopped`, which closes the ErrorEvent path — so an unhandled rejection could only abort the whole process, while the worker-initiated `close()` → control `error` → Window ErrorEvent contract is unchanged because that reporting happens before the promise settles.
 
 Along the way, `#stop` in `install-workers.ts` was fixed so a close-message post that throws can no longer skip the forced-termination timer and strand the child thread, and `loadCanvasVideo` in `videos.ts` now owns the previous source's disposal promise on its no-source early return. `window.happyDOM.close()` still reports joined teardown failures through `disposeAll`. Issue: laststance/happy-dom-extended#27.
+
+### Require a pull request and block force pushes on main
+
+Applied `pull_request` (zero required approvals) and `non_fast_forward` to ruleset 22409011; the existing `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage` rules are unchanged. Every change to `main` now lands through a pull request that must pass the required checks, and force pushes are rejected. The SECURITY.md finding list was updated. Issue: laststance/happy-dom-extended#29.
 
 ### Decide on a dependency update tool
 
