@@ -53,20 +53,16 @@ jobs:
               echo "::error::The release commit names ${short}@${requested}, but ${directory}/package.json is ${version}."
               exit 1
             fi
-            # -VV prints the output of release-it's own commands, including pnpm publish; a single -V shows hook output only.
+            # -VV prints the output of release-it's own commands, including pnpm stage publish; a single -V shows hook output only.
             pnpm --dir "$directory" exec release-it --no-increment --ci -VV
-            # The registry can take several minutes to serve a new version: jest 0.2.1 appeared 5 minutes after its upload.
-            predicate=''
-            for _ in $(seq 1 90); do
-              predicate="$(npm view "${name}@${version}" dist.attestations.provenance.predicateType --registry=https://registry.npmjs.org 2>/dev/null || true)"
-              if [ "$predicate" = 'https://slsa.dev/provenance/v1' ]; then
-                break
-              fi
-              sleep 10
-            done
-            if [ "$predicate" != 'https://slsa.dev/provenance/v1' ]; then
-              echo "::error::The registry shows no npm provenance attestation for ${name}@${version} 15 minutes after publication."
-              exit 1
-            fi
-            echo "${name}@${version} has an SLSA provenance attestation."
+            # Staged versions are not installable until a maintainer approves them, so the
+            # provenance attestation cannot be verified here — check it after approval:
+            #   npm view <name>@<version> dist.attestations.provenance.predicateType
+            {
+              echo "### ${name}@${version} staged for approval"
+              echo
+              echo 'Approve under **Profile → Staged packages** on npmjs.com (or `pnpm stage approve`).'
+              echo "After approval, verify provenance: \`npm view ${name}@${version} dist.attestations.provenance.predicateType\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "${name}@${version} staged — awaiting maintainer approval."
           done
