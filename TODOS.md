@@ -30,18 +30,6 @@ Tracked follow-ups for the public packages and their release automation.
 
 ## Release automation
 
-### Drop the dangling declaration-map reference from the published types
-
-**What:** Stop shipping a `sourceMappingURL` comment for a declaration map that the tarball does not contain, and report it to tsdown.
-
-**Why:** Editors resolve the comment to a missing file. TypeScript ignores it, so today this only makes the artifact look unfinished.
-
-**Context:** tsdown 0.23.0 passes the bundle's `sourcemap: true` to the declaration output, which appends the comment, while `dts.sourcemap` decides whether a map is written. Enabling `dts: { sourcemap: true }` writes maps whose `sources` point at `../src/*.ts` without `sourcesContent`, so they do not resolve from a tarball either. Removing the comment needs a tsdown fix or a post-build rewrite.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** Nothing
-
 ### Require a pull request and block force pushes on main
 
 **What:** Add the `pull_request` and `non_fast_forward` rules to the `main` ruleset.
@@ -71,6 +59,10 @@ Tracked follow-ups for the public packages and their release automation.
 ### Evaluate staged npm publishing
 
 Adopted. Both `packages/*/.release-it.json` set `npm.stage`, so release-it runs `pnpm stage publish --provenance --no-git-checks` instead of `pnpm publish`, and every named version lands as a staged draft that a maintainer approves under Profile → Staged packages on npmjs.com. The Release job's provenance poll cannot see a staged version, so it now writes the staged packages to the job summary and the attestation check moved to the post-approval step in [docs/releasing.md](docs/releasing.md), which also covers rejecting a staged upload that logged `Skipped setting provenance`.
+
+### Drop the dangling declaration-map reference from the published types
+
+`scripts/dts-sourcemap.mjs` strips the trailing `//# sourceMappingURL=*.d.*.map` comment after `tsdown` in each package's `build`, and `check:package` re-runs it with `--check` so the reference cannot return silently. Reported upstream as rolldown/tsdown#1091. Issue: laststance/happy-dom-extended#33.
 
 ### Decide how a worker reports a failed teardown
 
