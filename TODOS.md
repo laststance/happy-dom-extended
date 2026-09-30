@@ -42,18 +42,6 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
-### Evaluate staged npm publishing
-
-**What:** Decide whether the Release job should stage each version for manual approval instead of publishing directly.
-
-**Why:** A staged version needs a maintainer's approval before consumers can install it, so a compromised workflow cannot reach the registry on its own.
-
-**Context:** npm's [trusted publishers guide](https://docs.npmjs.com/trusted-publishers) sets a configuration's default permissions by its creation date: one created before 20 May 2026 allows only `npm publish`, and one created after 3 September 2026 allows `npm stage publish`, with direct publishing opt-in. `npm trust` takes `--allow-publish` and `--allow-stage-publish` as separate permissions, and [npm's guide](https://docs.npmjs.com/cli/v12/commands/npm-stage) recommends allowing only staged publishing. Before switching, give every package a configuration that allows stage publishing and not direct publishing. npm rejects a second configuration for a package, so replace an existing one: read its ID with `npm trust list <package>`, remove it with `npm trust revoke --id <id> <package>`, then create it again with `--allow-stage-publish` and without `--allow-publish`. A package without stage publishing fails the staged upload's permission check, and one that still allows `npm publish` lets a compromised workflow skip approval, which defeats the point. Staging prompts for no second factor; approving does, and a trusted publisher's short-lived token can run `npm publish` and `npm stage publish` but no other `npm stage` subcommand, so approval stays a maintainer's action at the keyboard. Confirm the minimum npm and Node.js versions in that guide before adopting it; the commands above were read from npm 12.0.2. release-it 21.1.0 has an `npm.stage` option that runs `<publishPackageManager> stage publish` instead of `publish` and logs the approval command, so the switch is `"stage": true` in each `packages/*/.release-it.json`; pnpm 12.3.4 carries its own `pnpm stage` command, whose subcommands are `publish`, `list`, `view`, `approve`, `reject` and `download`. A staged version is not installable until a maintainer approves it, so the Release job's provenance check cannot run in the same job and has to become a check after approval.
-
-**Effort:** M
-**Priority:** P3
-**Depends on:** Nothing
-
 ### Decide on a dependency update tool
 
 **What:** Decide whether Dependabot or Renovate should run, and over which dependency groups.
@@ -91,6 +79,10 @@ Tracked follow-ups for the public packages and their release automation.
 **Depends on:** A fork pull request, or a deliberate test of one
 
 ## Completed
+
+### Evaluate staged npm publishing
+
+Adopted. Both `packages/*/.release-it.json` set `npm.stage`, so release-it runs `pnpm stage publish --provenance --no-git-checks` instead of `pnpm publish`, and every named version lands as a staged draft that a maintainer approves under Profile → Staged packages on npmjs.com. The Release job's provenance poll cannot see a staged version, so it now writes the staged packages to the job summary and the attestation check moved to the post-approval step in [docs/releasing.md](docs/releasing.md), which also covers rejecting a staged upload that logged `Skipped setting provenance`.
 
 ### Decide how a worker reports a failed teardown
 
