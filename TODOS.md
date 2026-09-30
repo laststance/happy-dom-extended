@@ -30,18 +30,6 @@ Tracked follow-ups for the public packages and their release automation.
 
 ## Release automation
 
-### Drop the dangling declaration-map reference from the published types
-
-**What:** Stop shipping a `sourceMappingURL` comment for a declaration map that the tarball does not contain, and report it to tsdown.
-
-**Why:** Editors resolve the comment to a missing file. TypeScript ignores it, so today this only makes the artifact look unfinished.
-
-**Context:** tsdown 0.23.0 passes the bundle's `sourcemap: true` to the declaration output, which appends the comment, while `dts.sourcemap` decides whether a map is written. Enabling `dts: { sourcemap: true }` writes maps whose `sources` point at `../src/*.ts` without `sourcesContent`, so they do not resolve from a tarball either. Removing the comment needs a tsdown fix or a post-build rewrite.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** Nothing
-
 ### Evaluate staged npm publishing
 
 **What:** Decide whether the Release job should stage each version for manual approval instead of publishing directly.
@@ -71,6 +59,10 @@ Tracked follow-ups for the public packages and their release automation.
 ### Confirm the Codecov upload on a fork pull request
 
 Resolved with a deterministic fallback: the upload step now also requires `secrets.CODECOV_TOKEN != ''`, so a fork pull request skips coverage upload instead of failing the required `test` check. Same-repo pull requests and `main` runs are unchanged. Tokenless upload remains unexercised — an acceptable trade since skipping never blocks an outside contribution. Issue: laststance/happy-dom-extended#35.
+
+### Drop the dangling declaration-map reference from the published types
+
+`scripts/dts-sourcemap.mjs` strips the trailing `//# sourceMappingURL=*.d.*.map` comment after `tsdown` in each package's `build`, and `check:package` re-runs it with `--check` so the reference cannot return silently. Reported upstream as rolldown/tsdown#1091. Issue: laststance/happy-dom-extended#33.
 
 ### Decide how a worker reports a failed teardown
 
