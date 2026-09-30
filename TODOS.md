@@ -54,18 +54,6 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
-### Decide on a dependency update tool
-
-**What:** Decide whether Dependabot or Renovate should run, and over which dependency groups.
-
-**Why:** OpenSSF Scorecard scores this repository zero for dependency updates, and pinned dependencies drift without a tool.
-
-**Context:** `happy-dom` and `skia-canvas` are pinned to the exact versions [Verification](docs/verification.md) records, so a bump needs the whole matrix re-run before it can merge. Remote actions are already pinned by commit digest and could be updated on their own schedule. Limiting a tool to actions and development dependencies would close most of the finding without invalidating the recorded evidence. [SECURITY.md](SECURITY.md) explains why the finding stays open meanwhile.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** Nothing
-
 ### Require a pull request and block force pushes on main
 
 **What:** Add the `pull_request` and `non_fast_forward` rules to the `main` ruleset.
@@ -97,6 +85,10 @@ Tracked follow-ups for the public packages and their release automation.
 Decided: suppress. Every fire-and-forget teardown call now owns its rejection with `.catch(() => {})`, matching the existing `void this.completion.catch(() => {})` convention in the canvas sources. A teardown rejection after `terminate()` or Window close has no observer — `#stop` has already set `#stopped`, which closes the ErrorEvent path — so an unhandled rejection could only abort the whole process, while the worker-initiated `close()` → control `error` → Window ErrorEvent contract is unchanged because that reporting happens before the promise settles.
 
 Along the way, `#stop` in `install-workers.ts` was fixed so a close-message post that throws can no longer skip the forced-termination timer and strand the child thread, and `loadCanvasVideo` in `videos.ts` now owns the previous source's disposal promise on its no-source early return. `window.happyDOM.close()` still reports joined teardown failures through `disposeAll`. Issue: laststance/happy-dom-extended#27.
+
+### Decide on a dependency update tool
+
+Decided: Dependabot. `.github/dependabot.yml` updates `github-actions` and `npm` development dependencies weekly — `allow: dependency-type: development` keeps `happy-dom`, `skia-canvas` and every other runtime dependency pinned to the versions the verification matrix covers. Minor/patch dev-dependency updates are grouped into one PR to limit noise; majors arrive individually. SECURITY.md updated. Issue: laststance/happy-dom-extended#31.
 
 ### Claim the Vitest vmForks pool
 
