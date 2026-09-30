@@ -1,14 +1,14 @@
-import { createContext, Script, SourceTextModule } from 'node:vm'
 import type { ModuleLinker } from 'node:vm'
+import { createContext, Script, SourceTextModule } from 'node:vm'
 import { receiveMessageOnPort, workerData } from 'node:worker_threads'
 
-import { Window, PropertySymbol } from 'happy-dom'
+import { PropertySymbol, Window } from 'happy-dom'
 
 import { bindCanvasPort } from '../canvas/ports.ts'
 import {
+  disposeAll,
   ExtendedCanvasAdapter,
   installCompatibility,
-  disposeAll,
 } from '../index.ts'
 import { isNativeMessageEvent } from '../utils/is-native-message-event.ts'
 
@@ -79,7 +79,8 @@ export async function startOwnedWorker(): Promise<void> {
       })
   }
   startup.control.on('message', (message) => {
-    if (message?.type === 'close') void close()
+    // close() reports teardown errors over the control channel itself; only an unreportable failure can reject it.
+    if (message?.type === 'close') void close().catch(() => {})
   })
   window[PropertySymbol.dispatchError] = (error: unknown) => {
     report(error)
@@ -118,7 +119,8 @@ export async function startOwnedWorker(): Promise<void> {
     origin: startup.origin,
     postMessage: startup.messages.postMessage.bind(startup.messages),
     close: () => {
-      void close()
+      // Same policy as the close-message handler above: only an unreportable failure can reject.
+      void close().catch(() => {})
     },
   })
   Object.defineProperty(scope, Symbol.toStringTag, {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import childProcess from 'node:child_process'
 import type { ChildProcess } from 'node:child_process'
+import childProcess from 'node:child_process'
 import { once } from 'node:events'
 import { readFile } from 'node:fs/promises'
 import type { ServerResponse } from 'node:http'
@@ -717,5 +717,38 @@ test(
     assert.equal(starts, 1)
     video.pause()
     await window.happyDOM.waitUntilComplete()
+  },
+)
+
+test(
+  'removing the src attribute cannot leak an unhandled rejection when the replaced source fails to dispose',
+  { timeout: 5000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const video = window.document.createElement('video')
+    video.src = videoURL
+    const source = videoSources.get(video)!
+    const unhandled: unknown[] = []
+    const record = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', record)
+    context.after(() => process.off('unhandledRejection', record))
+    const prototype = Object.getPrototypeOf(source) as {
+      dispose: () => Promise<void>
+    }
+    const dispose = context.mock.method(prototype, 'dispose', async () =>
+      Promise.reject(new Error('injected disposal failure')),
+    )
+    // Act: with no currentSrc the loader early-returns, abandoning the disposal promise.
+    video.removeAttribute('src')
+    // The injected rejection must have flowed through `closing`, not a no-op fallback.
+    assert.equal(dispose.mock.callCount(), 1)
+    dispose.mock.restore()
+    // Node reports an unhandled rejection only after the microtask queue drains.
+    await new Promise((resolve) => setImmediate(resolve))
+    await new Promise((resolve) => setImmediate(resolve))
+    // Assert
+    assert.equal(videoSources.get(video), undefined)
+    assert.deepEqual(unhandled, [])
   },
 )

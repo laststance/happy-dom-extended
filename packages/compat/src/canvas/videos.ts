@@ -1,8 +1,8 @@
 import { performance } from 'node:perf_hooks'
 import { clearTimeout, setTimeout } from 'node:timers'
 
-import { HTMLMediaElement, HTMLVideoElement, PropertySymbol } from 'happy-dom'
 import type { AbortSignal, ICanvasAdapterCaller, Window } from 'happy-dom'
+import { HTMLMediaElement, HTMLVideoElement, PropertySymbol } from 'happy-dom'
 import type { ImageData } from 'skia-canvas'
 import conversions from 'webidl-conversions'
 
@@ -188,7 +188,7 @@ class CanvasVideoSource {
     const manager = new WindowBrowserContext(this.#window).getAsyncTaskManager()
     if (manager) {
       const task = manager.startTask(() => {
-        void this.dispose()
+        void this.dispose().catch(() => {})
       })
       this.#endPlayback = () => manager.endTask(task)
     }
@@ -229,6 +229,7 @@ class CanvasVideoSource {
         'AbortError',
       ),
     )
+    // Load/decode failures are already published via {@link CanvasVideoSource.#fail}; disposal must still release resources.
     await this.completion.catch(() => {})
     this.native = null
     this.#bytes = Buffer.alloc(0)
@@ -252,7 +253,7 @@ class CanvasVideoSource {
     this.#controller = controller
     const manager = new WindowBrowserContext(this.#window).getAsyncTaskManager()
     const task = manager?.startTask(() => {
-      void this.dispose()
+      void this.dispose().catch(() => {})
     })
     const timer = setTimeout(
       () =>
@@ -279,6 +280,7 @@ class CanvasVideoSource {
         clearTimeout(timer)
         if (task !== undefined) manager?.endTask(task)
       })
+    // Marks the retained completion promise as handled; play()/dispose() still observe it.
     void this.completion.catch(() => {})
   }
 
@@ -396,6 +398,9 @@ function loadCanvasVideo(
   const previous = videoSources.get(video)
   videoSources.delete(video)
   const closing = previous?.dispose() ?? Promise.resolve()
+  // Attach the catch now: the no-source return below abandons `closing`, and when a src exists
+  // the same promise seeds `state.completion` so its rejection must already be handled.
+  void closing.catch(() => {})
   video[PropertySymbol.readyState] = MEDIA_HAVE_NOTHING
   video[PropertySymbol.networkState] = MEDIA_NETWORK_EMPTY
   video[PropertySymbol.duration] = NaN
@@ -461,7 +466,8 @@ export function installCanvasVideos(
   }
   restorers.push(() => {
     environments.delete(window)
-    void closeSources()
+    // The restorer is fire-and-forget; the Window-close path still propagates failures to its caller.
+    void closeSources().catch(() => {})
   })
   registerWindowClose(window, closeSources, restorers)
   const prototype = HTMLVideoElement.prototype

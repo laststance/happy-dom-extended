@@ -427,6 +427,56 @@ test(
 )
 
 test(
+  'a failed close request still force-terminates a running Worker without an unhandled rejection',
+  { timeout: 8000 },
+  async (context) => {
+    // Arrange
+    const { window } = await renderingWindow(context)
+    const Constructor = Reflect.get(window, 'Worker')
+    const worker = new Constructor(
+      `data:text/javascript,${encodeURIComponent("postMessage('running')")}`,
+    )
+    const thread = workerThreads.get(worker)!
+    // Wait for confirmed startup so terminate() reaches the injected close failure.
+    await new Promise<void>((resolve, reject) => {
+      worker.onmessage = () => resolve()
+      worker.onerror = (event: { message: string }) =>
+        reject(new Error(event.message))
+    })
+    const unhandled: unknown[] = []
+    const record = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', record)
+    context.after(() => process.off('unhandledRejection', record))
+    const original = MessagePort.prototype.postMessage
+    context.mock.method(
+      MessagePort.prototype,
+      'postMessage',
+      function (this: MessagePort, ...argumentsList: unknown[]) {
+        const message = argumentsList[0]
+        if (
+          message &&
+          typeof message === 'object' &&
+          Reflect.get(message, 'type') === 'close'
+        )
+          throw new Error('injected close failure')
+        return Reflect.apply(original, this, argumentsList)
+      },
+    )
+    const exited = once(thread, 'exit')
+    // Act: the injected failure lands before the forced-termination timer would be armed.
+    worker.terminate()
+    const [exitCode] = await exited
+    // Assert
+    assert.equal(exitCode, 1)
+    assert.equal(thread.threadId, -1)
+    // Node reports an unhandled rejection only after the microtask queue drains.
+    await new Promise((resolve) => setImmediate(resolve))
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.deepEqual(unhandled, [])
+  },
+)
+
+test(
   'closing a Window cancels a never-resolving Worker request interceptor and joins the child before returning',
   { timeout: 6000 },
   async (context) => {
