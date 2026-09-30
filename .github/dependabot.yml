@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # Actions are pinned by commit digest; Dependabot still opens digest-bump PRs.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - '*'
+
+  # Development dependencies only: happy-dom and skia-canvas stay pinned to the
+  # exact versions the verification matrix covers, so production updates must
+  # never arrive unattended.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-type: development
+    groups:
+      dev-deps:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        patterns:
+          - '*'

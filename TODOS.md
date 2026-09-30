@@ -54,18 +54,6 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
-### Decide on a dependency update tool
-
-**What:** Decide whether Dependabot or Renovate should run, and over which dependency groups.
-
-**Why:** OpenSSF Scorecard scores this repository zero for dependency updates, and pinned dependencies drift without a tool.
-
-**Context:** `happy-dom` and `skia-canvas` are pinned to the exact versions [Verification](docs/verification.md) records, so a bump needs the whole matrix re-run before it can merge. Remote actions are already pinned by commit digest and could be updated on their own schedule. Limiting a tool to actions and development dependencies would close most of the finding without invalidating the recorded evidence. [SECURITY.md](SECURITY.md) explains why the finding stays open meanwhile.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** Nothing
-
 ### Confirm the Codecov upload on a fork pull request
 
 **What:** Establish whether the coverage upload succeeds on a pull request from a fork, and add a fallback if it does not.
@@ -89,6 +77,10 @@ Along the way, `#stop` in `install-workers.ts` was fixed so a close-message post
 ### Require a pull request and block force pushes on main
 
 Applied `pull_request` (zero required approvals) and `non_fast_forward` to ruleset 22409011; the existing `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage` rules are unchanged. Every change to `main` now lands through a pull request that must pass the required checks, and force pushes are rejected. The SECURITY.md finding list was updated. Issue: laststance/happy-dom-extended#29.
+
+### Decide on a dependency update tool
+
+Decided: Dependabot. `.github/dependabot.yml` updates `github-actions` and `npm` development dependencies weekly — `allow: dependency-type: development` keeps `happy-dom`, `skia-canvas` and every other runtime dependency pinned to the versions the verification matrix covers. Minor/patch dev-dependency updates are grouped into one PR to limit noise; majors arrive individually. SECURITY.md updated. Issue: laststance/happy-dom-extended#31.
 
 ### Claim the Vitest vmForks pool
 
