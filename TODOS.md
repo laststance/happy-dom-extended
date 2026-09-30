@@ -16,18 +16,6 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** A reproduction
 
-### Report the Windows skia.node unload crash to skia-canvas
-
-**What:** Report to skia-canvas that Windows can unload skia.node while threads that skia-canvas started still run code inside it.
-
-**Why:** Until skia-canvas keeps its binary loaded, `threads` and `vmThreads` users must add `vitest-environment-happy-dom-extended/global-setup`. Other tools that load skia-canvas only in worker threads can crash the same way.
-
-**Context:** Node releases a worker thread's handle to a native addon when the thread exits, and Windows unloads the addon when no handle remains. The worker-thread experiment in [Verification](docs/verification.md#windows-thread-pool-crash) crashed on Node.js 24.20.0 and 26.8.1 without Vitest. skia-canvas could pin its module on Windows or stop its threads when the last Node environment that uses it exits. After a fixed release, keep the global setup entry so existing configurations still resolve.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** Nothing
-
 ## Release automation
 
 ### Require a pull request and block force pushes on main
@@ -59,6 +47,10 @@ Tracked follow-ups for the public packages and their release automation.
 ### Evaluate staged npm publishing
 
 Adopted. Both `packages/*/.release-it.json` set `npm.stage`, so release-it runs `pnpm stage publish --provenance --no-git-checks` instead of `pnpm publish`, and every named version lands as a staged draft that a maintainer approves under Profile → Staged packages on npmjs.com. The Release job's provenance poll cannot see a staged version, so it now writes the staged packages to the job summary and the attestation check moved to the post-approval step in [docs/releasing.md](docs/releasing.md), which also covers rejecting a staged upload that logged `Skipped setting provenance`.
+
+### Report the Windows skia.node unload crash to skia-canvas
+
+Reported as samizdatco/skia-canvas#303 with the measured crash matrix from [Verification](docs/verification.md#windows-thread-pool-crash) and a suggestion to pin the module or stop its threads when the last Node environment exits. Until a fixed skia-canvas release, `threads` and `vmThreads` users still need `vitest-environment-happy-dom-extended/global-setup`; the setup entry stays after any fix so existing configurations keep resolving.
 
 ### Drop the dangling declaration-map reference from the published types
 
