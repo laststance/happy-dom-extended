@@ -28,20 +28,6 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
-## Worker lifecycle
-
-### Decide how a worker reports a failed teardown
-
-**What:** Choose whether a failure during asynchronous teardown should be reported or suppressed, and apply that rule to every `void` call that starts such cleanup.
-
-**Why:** An unhandled rejection ends a Node process, so a cleanup that rejects with nothing attached aborts a whole run the way a throwing finalizer did before `runFinalizer` existed. A cleanup that is caught but dropped hides the failure instead.
-
-**Context:** `close` in `packages/compat/src/workers/worker-runtime.ts` does not reject: it catches the error from `disposeAll` and posts it through `startup.control`. The parent Worker drops that message once `#stop` has set `#stopped`, so a teardown failure after `terminate()` or Window close is never seen, while one after the worker script calls `close()` reaches the Window as an ErrorEvent. The calls without a handler are `dispose` twice and `closeSources` in `packages/compat/src/canvas/videos.ts`, which can reject because disposal reads the Window's `DOMException` and releases native storage; and in `packages/compat/src/workers/install-workers.ts`, each child's `stop`, `#stop` from `terminate()` and from startup cleanup, and the timeout's `terminate()` on the thread. `#stop` settles only when the thread exits, so it rejects only if posting the close message throws. The canvas files already use the other convention, `void this.completion.catch(() => {})`. Decide between suppressing and reporting through the Window's error path before editing the call sites.
-
-**Effort:** M
-**Priority:** P2
-**Depends on:** Nothing
-
 ## Release automation
 
 ### Drop the dangling declaration-map reference from the published types
@@ -105,6 +91,12 @@ Tracked follow-ups for the public packages and their release automation.
 **Depends on:** A fork pull request, or a deliberate test of one
 
 ## Completed
+
+### Decide how a worker reports a failed teardown
+
+Decided: suppress. Every fire-and-forget teardown call now owns its rejection with `.catch(() => {})`, matching the existing `void this.completion.catch(() => {})` convention in the canvas sources. A teardown rejection after `terminate()` or Window close has no observer — `#stop` has already set `#stopped`, which closes the ErrorEvent path — so an unhandled rejection could only abort the whole process, while the worker-initiated `close()` → control `error` → Window ErrorEvent contract is unchanged because that reporting happens before the promise settles.
+
+Along the way, `#stop` in `install-workers.ts` was fixed so a close-message post that throws can no longer skip the forced-termination timer and strand the child thread, and `loadCanvasVideo` in `videos.ts` now owns the previous source's disposal promise on its no-source early return. `window.happyDOM.close()` still reports joined teardown failures through `disposeAll`. Issue: laststance/happy-dom-extended#27.
 
 ### Claim the Vitest vmForks pool
 
