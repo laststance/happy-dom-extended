@@ -20,7 +20,7 @@ Tracked follow-ups for the public packages and their release automation.
 
 ### Confirm the Codecov upload on a fork pull request
 
-Resolved with a deterministic fallback: the upload step now also requires `secrets.CODECOV_TOKEN != ''`, so a fork pull request skips coverage upload instead of failing the required `test` check. Same-repo pull requests and `main` runs are unchanged. Tokenless upload remains unexercised — an acceptable trade since skipping never blocks an outside contribution. Issue: laststance/happy-dom-extended#35.
+Resolved with a deterministic fallback: the secret is exposed through a job-level `env` (the `secrets` context is not allowed in `if:` expressions) and the upload step requires `env.CODECOV_TOKEN != ''`, so a fork pull request skips coverage upload instead of failing the required `test` check. Same-repo pull requests and `main` runs are unchanged. Tokenless upload remains unexercised — an acceptable trade since skipping never blocks an outside contribution. Issue: laststance/happy-dom-extended#35.
 
 ### Evaluate staged npm publishing
 
