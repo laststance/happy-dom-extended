@@ -47,7 +47,8 @@ jobs:
       - run: pnpm test:coverage
       - run: pnpm test:package
       - name: Upload coverage to Codecov
-        if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest'
+        # Fork pull requests cannot read secrets; skipping keeps the required `test` check green for outside contributions.
+        if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest' && secrets.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

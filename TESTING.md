@@ -34,7 +34,7 @@ Node 25 and later define their own lazy `localStorage` and `sessionStorage` glob
 
 The development versions of Jest and Vitest also hide skia-canvas's native binary after installation. The run must fail and print every approval command, which proves that both bundles explain a skipped install script. A second Vitest run uses `threads` with the global setup. It must fail in the global setup, before any worker starts, with the same commands.
 
-CI tests Node 22.18.0, 24.20.0, and 26.8.1 on Linux and Windows with Jest 30.0.0 and 30.5.1 plus Vitest 4.0.0, 4.1.11 and 5.0.1 installed consumers. The Vitest 4.0.0 cell pins Vite 7.1.12; 4.0.0's module runner does not implement Vite 7.2+'s `getBuiltins`. Codecov receives one Linux Node 24 report to avoid duplicate matrix uploads. The upload always passes the organization token and sets `fail_ci_if_error`, and a fork PR cannot read that secret. Codecov's tokenless public-repository flow has not been exercised here; [TODOS.md](TODOS.md) tracks confirming it.
+CI tests Node 22.18.0, 24.20.0, and 26.8.1 on Linux and Windows with Jest 30.0.0 and 30.5.1 plus Vitest 4.0.0, 4.1.11 and 5.0.1 installed consumers. The Vitest 4.0.0 cell pins Vite 7.1.12; 4.0.0's module runner does not implement Vite 7.2+'s `getBuiltins`. Codecov receives one Linux Node 24 report to avoid duplicate matrix uploads. The upload passes the organization token and sets `fail_ci_if_error`. A fork pull request cannot read that secret, so the step is skipped when the token is empty and coverage simply isn't reported on fork contributions.
 
 ## Try an application before release
 
