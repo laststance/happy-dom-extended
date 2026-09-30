@@ -19,6 +19,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # test:package installs 8 isolated consumers; Windows npm installs dominate the runtime.
     timeout-minutes: 30
+    env:
+      # `secrets` is not allowed in step `if:` expressions, so expose it through env.
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,7 +51,7 @@ jobs:
       - run: pnpm test:package
       - name: Upload coverage to Codecov
         # Fork pull requests cannot read secrets; skipping keeps the required `test` check green for outside contributions.
-        if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest' && secrets.CODECOV_TOKEN != ''
+        if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest' && env.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
