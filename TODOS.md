@@ -30,19 +30,11 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
+## Completed
+
 ### Confirm the Codecov upload on a fork pull request
 
-**What:** Establish whether the coverage upload succeeds on a pull request from a fork, and add a fallback if it does not.
-
-**Why:** `test` is a required status check. The upload step passes `secrets.CODECOV_TOKEN` and sets `fail_ci_if_error: true`, and a fork pull request cannot read that secret, so a failing upload would block every outside contribution.
-
-**Context:** `.github/workflows/test.yml` runs the upload only on Linux Node 24.20.0. codecov-action v7 documents a tokenless flow for public repositories, which this repository has never exercised because no fork pull request has been opened. Either confirm the tokenless path or skip the step when the token is empty. [TESTING.md](TESTING.md) records the current state.
-
-**Effort:** S
-**Priority:** P3
-**Depends on:** A fork pull request, or a deliberate test of one
-
-## Completed
+Resolved with a deterministic fallback: the upload step now also requires `secrets.CODECOV_TOKEN != ''`, so a fork pull request skips coverage upload instead of failing the required `test` check. Same-repo pull requests and `main` runs are unchanged. Tokenless upload remains unexercised — an acceptable trade since skipping never blocks an outside contribution. Issue: laststance/happy-dom-extended#35.
 
 ### Report the Windows skia.node unload crash to skia-canvas
 
