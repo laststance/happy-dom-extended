@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { clearTimeout, setTimeout } from 'node:timers'
-import { Worker as NativeWorker, MessageChannel } from 'node:worker_threads'
+import { MessageChannel, Worker as NativeWorker } from 'node:worker_threads'
 
 import type { Window } from 'happy-dom'
 import { PropertySymbol } from 'happy-dom'
@@ -34,7 +34,7 @@ export function installWorkers(
   const children = new Set<() => Promise<void>>()
   restorers.push(() => {
     // Emergency synchronous restoration requests stops; normal runner teardown joins them through Window close first.
-    for (const stop of children) void stop()
+    for (const stop of children) void stop().catch(() => {})
   })
   registerWindowClose(
     window,
@@ -164,7 +164,8 @@ export function installWorkers(
      * @example worker.terminate();
      */
     terminate(): void {
-      void this.#stop()
+      // Teardown runs after ownership is gone; a rejection has no observer.
+      void this.#stop().catch(() => {})
     }
 
     /** Tracks startup until V8 is ready or the native child exits, so Window completion observes queued loads.
@@ -181,7 +182,8 @@ export function installWorkers(
           'InvalidStateError',
         )
       const taskId = tasks.startTask(() => {
-        void this.#stop()
+        // Teardown runs after ownership is gone; a rejection has no observer.
+        void this.#stop().catch(() => {})
       })
       let startupEnded = false
       this.#endStartup = () => {
@@ -191,13 +193,26 @@ export function installWorkers(
       }
     }
 
+    /** Requests graceful child shutdown and always schedules forced termination, so a failed close post cannot strand the thread.
+     * @returns The shared exit promise; calls after stopping only join the pending exit.
+     * @example await this.#stop();
+     */
     #stop = async (): Promise<void> => {
       if (!this.#stopped) {
         this.#stopped = true
         this.#abort.abort()
-        this.#control.port1.postMessage({ type: 'close' })
+        try {
+          this.#control.port1.postMessage({ type: 'close' })
+        } catch {
+          // A broken control port must not skip the forced-termination fallback below.
+        }
         this.#stopTimer = setTimeout(() => {
-          void this.#thread.terminate()
+          try {
+            // Forced termination runs after ownership is gone; a rejection has no observer.
+            void this.#thread.terminate().catch(() => {})
+          } catch {
+            // A synchronous native failure still leaves the exit promise bounded by the 'exit' listener.
+          }
         }, WORKER_STOP_TIMEOUT_MS)
       }
       return this.#closed
