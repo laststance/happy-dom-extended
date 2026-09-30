@@ -30,18 +30,6 @@ Tracked follow-ups for the public packages and their release automation.
 **Priority:** P3
 **Depends on:** Nothing
 
-### Require a pull request and block force pushes on main
-
-**What:** Add the `pull_request` and `non_fast_forward` rules to the `main` ruleset.
-
-**Why:** `main` accepts a direct push and a force push today, so the required status checks can be bypassed entirely by pushing to it. OpenSSF Scorecard scores branch protection 1 out of 10 for exactly these two gaps.
-
-**Context:** Ruleset 22409011 targets the default branch with `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage`, and no bypass actors. Repository rules are public, so Scorecard reads them without a token. Adding `pull_request` with zero required approvals keeps a solo maintainer's flow intact while routing every change through the checks. Releases already go through a pull request titled `release <short>@<version>`, so the rule does not change that flow. [SECURITY.md](SECURITY.md) records the finding meanwhile.
-
-**Effort:** S
-**Priority:** P2
-**Depends on:** Nothing
-
 ## Completed
 
 ### Confirm the Codecov upload on a fork pull request
@@ -61,6 +49,10 @@ Reported as samizdatco/skia-canvas#303 with the measured crash matrix from [Veri
 Decided: suppress. Every fire-and-forget teardown call now owns its rejection with `.catch(() => {})`, matching the existing `void this.completion.catch(() => {})` convention in the canvas sources. A teardown rejection after `terminate()` or Window close has no observer — `#stop` has already set `#stopped`, which closes the ErrorEvent path — so an unhandled rejection could only abort the whole process, while the worker-initiated `close()` → control `error` → Window ErrorEvent contract is unchanged because that reporting happens before the promise settles.
 
 Along the way, `#stop` in `install-workers.ts` was fixed so a close-message post that throws can no longer skip the forced-termination timer and strand the child thread, and `loadCanvasVideo` in `videos.ts` now owns the previous source's disposal promise on its no-source early return. `window.happyDOM.close()` still reports joined teardown failures through `disposeAll`. Issue: laststance/happy-dom-extended#27.
+
+### Require a pull request and block force pushes on main
+
+Applied `pull_request` (zero required approvals) and `non_fast_forward` to ruleset 22409011; the existing `deletion`, `required_status_checks`, `code_scanning`, `code_quality` and `code_coverage` rules are unchanged. Every change to `main` now lands through a pull request that must pass the required checks, and force pushes are rejected. The SECURITY.md finding list was updated. Issue: laststance/happy-dom-extended#29.
 
 ### Decide on a dependency update tool
 
