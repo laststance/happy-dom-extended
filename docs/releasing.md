@@ -14,11 +14,11 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
    ```
 
 2. Add an entry for the new version at the top of the package's `CHANGELOG.md`, describing the observable changes since the previous release.
-3. Commit and open a pull request whose **title** names every bumped package as `release <short>@<version>`, where `<short>` is `jest` or `vitest`:
+3. Commit and open a pull request whose **title** names every bumped package as `release <short>@<version>`, where `<short>` is `jest` or `vitest`. Every package needs its own `release ` prefix — `release jest@0.2.1 vitest@0.1.0` names only jest, and the vitest release is silently skipped:
 
    ```sh
-   git commit -am "release jest@0.2.1 vitest@0.1.0"
-   gh pr create --title "release jest@0.2.1 vitest@0.1.0" --fill
+   git commit -am "release jest@0.2.1 release vitest@0.1.0"
+   gh pr create --title "release jest@0.2.1 release vitest@0.1.0" --fill
    ```
 
 4. Merge the pull request after its checks pass. The repository puts the PR title in the merge commit's message, so the `main` push that the merge creates is the release commit.
