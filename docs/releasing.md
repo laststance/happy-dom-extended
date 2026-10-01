@@ -21,7 +21,7 @@ The publishable packages are `jest-happy-dom-extended` and `vitest-environment-h
    gh pr create --title "release jest@0.2.1 release vitest@0.1.0" --fill
    ```
 
-4. Merge the pull request after its checks pass. The repository puts the PR title in the merge commit's message, so the `main` push that the merge creates is the release commit.
+4. Merge the pull request after its checks pass. The `main` push that the merge creates is the release commit. A squash merge of a multi-commit PR uses the PR title as the commit subject, but a **single-commit** PR uses that commit's subject instead — so keep the release names in the commit message itself, not only in the PR title.
 5. The Release job runs for that push. For each package the message names, it checks that the named version matches `package.json`, builds, and runs `release-it --no-increment` in the package directory. release-it stages the version with `pnpm stage publish --provenance`, tags the commit as `jest@<version>` or `vitest@<version>`, pushes the tag, and creates a GitHub Release with generated notes. A staged version is not installable yet; the job's summary names the staged packages.
 6. Approve each staged version under **Profile → Staged packages** on npmjs.com (or with `pnpm stage approve`). npm asks for the account's second factor, which keeps publication a maintainer action even if the workflow itself is compromised. Rejecting a staged version discards it without ever reaching the registry.
 7. Confirm the published versions after approval:
