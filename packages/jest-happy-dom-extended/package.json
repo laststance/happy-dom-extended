@@ -1,6 +1,6 @@
 {
   "name": "jest-happy-dom-extended",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A Happy DOM Jest environment with real 2D Canvas, dedicated Workers, and verified Web API compatibility fixes.",
   "keywords": [
     "jest",
