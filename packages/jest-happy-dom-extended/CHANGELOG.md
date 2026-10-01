@@ -1,5 +1,12 @@
 # jest-happy-dom-extended
 
+## 0.2.2
+
+### Patch Changes
+
+- Suppress rejections from fire-and-forget teardown so a failed cleanup after `terminate()` or Window close can no longer abort the process with an unhandled rejection. A synchronous throw while posting the worker close message no longer skips the forced-termination timer, which could previously strand the child thread and hang the Window close. Replacing a video element's source now also owns the previous source's disposal rejection. `window.happyDOM.close()` still reports joined teardown failures through `disposeAll`.
+- Drop the dangling `//# sourceMappingURL` comment from published declarations; tsdown emitted it for a declaration map the tarball does not contain.
+
 ## 0.2.1
 
 ### Patch Changes
