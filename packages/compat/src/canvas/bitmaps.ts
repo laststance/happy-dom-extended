@@ -118,10 +118,10 @@ export function closeBitmapStorage(bitmap: ImageBitmap): void {
   bitmap[PropertySymbol.width] = 0
   bitmap[PropertySymbol.height] = 0
   disposeAll([
-    () => {
+    (): void => {
       state.caller.canvas.width = 0
     },
-    () => {
+    (): void => {
       state.caller.canvas.height = 0
     },
   ])
@@ -253,7 +253,7 @@ function transferBitmap(
       if (blank) state.writePixels(blank, 0, 0)
       // Extraction preserves context taint with its styles and saved patterns, as browsers do.
     } catch (error) {
-      disposeAll([() => bitmap.close()], [error])
+      disposeAll([(): void => bitmap.close()], [error])
       throw error
     }
     return bitmap

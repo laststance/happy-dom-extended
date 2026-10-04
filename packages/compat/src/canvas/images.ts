@@ -51,7 +51,7 @@ function imageRelease(
   sources: Set<WeakRef<ImageSourceState>>,
   reference: WeakRef<ImageSourceState>,
 ): () => void {
-  return () => {
+  return (): void => {
     try {
       decoded.release()
     } finally {
@@ -84,13 +84,13 @@ export function decodeCanvasImage(
     throw error
   }
   let released = false
-  const release = () => {
+  const release = (): void => {
     if (released) return
     released = true
     // Skia 3.0.8 has no public Image.close; replacing its owned native data frees pixels synchronously without a new fetch.
     disposeAll([
       releaseStorage,
-      () =>
+      (): void =>
         Reflect.apply(Reflect.get(native, 'prop'), native, [
           'data',
           Buffer.alloc(0),
@@ -131,7 +131,7 @@ function loadCanvasImage(image: HTMLImageElement): void {
     return
   }
   const controller = new window.AbortController()
-  let releasePixels = () => {}
+  let releasePixels = (): void => {}
   const state: ImageSourceState = {
     native: null,
     originClean: true,
@@ -143,7 +143,7 @@ function loadCanvasImage(image: HTMLImageElement): void {
       state.native = null
       environment.sources.delete(reference)
       if (imageSources.get(image) === state) image[PropertySymbol.buffer] = null
-      disposeAll([releasePixels, () => controller.abort()])
+      disposeAll([releasePixels, (): void => controller.abort()])
     },
   }
   imageSources.set(image, state)
@@ -172,7 +172,7 @@ function loadCanvasImage(image: HTMLImageElement): void {
   }: {
     buffer: Buffer
     originClean: boolean
-  }) => {
+  }): void => {
     if (controller.signal.aborted || imageSources.get(image) !== state)
       throw new window.DOMException(
         'The image request changed.',

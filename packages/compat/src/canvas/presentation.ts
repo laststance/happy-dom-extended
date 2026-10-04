@@ -41,7 +41,7 @@ function trackPresentationPort(
 ): void {
   const { closers } = presentationClosers.get(window)!
   let closed = false
-  const close = () => {
+  const close = (): void => {
     if (closed) return
     closed = true
     closers.delete(close)
@@ -68,8 +68,8 @@ export function bindCanvasPresenter(
   let pending = false
   // Unsent drawing must survive GC until its pixels reach the presentation channel.
   let dirty: OffscreenCanvas | undefined
-  let release = () => {}
-  const update = () => {
+  let release = (): void => {}
+  const update = (): void => {
     dirty = reference.deref()
     if (scheduled || pending) return
     scheduled = true
@@ -260,7 +260,10 @@ export function installCanvasPresentation(
           presentationUpdates.delete(canvas)
           collectedPlaceholders.unregister(channel.port1)
           disposeAll(
-            [() => channel.port1.close(), () => channel.port2.close()],
+            [
+              (): void => channel.port1.close(),
+              (): void => channel.port2.close(),
+            ],
             [error],
           )
           throw error

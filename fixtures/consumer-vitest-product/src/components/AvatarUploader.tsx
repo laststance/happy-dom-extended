@@ -9,7 +9,9 @@ export function AvatarUploader() {
   const previewRef = useRef<HTMLCanvasElement>(null)
   const [imageSize, setImageSize] = useState<string | null>(null)
 
-  async function previewAvatar(event: ChangeEvent<HTMLInputElement>) {
+  async function previewAvatar(
+    event: ChangeEvent<HTMLInputElement>,
+  ): Promise<void> {
     const file = event.target.files?.[0]
     if (!file) return
     const bitmap = await createImageBitmap(file)

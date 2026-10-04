@@ -175,7 +175,7 @@ The package owns the Canvas/media/Worker resources it creates. Close ports trans
 
 ## Runtime boundaries
 
-- Runtime dependencies are pinned to Happy DOM 20.14.0 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows. Installed Vitest 4.0.0, 4.1.11 and 5.0.1 consumers run in every pool with two workers and in `forks` with one worker, next to a React Testing Library product fixture in every pool. Their `threads` and `vmThreads` runs use the global setup. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
+- Runtime dependencies are pinned to Happy DOM 20.14.5 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows. Installed Vitest 4.0.0, 4.1.11 and 5.0.3 consumers run in every pool with two workers and in `forks` with one worker, next to a React Testing Library product fixture in every pool. Their `threads` and `vmThreads` runs use the global setup. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
 - Canvas contexts use effective sRGB/unorm8 backing. Byte ImageData supports sRGB/display-p3 conversion; float16 ImageData is not supported. Font availability, edge rasterization and decoder rounding can differ from browsers.
 - 2D support does not include a Window Path2D constructor, WebGL, WebGPU or bitmaprenderer. Real layout and browser scheduling require a browser.
 - Dedicated Workers use actual node:worker_threads and the documented classic/module script loader. They are for trusted test code; their VM contexts are not a security sandbox. Node/file imports, service/shared workers and arbitrary browser-platform serialization are outside the supported contract.

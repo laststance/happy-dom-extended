@@ -32,7 +32,7 @@ jobs:
       - name: Use npm 11 on Node 22
         if: matrix.node == '22.18.0'
         # npm 10.9.3 arborist throws `edgesOut` null on the second isolated Vitest consumer install.
-        run: npm install -g npm@11.19.0
+        run: npm install -g npm@11.21.0
         shell: bash
       - name: Install video decoders on Linux
         if: runner.os == 'Linux'
@@ -52,7 +52,7 @@ jobs:
       - name: Upload coverage to Codecov
         # Fork pull requests cannot read secrets; skipping keeps the required `test` check green for outside contributions.
         if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest' && env.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: ${{ github.repository }}

@@ -39,11 +39,11 @@ async function runDecoder(
       const child = spawn(executable, argumentsList, { windowsHide: true })
       let failure: unknown
       let diagnostics = ''
-      const stop = (error: unknown) => {
+      const stop = (error: unknown): void => {
         failure ??= error
         child.kill('SIGKILL')
       }
-      const abort = () => stop(signal.reason)
+      const abort = (): void => stop(signal.reason)
       const timer = setTimeout(
         () =>
           stop(
@@ -174,7 +174,7 @@ export async function decodeVideoFrame(
   const { width, height } = metadata
   const length = pixelBytes(window, width, height)
   const releaseScratch = adapter.reserveStorage(window, length)
-  let releasePixels = () => {}
+  let releasePixels = (): void => {}
   try {
     releasePixels = adapter.reserveStorage(window, length)
     let writing = Buffer.alloc(length)

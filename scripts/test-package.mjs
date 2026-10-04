@@ -390,7 +390,7 @@ function installConsumer(consumer) {
     // Node 22 ships npm 10, which can throw `edgesOut` null on the second Vitest tree.
     run(
       'npx',
-      ['--yes', 'npm@11.19.0', ...argumentsList],
+      ['--yes', 'npm@11.21.0', ...argumentsList],
       consumer,
       environment,
     )

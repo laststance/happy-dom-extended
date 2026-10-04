@@ -88,7 +88,7 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
     try {
       nativeContext = bitmap.getContext('2d')
     } catch (error) {
-      disposeAll([() => this.#release(bitmap)], [error])
+      disposeAll([(): void => this.#release(bitmap)], [error])
       throw error
     }
     const state: CanvasState = {
@@ -106,7 +106,7 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
       settings,
       reset: () => this.#reset(state),
       restorers: [
-        () => {
+        (): void => {
           state.unavailable = true
           canvasStates.delete(caller.canvas)
           this.#release(bitmap)
@@ -235,7 +235,7 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
     try {
       taskId = tasks.startTask()
     } catch (error) {
-      disposeAll(snapshot ? [() => this.#release(snapshot)] : [], [error])
+      disposeAll(snapshot ? [(): void => this.#release(snapshot)] : [], [error])
       throw error
     }
     let complete!: () => void
@@ -258,8 +258,8 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
       } finally {
         try {
           disposeAll([
-            () => tasks.endTask(taskId),
-            () => {
+            (): void => tasks.endTask(taskId),
+            (): void => {
               if (snapshot) this.#release(snapshot)
             },
           ])
@@ -307,7 +307,7 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
       )
     this.#allocatedBytes += bytes
     let released = false
-    const release = () => {
+    const release = (): void => {
       if (released) return
       released = true
       this.#allocatedBytes -= bytes
@@ -351,7 +351,7 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
         snapshot.getContext('2d').drawImage(state.bitmap, 0, 0)
       return snapshot
     } catch (error) {
-      disposeAll([() => this.#release(snapshot)], [error])
+      disposeAll([(): void => this.#release(snapshot)], [error])
       throw error
     }
   }
@@ -365,10 +365,10 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
     try {
       // Both axes must be attempted even if one native reset fails.
       disposeAll([
-        () => {
+        (): void => {
           bitmap.width = MIN_NATIVE_SIZE_PX
         },
-        () => {
+        (): void => {
           bitmap.height = MIN_NATIVE_SIZE_PX
         },
       ])
@@ -460,7 +460,7 @@ export class ExtendedCanvasAdapter implements ICanvasAdapter {
       this.#storage(caller, state.width, state.height, allocation.bytes)
     } catch (error) {
       // Reflection keeps the requested size, but stale pixels cannot survive a rejected allocation.
-      disposeAll([() => this.#resizeBitmap(bitmap, 0, 0)], [error])
+      disposeAll([(): void => this.#resizeBitmap(bitmap, 0, 0)], [error])
       throw error
     }
     this.#resizeBitmap(bitmap, state.width, state.height)

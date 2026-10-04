@@ -150,7 +150,7 @@ Image loading is enabled by default. Disable it with Happy DOM `settings.enableI
 
 ## Compatibility and verification
 
-The runtime pair is pinned to **Happy DOM 20.14.0**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**. Installed tarball consumers run Jest **30.0.0 and 30.5.1** serially and with two workers, and Vitest **4.0.0, 4.1.11 and 5.0.1** in every pool. A React product fixture using Testing Library also runs in every Vitest pool.
+The runtime pair is pinned to **Happy DOM 20.14.5**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**. Installed tarball consumers run Jest **30.0.0 and 30.5.2** serially and with two workers, and Vitest **4.0.0, 4.1.11 and 5.0.3** in every pool. A React product fixture using Testing Library also runs in every Vitest pool.
 
 The tests check real pixels and encoded images, actual HTTP/decoder/Worker cancellation, ownership transfer, failure recovery and teardown. Shared browser fixtures measure renderer-dependent differences with explicit tolerances. This is selected conformance evidence, not a complete Web Platform Tests run. See [verification](docs/verification.md) and the [Canvas contract](docs/canvas-compatibility.md).
 

@@ -33,7 +33,7 @@ export function replaceProperty(
   }
   patch.references += 1
   let released = false
-  return function releaseProperty() {
+  return function releaseProperty(): void {
     if (released) return
     released = true
     patch.references -= 1

@@ -64,7 +64,7 @@ function snapshotOwnProperties(target: object): OwnPropertySnapshot {
 function deleteUnknownOwnProperties(
   target: object,
   known: ReadonlySet<string | symbol>,
-) {
+): void {
   for (const key of [
     ...Object.getOwnPropertyNames(target),
     ...Object.getOwnPropertySymbols(target),
@@ -80,7 +80,7 @@ function deleteUnknownOwnProperties(
 function applyOwnPropertySnapshot(
   target: object,
   snapshot: OwnPropertySnapshot,
-) {
+): void {
   for (const [key, descriptor] of snapshot) {
     if (descriptor) Object.defineProperty(target, key, descriptor)
     else Reflect.deleteProperty(target, key)
@@ -92,7 +92,10 @@ function applyOwnPropertySnapshot(
  * @param snapshot - Result of {@link snapshotOwnProperties} taken before mutation.
  * @example restoreOwnProperties(global, snapshot)
  */
-function restoreOwnProperties(target: object, snapshot: OwnPropertySnapshot) {
+function restoreOwnProperties(
+  target: object,
+  snapshot: OwnPropertySnapshot,
+): void {
   deleteUnknownOwnProperties(target, new Set(snapshot.map(([key]) => key)))
   applyOwnPropertySnapshot(target, snapshot)
 }
@@ -120,7 +123,10 @@ async function joinEnvironment(
   } catch (error) {
     errors.push(error)
   }
-  disposeAll([() => disposeCompatibility(), () => adapter?.dispose()], errors)
+  disposeAll(
+    [(): void => disposeCompatibility(), () => adapter?.dispose()],
+    errors,
+  )
 }
 
 /** Puts back the pre-setup descriptor of every key {@link PopulateGlobal} wrote, deleting keys that did not exist before.
@@ -135,7 +141,7 @@ function restorePopulatedGlobals(
   globalThisValue: object,
   keys: ReadonlySet<string>,
   snapshot: OwnPropertySnapshot,
-) {
+): void {
   const before = new Map(snapshot)
   for (const key of keys) {
     const descriptor = before.get(key)
@@ -150,7 +156,7 @@ function restorePopulatedGlobals(
  * @param message - AggregateError message when more than one failure exists.
  * @example throwCollectedErrors(errors, 'Environment teardown failed.')
  */
-function throwCollectedErrors(errors: unknown[], message: string) {
+function throwCollectedErrors(errors: unknown[], message: string): void {
   // A single failure keeps the original error so callers do not unwrap AggregateError.
   if (errors.length === 1) throw errors[0]
   // Multiple failures wrap so drain/close/restore errors are all visible.
@@ -196,7 +202,7 @@ async function teardownPopulatedEnvironment(
   created: ExtendedWindow,
   keys: ReadonlySet<string>,
   snapshot: OwnPropertySnapshot,
-) {
+): Promise<void> {
   const errors: unknown[] = []
   try {
     await joinEnvironment(created.window, created.adapter, created.dispose)
@@ -294,7 +300,7 @@ export function createHappyDomExtendedEnvironment(
         getVmContext() {
           return window
         },
-        async teardown() {
+        async teardown(): Promise<void> {
           return (teardown ??= joinEnvironment(
             created.window,
             created.adapter,
@@ -321,7 +327,7 @@ export function createHappyDomExtendedEnvironment(
       }
       let teardown: Promise<void> | undefined
       return {
-        async teardown(globalThisValue) {
+        async teardown(globalThisValue): Promise<void> {
           return (teardown ??= teardownPopulatedEnvironment(
             globalThisValue,
             created,

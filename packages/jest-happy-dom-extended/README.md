@@ -137,11 +137,11 @@ export default {
 
 Standard Happy DOM environment options pass through. Jest serializes configuration for its workers, so construct custom Canvas adapter instances programmatically in a custom environment subclass before `super()`, or when constructing the environment directly. Custom adapters preserve their identity and remain their owner's cleanup responsibility. An explicit `canvasAdapter: null` keeps rendering disabled.
 
-ESM imports and CommonJS require share one runtime, coordinating prototype restoration across simultaneous environments. The package owns the Canvas/media/Worker resources it creates. Close ports transferred out to other owners when those owners finish. Setup code that opens native resources must clean them up if it throws: Jest 30.5.1 can skip environment teardown after a failing setupFiles module.
+ESM imports and CommonJS require share one runtime, coordinating prototype restoration across simultaneous environments. The package owns the Canvas/media/Worker resources it creates. Close ports transferred out to other owners when those owners finish. Setup code that opens native resources must clean them up if it throws: Jest 30.5.2 can skip environment teardown after a failing setupFiles module.
 
 ## Runtime boundaries
 
-- Runtime dependencies are pinned to Happy DOM 20.14.0 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows, plus installed Jest 30.0.0 and 30.5.1 consumers in serial and two-process modes.
+- Runtime dependencies are pinned to Happy DOM 20.14.5 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows, plus installed Jest 30.0.0 and 30.5.2 consumers in serial and two-process modes.
 - Jest's experimental `workerThreads` option is not covered. With it, skia-canvas loads only in worker threads, and on Windows the run can crash when the last of them exits. Keep Jest's default worker processes.
 - Canvas contexts use effective sRGB/unorm8 backing. Byte ImageData supports sRGB/display-p3 conversion; float16 ImageData is not supported. Font availability, edge rasterization and decoder rounding can differ from browsers.
 - 2D support does not include a Window Path2D constructor, WebGL, WebGPU or bitmaprenderer. Real layout and browser scheduling require a browser.

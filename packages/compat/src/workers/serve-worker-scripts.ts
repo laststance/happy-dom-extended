@@ -27,7 +27,7 @@ export function serveWorkerScripts(
         : 'anonymous'
   let entryRequest = true
   port.on('message', async function serveWorkerScript(request: unknown) {
-    let release = () => {}
+    let release = (): void => {}
     let requestId: unknown
     // The bootstrap requests its entry before V8 linking or user importScripts can request dependencies.
     const isEntry = entryRequest

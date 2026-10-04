@@ -26,7 +26,8 @@ test('Sign out everywhere tells the other open tabs while this tab keeps its men
   const user = userEvent.setup()
   const otherTab = new BroadcastChannel('auth')
   const received = new Promise<unknown>((resolve) => {
-    otherTab.onmessage = (event: MessageEvent<unknown>) => resolve(event.data)
+    otherTab.onmessage = (event: MessageEvent<unknown>): void =>
+      resolve(event.data)
   })
   render(<AccountMenu userName="Raphtalia" />)
   try {

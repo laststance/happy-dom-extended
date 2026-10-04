@@ -362,7 +362,7 @@ test(
     const sender = new Constructor('updates')
     const receiver = new Constructor('updates')
     const received = new Promise<unknown>((resolve) => {
-      receiver.onmessage = (event) => resolve(event.data)
+      receiver.onmessage = (event): void => resolve(event.data)
     })
     // Act
     sender.postMessage({ count: 3 })

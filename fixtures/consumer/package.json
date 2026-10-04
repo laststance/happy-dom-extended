@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "devDependencies": {
-    "jest": "30.5.1",
+    "jest": "30.5.2",
     "jest-happy-dom-extended": "workspace:*",
     "pngjs": "7.0.0"
   }

@@ -121,7 +121,7 @@ export function bindCanvasPort(
   port: MessagePort,
   token: string,
 ): DisposeCompatibility {
-  if (canvasPortTokens.has(port)) return () => {}
+  if (canvasPortTokens.has(port)) return (): void => {}
   canvasPortTokens.set(port, token)
   const restorers: DisposeCompatibility[] = []
   const post = port.postMessage
@@ -137,7 +137,7 @@ export function bindCanvasPort(
   const events = new WeakMap<MessageEvent, MessageEvent>()
   const pending = new Set<DisposeCompatibility>()
   let closed = false
-  const markClosed = () => {
+  const markClosed = (): void => {
     closed = true
     disposeAll([...pending])
   }
@@ -227,7 +227,7 @@ export function bindCanvasPort(
               const channel = new MessageChannel()
               receipt = channel.port2
               let released = false
-              release = () => {
+              release = (): void => {
                 if (released) return
                 released = true
                 pending.delete(release)
@@ -269,7 +269,7 @@ export function bindCanvasPort(
       }
       let wrapped = wrappers.get(listener)
       if (!wrapped) {
-        wrapped = function receiveCanvasMessage(input: unknown) {
+        wrapped = function receiveCanvasMessage(input: unknown): void {
           const nativeEvent = isNativeMessageEvent(input) ? input : null
           const result = decode(nativeEvent ? nativeEvent.data : input)
           if (!result) return
@@ -357,7 +357,7 @@ export function bindCanvasPort(
         },
       }),
     )
-    return () => disposeAll(restorers)
+    return (): void => disposeAll(restorers)
   } catch (error) {
     disposeAll(restorers, [error])
     throw error

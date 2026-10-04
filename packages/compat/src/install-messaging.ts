@@ -41,7 +41,7 @@ export function installMessaging(
     channels.add(port)
     port.once('close', () => channels.delete(port))
   }
-  const installPort = (port: MessagePort, token: string) => {
+  const installPort = (port: MessagePort, token: string): void => {
     if (portRestorers.has(port)) return
     trackPort(port)
     portRestorers.set(port, bindCanvasPort(window, port, token))
@@ -56,7 +56,7 @@ export function installMessaging(
     })
   }
   restorers.push(() => {
-    const closers = [...channels].map((channel) => () => channel.close())
+    const closers = [...channels].map((channel) => (): void => channel.close())
     channels.clear()
     disposeAll(closers)
   })
@@ -125,7 +125,7 @@ export function installMessaging(
   }
   restorers.push(() => {
     // Retained closed ports still restore on teardown; discarded ones must not keep their Window alive.
-    const releases = [...ports].map((reference) => () => {
+    const releases = [...ports].map((reference) => (): void => {
       collectedPorts.unregister(reference)
       const port = reference.deref()
       if (port) {

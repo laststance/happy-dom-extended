@@ -53,9 +53,9 @@ export async function startOwnedWorker(): Promise<void> {
           [
             restorePort,
             dispose,
-            () => adapter.dispose(),
-            () => startup.messages.close(),
-            () => startup.requests.close(),
+            (): void => adapter.dispose(),
+            (): void => startup.messages.close(),
+            (): void => startup.requests.close(),
           ],
           errors,
         )
@@ -70,7 +70,7 @@ export async function startOwnedWorker(): Promise<void> {
         startup.control.close()
       }
     })())
-  const report = (error: unknown, filename = startup.url) => {
+  const report = (error: unknown, filename = startup.url): void => {
     if (!closing)
       startup.control.postMessage({
         type: 'error',
@@ -82,7 +82,7 @@ export async function startOwnedWorker(): Promise<void> {
     // close() reports teardown errors over the control channel itself; only an unreportable failure can reject it.
     if (message?.type === 'close') void close().catch(() => {})
   })
-  window[PropertySymbol.dispatchError] = (error: unknown) => {
+  window[PropertySymbol.dispatchError] = (error: unknown): void => {
     report(error)
   }
 
@@ -265,7 +265,7 @@ export async function startOwnedWorker(): Promise<void> {
       new Script(loaded.source, { filename: loaded.url }).runInContext(context)
     }
   })
-  const messages = (event: Event) => {
+  const messages = (event: Event): void => {
     if (!closing && isNativeMessageEvent(event))
       scope.dispatchEvent(workerMessageEvent(window, event))
   }

@@ -176,7 +176,7 @@ export function imageSource(
   const releases: (() => void)[] = []
   try {
     const native = resolveImageSource(window, source, releases)
-    return { native, release: () => disposeAll(releases) }
+    return { native, release: (): void => disposeAll(releases) }
   } catch (error) {
     disposeAll(releases, [error])
     throw error

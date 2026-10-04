@@ -132,7 +132,7 @@ export async function importPopulateGlobal(
  * @param global - Worker global about to receive the Window keys; teardown restores the real descriptors from its own snapshot.
  * @example shadowLazyWebStorage(globalThis) // globalThis.localStorage === undefined until populateGlobal redefines it
  */
-function shadowLazyWebStorage(global: object) {
+function shadowLazyWebStorage(global: object): void {
   for (const key of webStorageKeys) {
     const descriptor = Object.getOwnPropertyDescriptor(global, key)
     // Node defines both as configurable own accessors on the main thread and in workers; any other shape is safe to read.
