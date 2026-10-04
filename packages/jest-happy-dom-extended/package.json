@@ -66,9 +66,9 @@
   },
   "devDependencies": {
     "@happy-dom-extended/compat": "workspace:*",
-    "@jest/environment": "30.5.1",
-    "@jest/globals": "30.5.1",
+    "@jest/environment": "30.5.2",
+    "@jest/globals": "30.5.2",
     "@jest/types": "30.5.1",
-    "fast-check": "4.9.0"
+    "fast-check": "4.10.2"
   }
 }
