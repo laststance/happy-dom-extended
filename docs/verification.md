@@ -1,6 +1,6 @@
 # Verification
 
-The current implementation owns Canvas semantics around CPU skia-canvas 3.0.8, including real image/video sources, origin-clean checks, ImageData color conversion, Bitmap transport and dedicated Workers. The runtime baseline is pinned Happy DOM 20.14.0, Jest 30.5.1 and Vitest 5.0.1. The official node-canvas adapter remains a development-only interoperability fixture. Installed consumers also check Jest 30.0.0/30.5.1 and Vitest 4.0.0, 4.1.11 and 5.0.1.
+The current implementation owns Canvas semantics around CPU skia-canvas 3.0.8, including real image/video sources, origin-clean checks, ImageData color conversion, Bitmap transport and dedicated Workers. The runtime baseline is pinned Happy DOM 20.14.5, Jest 30.5.2 and Vitest 5.0.3. The official node-canvas adapter remains a development-only interoperability fixture. Installed consumers also check Jest 30.0.0/30.5.2 and Vitest 4.0.0, 4.1.11 and 5.0.3.
 
 ## Local evidence
 

@@ -58,15 +58,15 @@ class CanvasVideoSource {
   #adapter: ExtendedCanvasAdapter
   #bytes: Buffer = Buffer.alloc(0)
   #metadata: Awaited<ReturnType<typeof probeVideo>> | undefined
-  #releaseSource = () => {}
-  #releaseFrame = () => {}
+  #releaseSource = (): void => {}
+  #releaseFrame = (): void => {}
   #controller: InstanceType<Window['AbortController']> | undefined
   #timer: NodeJS.Timeout | undefined
   #clockStart = performance.now()
   #clockTime = 0
   #disposed = false
   #playGeneration = 0
-  #endPlayback = () => {}
+  #endPlayback = (): void => {}
 
   /** Retains only a weak element reference so a decoded but detached video can be collected.
    * @example new CanvasVideoSource(video, adapter);
@@ -190,7 +190,7 @@ class CanvasVideoSource {
       const task = manager.startTask(() => {
         void this.dispose().catch(() => {})
       })
-      this.#endPlayback = () => manager.endTask(task)
+      this.#endPlayback = (): void => manager.endTask(task)
     }
     video[PropertySymbol.paused] = false
     this.#emit('play')
@@ -205,7 +205,7 @@ class CanvasVideoSource {
   pause(): void {
     this.#playGeneration += 1
     this.#endPlayback()
-    this.#endPlayback = () => {}
+    this.#endPlayback = (): void => {}
     this.#clockTime = this.time
     const video = this.#owner.deref()
     clearTimeout(this.#timer)
@@ -458,7 +458,7 @@ export function installCanvasVideos(
 ): void {
   const sources = new Set<WeakRef<CanvasVideoSource>>()
   environments.set(window, { adapter, sources })
-  const closeSources = async () => {
+  const closeSources = async (): Promise<void> => {
     await Promise.all(
       [...sources].map(async (reference) => reference.deref()?.dispose()),
     )

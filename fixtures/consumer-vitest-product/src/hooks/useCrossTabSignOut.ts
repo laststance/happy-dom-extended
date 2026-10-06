@@ -16,11 +16,11 @@ export function useCrossTabSignOut() {
 
   useEffect(() => {
     const channel = new BroadcastChannel(AUTH_CHANNEL)
-    channel.onmessage = (event: MessageEvent<unknown>) => {
+    channel.onmessage = (event: MessageEvent<unknown>): void => {
       if (event.data === SIGNED_OUT_MESSAGE) setSignedOutElsewhere(true)
     }
     channelRef.current = channel
-    return () => {
+    return (): void => {
       channel.close()
       channelRef.current = null
     }

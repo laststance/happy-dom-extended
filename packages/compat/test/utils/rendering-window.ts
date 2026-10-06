@@ -22,7 +22,7 @@ export async function renderingWindow(context?: TestContext) {
     })
   } catch (error) {
     // A failed constructor still leaves the already created adapter to release.
-    disposeAll([() => adapter.dispose()], [error])
+    disposeAll([(): void => adapter.dispose()], [error])
     throw error
   }
   let dispose: ReturnType<typeof installCompatibility>
@@ -36,7 +36,7 @@ export async function renderingWindow(context?: TestContext) {
       errors.push(cleanupError)
     }
     // Keep the setup error alongside any Window or adapter cleanup failures.
-    disposeAll([() => adapter.dispose()], errors)
+    disposeAll([(): void => adapter.dispose()], errors)
     throw error
   }
   const close = async (): Promise<void> => {
@@ -52,7 +52,7 @@ export async function renderingWindow(context?: TestContext) {
       errors.push(error)
     }
     // Every stage runs, and later cleanup errors must not hide the first failure.
-    disposeAll([dispose, () => adapter.dispose()], errors)
+    disposeAll([dispose, (): void => adapter.dispose()], errors)
   }
   context?.after(close)
   return { window, adapter, close }

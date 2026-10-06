@@ -30,7 +30,7 @@ export async function imageServers(
   const timers: NodeJS.Timeout[] = []
   let origin = ''
   let crossOrigin = ''
-  const serve = (request: IncomingMessage, response: ServerResponse) => {
+  const serve = (request: IncomingMessage, response: ServerResponse): void => {
     const path = request.url ?? '/'
     requests.push({
       path,
@@ -62,7 +62,7 @@ export async function imageServers(
     if (path === '/wildcard.png') headers['Access-Control-Allow-Origin'] = '*'
     if (path === '/cookie.png')
       headers['Set-Cookie'] = 'media=forbidden; Path=/'
-    const send = () => {
+    const send = (): void => {
       response.writeHead(200, headers)
       response.end(
         scripts[path] ??

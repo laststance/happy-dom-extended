@@ -67,7 +67,7 @@ test('prepareOwnedCanvasSettings leaves a caller-owned adapter undisposed', () =
     toDataURL() {
       return ''
     },
-    toBlob(_caller: unknown, callback: (blob: null) => void) {
+    toBlob(_caller: unknown, callback: (blob: null) => void): void {
       callback(null)
     },
   }

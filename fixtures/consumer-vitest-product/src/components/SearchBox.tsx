@@ -36,7 +36,7 @@ export function SearchBox({ onSearch }: SearchBoxProps) {
   const [recentSearches, setRecentSearches] = useState(readRecentSearches)
   const isComposingRef = useRef(false)
 
-  function search() {
+  function search(): void {
     const nextRecentSearches = [
       query,
       ...recentSearches.filter((recent) => recent !== query),

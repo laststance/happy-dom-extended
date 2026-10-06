@@ -10,7 +10,7 @@ Implement working behavior. Fixed return values and application-specific mocks b
 
 ## Local setup
 
-Install Node.js 24.20.0 (see `.node-version`) and the pnpm 12.3.4 version pinned with integrity in `package.json`. Follow [pnpm's installation guide](https://pnpm.io/installation). The test suite needs ffmpeg and ffprobe on PATH (`brew install ffmpeg`, `sudo apt-get install ffmpeg`, or `choco install ffmpeg --yes`). Verify both with `ffmpeg -version` and `ffprobe -version`. Skia's native install script must run; development also installs node-canvas for foreign-adapter regressions.
+Install Node.js 24.20.0 (see `.node-version`) and the pnpm 12.9.1 version pinned with integrity in `package.json`. Follow [pnpm's installation guide](https://pnpm.io/installation). The test suite needs ffmpeg and ffprobe on PATH (`brew install ffmpeg`, `sudo apt-get install ffmpeg`, or `choco install ffmpeg --yes`). Verify both with `ffmpeg -version` and `ffprobe -version`. Skia's native install script must run; development also installs node-canvas for foreign-adapter regressions.
 
 ```sh
 pnpm install --frozen-lockfile

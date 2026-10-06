@@ -112,7 +112,10 @@ export function installWorkers(
             resolve()
           }),
         )
-        this.#thread.on('error', (error) => this.#error(error.message))
+        // @types/node types the worker "error" payload as unknown.
+        this.#thread.on('error', (error: unknown) => {
+          this.#error(error instanceof Error ? error.message : String(error))
+        })
         this.#control.port1.on(
           'message',
           (message: { type: string; message?: string; filename?: string }) => {
@@ -186,7 +189,7 @@ export function installWorkers(
         void this.#stop().catch(() => {})
       })
       let startupEnded = false
-      this.#endStartup = () => {
+      this.#endStartup = (): void => {
         if (startupEnded) return
         startupEnded = true
         tasks.endTask(taskId)
@@ -243,8 +246,8 @@ export function installWorkers(
         this.#restore,
         ...[this.#messages, this.#control, this.#requests].flatMap(
           (channel) => [
-            () => channel.port1.close(),
-            () => channel.port2.close(),
+            (): void => channel.port1.close(),
+            (): void => channel.port2.close(),
           ],
         ),
       ])

@@ -227,8 +227,8 @@ test(
     )
     context.after(() => worker.terminate())
     const drawn = new Promise<void>((resolve, reject) => {
-      worker.onmessage = () => resolve()
-      worker.onerror = (event: { message: string }) =>
+      worker.onmessage = (): void => resolve()
+      worker.onerror = (event: { message: string }): void =>
         reject(new Error(event.message))
     })
     const html = window.document.createElement('canvas')

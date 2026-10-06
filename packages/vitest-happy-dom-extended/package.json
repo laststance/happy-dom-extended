@@ -62,7 +62,7 @@
   "dependencies": {
     "buffer-image-size": "0.6.4",
     "culori": "4.0.2",
-    "happy-dom": "20.14.0",
+    "happy-dom": "20.14.5",
     "skia-canvas": "3.0.8",
     "webidl-conversions": "8.0.1"
   },
@@ -71,7 +71,7 @@
   },
   "devDependencies": {
     "@happy-dom-extended/compat": "workspace:*",
-    "fast-check": "4.9.0",
-    "vitest": "5.0.1"
+    "fast-check": "4.10.2",
+    "vitest": "5.0.3"
   }
 }

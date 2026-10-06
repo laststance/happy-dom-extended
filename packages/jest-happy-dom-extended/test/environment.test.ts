@@ -25,8 +25,8 @@ test('File upload tests retain binary contents and FileReader compatibility insi
   const reader = new FileReader()
   // Act
   const text = new Promise((resolve, reject) => {
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(reader.error)
+    reader.onload = (): void => resolve(reader.result)
+    reader.onerror = (): void => reject(reader.error)
     reader.readAsText(file)
   })
   // Assert
@@ -105,7 +105,7 @@ test('native MessageChannel delivers messages and has matching MessagePort ident
   // Arrange
   const channel = new MessageChannel()
   const message = new Promise((resolve) => {
-    channel.port2.onmessage = (event) => resolve(event.data)
+    channel.port2.onmessage = (event): void => resolve(event.data)
   })
   // Act
   channel.port1.postMessage('ready')
@@ -121,7 +121,7 @@ test('BroadcastChannel supports real peer delivery and environment-owned cleanup
   const sender = new BroadcastChannel('events')
   const receiver = new BroadcastChannel('events')
   const message = new Promise((resolve) => {
-    receiver.onmessage = (event) => resolve(event.data)
+    receiver.onmessage = (event): void => resolve(event.data)
   })
   // Act
   sender.postMessage({ updated: true })

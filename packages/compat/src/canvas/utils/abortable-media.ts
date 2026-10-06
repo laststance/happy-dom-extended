@@ -9,12 +9,12 @@ export async function abortableMedia<Value>(
   pending: Promise<Value>,
 ): Promise<Value> {
   if (signal.aborted) throw signal.reason
-  let abort = () => {}
+  let abort = (): void => {}
   try {
     return await Promise.race([
       pending,
       new Promise<never>((_, reject) => {
-        abort = () => reject(signal.reason)
+        abort = (): void => reject(signal.reason)
         signal.addEventListener('abort', abort, { once: true })
         if (signal.aborted) abort()
       }),

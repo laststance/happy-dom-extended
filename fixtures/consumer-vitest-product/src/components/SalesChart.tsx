@@ -19,7 +19,7 @@ export function SalesChart({ monthlySales, barColor }: SalesChartProps) {
   // Tracks whether an encoding that finishes later can still hand its URL to the revoke cleanup below.
   useEffect(() => {
     isMountedRef.current = true
-    return () => {
+    return (): void => {
       isMountedRef.current = false
     }
   }, [])
@@ -46,13 +46,13 @@ export function SalesChart({ monthlySales, barColor }: SalesChartProps) {
 
   // Release the previous export when a newer one replaces it or the chart unmounts.
   useEffect(
-    () => () => {
+    () => (): void => {
       if (downloadUrl) URL.revokeObjectURL(downloadUrl)
     },
     [downloadUrl],
   )
 
-  function exportPng() {
+  function exportPng(): void {
     canvasRef.current?.toBlob((png) => {
       // After unmount no cleanup would revoke a new URL, so none is created.
       if (png && isMountedRef.current) {

@@ -415,7 +415,7 @@ test('Invalid output arguments register no asynchronous work and later exports s
   assert.throws(
     () =>
       Reflect.apply(canvas.toBlob, canvas, [
-        () => {},
+        (): void => {},
         {
           toString() {
             throw failure

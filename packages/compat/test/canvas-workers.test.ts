@@ -107,7 +107,7 @@ test(
     const Constructor = Reflect.get(window, 'Worker')
     const worker = new Constructor('/entry.js')
     context.after(() => worker.terminate())
-    worker.onmessage = ({ data }: { data: unknown }) => {
+    worker.onmessage = ({ data }: { data: unknown }): void => {
       messages.push(data)
       if (data !== 'TimeoutError') markFinished()
     }
@@ -150,7 +150,7 @@ test(
       const exited = once(workerThreads.get(worker)!, 'exit')
       const received = new Promise<{ data: number }>((resolve, reject) => {
         worker.onmessage = resolve
-        worker.onerror = (event: { message: string }) =>
+        worker.onerror = (event: { message: string }): void =>
           reject(new Error(event.message))
       })
       // Act / Assert
@@ -191,7 +191,7 @@ test(
       }
     }>((resolve, reject) => {
       worker.onmessage = resolve
-      worker.onerror = (event: InstanceType<typeof window.ErrorEvent>) =>
+      worker.onerror = (event: InstanceType<typeof window.ErrorEvent>): void =>
         reject(new Error(event.message))
     })
     const canvas = new window.OffscreenCanvas(1, 1)
@@ -267,7 +267,7 @@ test(
     })
     const received = new Promise<{ data: unknown }>((resolve, reject) => {
       worker.onmessage = resolve
-      worker.onerror = (event: { message: string }) =>
+      worker.onerror = (event: { message: string }): void =>
         reject(new Error(event.message))
     })
     // Act
@@ -322,7 +322,7 @@ test(
     const worker = new Constructor('/classic.js', { credentials: 'include' })
     const received = new Promise<{ data: unknown }>((resolve, reject) => {
       worker.onmessage = resolve
-      worker.onerror = (event: { message: string }) =>
+      worker.onerror = (event: { message: string }): void =>
         reject(new Error(event.message))
     })
     // Act / Assert
@@ -368,7 +368,7 @@ test(
     const Constructor = Reflect.get(window, 'Worker')
     const worker = new Constructor('data:text/javascript,postMessage(1)')
     let ran = false
-    worker.onmessage = () => {
+    worker.onmessage = (): void => {
       ran = true
     }
     const failed = new Promise<{ message: string }>((resolve) => {
@@ -439,8 +439,8 @@ test(
     const thread = workerThreads.get(worker)!
     // Wait for confirmed startup so terminate() reaches the injected close failure.
     await new Promise<void>((resolve, reject) => {
-      worker.onmessage = () => resolve()
-      worker.onerror = (event: { message: string }) =>
+      worker.onmessage = (): void => resolve()
+      worker.onerror = (event: { message: string }): void =>
         reject(new Error(event.message))
     })
     const unhandled: unknown[] = []
@@ -517,7 +517,7 @@ test(
     )
     const thread = workerThreads.get(worker)!
     await new Promise<void>((resolve) => {
-      worker.onmessage = () => resolve()
+      worker.onmessage = (): void => resolve()
     })
     // Act
     await environment.close()
@@ -571,8 +571,9 @@ test(
     const received = new Promise<{ data: { pixels: number[]; url: string } }>(
       (resolve, reject) => {
         worker.onmessage = resolve
-        worker.onerror = (event: InstanceType<typeof window.ErrorEvent>) =>
-          reject(new Error(event.message))
+        worker.onerror = (
+          event: InstanceType<typeof window.ErrorEvent>,
+        ): void => reject(new Error(event.message))
       },
     )
     // Act

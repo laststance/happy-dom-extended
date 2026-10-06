@@ -68,8 +68,8 @@ test('foreign decoded image bytes without verified origin metadata taint Canvas 
   window.happyDOM.setURL(origin)
   const image = new foreign.Image()
   const loaded = new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve()
-    image.onerror = () => reject(new Error('Foreign image did not load'))
+    image.onload = (): void => resolve()
+    image.onerror = (): void => reject(new Error('Foreign image did not load'))
   })
   image.src = `${crossOrigin}/red.png`
   await loaded

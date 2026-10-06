@@ -257,7 +257,7 @@ export function prepareCanvasTransfer(
         ports,
       } satisfies CanvasTransferEnvelope,
       transfer: native,
-      commit() {
+      commit(): void {
         for (const source of owned) {
           if (source instanceof ImageBitmap) closeBitmapStorage(source)
           else {
@@ -268,7 +268,7 @@ export function prepareCanvasTransfer(
           }
         }
       },
-      release() {
+      release(): void {
         disposeAll(releases)
       },
     }
@@ -287,7 +287,7 @@ function allocateCanvasReceivers(
   envelope: CanvasTransferEnvelope,
 ) {
   const replacements = new Map<object, ImageBitmap | OffscreenCanvas>()
-  let release = () => {}
+  let release = (): void => {}
   try {
     const adapter = new WindowBrowserContext(window).getSettings()
       ?.canvasAdapter
@@ -337,7 +337,7 @@ function allocateCanvasReceivers(
     })
     return replacements
   } catch (error) {
-    disposeAll([() => releaseCanvasReceivers(replacements)], [error])
+    disposeAll([(): void => releaseCanvasReceivers(replacements)], [error])
     throw error
   } finally {
     release()
@@ -352,7 +352,7 @@ function releaseCanvasReceivers(
   receivers: ReturnType<typeof allocateCanvasReceivers>,
 ): void {
   disposeAll(
-    [...receivers.values()].map((value) => () => {
+    [...receivers.values()].map((value) => (): void => {
       if (value instanceof ImageBitmap) closeBitmapStorage(value)
       else offscreenPresenters.get(value)?.close()
     }),
@@ -387,7 +387,7 @@ export function receiveCanvasTransfer(
   } catch (error) {
     if (replacements) {
       const allocated = replacements
-      disposeAll([() => releaseCanvasReceivers(allocated)], [error])
+      disposeAll([(): void => releaseCanvasReceivers(allocated)], [error])
     }
     throw error
   } finally {
@@ -446,7 +446,10 @@ export function installCanvasTransfer(
               : error
           if (receivers) {
             const allocated = receivers
-            disposeAll([() => releaseCanvasReceivers(allocated)], [failure])
+            disposeAll(
+              [(): void => releaseCanvasReceivers(allocated)],
+              [failure],
+            )
           }
           throw failure
         } finally {

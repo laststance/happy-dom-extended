@@ -42,7 +42,7 @@ test('a finalizer whose async cleanup rejects leaves no unhandled rejection behi
 test('a finalizer returning no cleanup value completes without touching the rejection path', () => {
   // Arrange
   let released = 0
-  const release = () => {
+  const release = (): void => {
     released += 1
   }
 

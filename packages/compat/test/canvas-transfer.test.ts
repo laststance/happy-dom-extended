@@ -95,7 +95,13 @@ test(
     })
     const delivered = once(channel.port2, 'message')
     // Act
-    MessagePort.prototype.postMessage.call(
+    // Reading the overloaded method without calling it keeps only the options signature.
+    const postMessage = MessagePort.prototype.postMessage as (
+      this: MessagePort,
+      message: unknown,
+      transferList: MessagePort[],
+    ) => void
+    postMessage.call(
       channel.port1,
       ['application-data', 7, transferred.port1],
       [transferred.port1],
@@ -575,7 +581,7 @@ test(
     const fromListener = new Promise<MessageEvent>((resolve) => {
       Reflect.apply(channel.port2.addEventListener, channel.port2, [
         'message',
-        (event: MessageEvent) => {
+        (event: MessageEvent): void => {
           resolve(event)
         },
       ])
@@ -625,7 +631,7 @@ test(
     const received = new Promise<MessageEvent>((resolve) => {
       Reflect.apply(channel.port2.addEventListener, channel.port2, [
         'message',
-        (event: MessageEvent) => {
+        (event: MessageEvent): void => {
           resolve(event)
         },
       ])
@@ -664,7 +670,7 @@ test(
     )
     const channel = new Constructor()
     let calls = 0
-    const firstHandler = (event: MessageEvent) => {
+    const firstHandler = (event: MessageEvent): void => {
       calls += 1
       resolveFirst(event.data)
     }
@@ -734,12 +740,12 @@ test(
     assert.deepEqual(warningNames, ['AddEventListenerArgumentTypeWarning'])
     Reflect.apply(channel.port2.addEventListener, channel.port2, [
       'close',
-      () => {},
+      (): void => {},
     ])
     const received = new Promise<string>((resolve) => {
       Reflect.apply(channel.port2.addEventListener, channel.port2, [
         'message',
-        (event: MessageEvent) => {
+        (event: MessageEvent): void => {
           resolve(event.data)
         },
       ])

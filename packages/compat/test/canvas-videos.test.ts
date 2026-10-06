@@ -216,7 +216,7 @@ test(
     video.src = videoURL
     await videoSources.get(video)!.completion
     const seeked: number[] = []
-    video.onseeked = () => {
+    video.onseeked = (): void => {
       seeked.push(video.currentTime)
     }
     // Act
@@ -245,7 +245,7 @@ test(
     const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
     const frames: number[][] = []
     const events: string[] = []
-    video.onloadeddata = () => {
+    video.onloadeddata = (): void => {
       drawing.drawImage(video, 0, 0)
       frames.push([...drawing.getImageData(0, 0, 1, 1).data])
     }
@@ -318,7 +318,7 @@ test(
       window.happyDOM.setURL('https://media.example/')
       let streamController:
         ReadableStreamDefaultController<Uint8Array> | undefined
-      let notify = () => {}
+      let notify = (): void => {}
       const reading = new Promise<void>((resolve) => {
         notify = resolve
       })
@@ -381,7 +381,7 @@ test(
     await videoSources.get(video)!.completion
     const drawing = new window.OffscreenCanvas(1, 1).getContext('2d')!
     const playingFrame = new Promise<void>((resolve) => {
-      video.ontimeupdate = () => {
+      video.ontimeupdate = (): void => {
         // A slow decoder can publish an older sample after the clock advances; wait for the actual blue frame.
         drawing.drawImage(video, 0, 0)
         if (drawing.getImageData(0, 0, 1, 1).data[2]! >= 253) resolve()
@@ -412,7 +412,7 @@ test(
     const { window } = await renderingWindow(context)
     const video = window.document.createElement('video')
     const errors: number[] = []
-    video.onerror = () => {
+    video.onerror = (): void => {
       errors.push(video.error?.code ?? 0)
     }
     // Act
