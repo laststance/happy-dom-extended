@@ -50,8 +50,23 @@ jobs:
       - run: pnpm test:coverage
       - run: pnpm test:package
       - name: Upload coverage to Codecov
+        id: codecov
         # Fork pull requests cannot read secrets; skipping keeps the required `test` check green for outside contributions.
         if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest' && env.CODECOV_TOKEN != ''
+        continue-on-error: true
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          disable_search: true
+          fail_ci_if_error: true
+      - name: Retry coverage upload to Codecov
+        # codecov.sh curls the CLI with `--retry` but not `--retry-all-errors`, so one
+        # SSL handshake failure (curl 35) from cli.codecov.io fails the required test job
+        # after the suite itself has passed. A second attempt covers that transient error.
+        if: matrix.node == '24.20.0' && matrix.os == 'ubuntu-latest' && env.CODECOV_TOKEN != '' && steps.codecov.outcome == 'failure'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
