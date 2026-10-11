@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 
 import {
   capture,
+  completeRecords,
   exitCodeFor,
   formatProblem,
   formatSummary,
@@ -319,6 +320,59 @@ test('pasted evidence shows ~ instead of the home directory', () => {
     scrubbed,
     'spin (file://~/app/a.test.ts:3:5)\n~/app/out/summary.txt',
   )
+})
+
+test('raw evidence written on Windows hides the home directory in file URLs and in JSON strings', () => {
+  // Arrange
+  const home = 'C:\\Users\\ada'
+  const profile = JSON.stringify({
+    url: 'file:///C:/Users/ada/app/a.test.ts',
+    cwd: 'C:\\Users\\ada\\app',
+  })
+
+  // Act
+  const scrubbed = scrubHome(profile, home)
+
+  // Assert
+  assert.equal(scrubbed, '{"url":"file:///~/app/a.test.ts","cwd":"~\\\\app"}')
+})
+
+test('an interrupted capture lists the processes it never reached and is not reported as complete', () => {
+  // Arrange
+  const scope = [
+    { pid: 101, command: 'node (vitest 1)', cpuPercent: 99 },
+    { pid: 102, command: 'node (vitest 2)', cpuPercent: 40 },
+    { pid: 100, command: 'node vitest.mjs run', cpuPercent: 0 },
+  ]
+  const captured = {
+    pid: 101,
+    command: 'node (vitest 1)',
+    cpu: 99,
+    port: 9229,
+    threads: [{ label: 'main', state: 'idle' }],
+  }
+
+  // Act
+  const records = completeRecords(scope, [captured])
+  const exitCode = exitCodeFor(records)
+
+  // Assert
+  assert.deepEqual(records, [
+    captured,
+    {
+      pid: 102,
+      command: 'node (vitest 2)',
+      cpu: 40,
+      unavailable: 'not captured: the capture ended first',
+    },
+    {
+      pid: 100,
+      command: 'node vitest.mjs run',
+      cpu: 0,
+      unavailable: 'not captured: the capture ended first',
+    },
+  ])
+  assert.equal(exitCode, 2)
 })
 
 test('two captures of one process a millisecond apart get different directories', () => {

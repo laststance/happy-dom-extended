@@ -357,16 +357,21 @@ async function readListeners(platform = process.platform) {
  *
  * @param text - Any output of the capture.
  * @param home - The home directory to hide.
- * @returns The text with `~` in its place.
+ * @returns The text with `~` in its place, also where a Windows path is
+ * written with forward slashes (file URLs) or with doubled backslashes (JSON).
  * @example scrubHome('/Users/ada/app/a.test.ts', '/Users/ada') === '~/app/a.test.ts'
  */
 export function scrubHome(text, home = homedir()) {
   if (!home || home === path.parse(home).root) return text
-  return text
-    .split(home)
-    .join('~')
-    .split(home.split(path.sep).join('/'))
-    .join('~')
+  const spellings = [
+    home,
+    home.replaceAll('\\', '/'),
+    home.replaceAll('\\', '\\\\'),
+  ]
+  let scrubbed = text
+  for (const spelling of spellings)
+    scrubbed = scrubbed.replaceAll(spelling, '~')
+  return scrubbed
 }
 
 /**
@@ -1044,6 +1049,29 @@ async function captureScope(scope, state, result, deadline, options) {
   }
 }
 
+/**
+ * Lists every process in scope, in scope order. A capture that ended early has
+ * no record for the process it was reading and for those after it; without an
+ * entry they would vanish from the summary and from the exit code.
+ *
+ * @param scope - The process rows the capture set out to read.
+ * @param processes - The records made so far.
+ * @returns One record per process in scope.
+ * @example completeRecords([{ pid: 7, command: 'node a.mjs', cpuPercent: 99 }], [])
+ */
+export function completeRecords(scope, processes) {
+  const known = new Map(processes.map((entry) => [entry.pid, entry]))
+  return scope.map(
+    (row) =>
+      known.get(row.pid) ?? {
+        pid: row.pid,
+        command: row.command,
+        cpu: row.cpuPercent,
+        unavailable: 'not captured: the capture ended first',
+      },
+  )
+}
+
 /** Waits for the work, the deadline or the abort signal; resolves with the reason it stopped early, if any. */
 async function raceAbort(work, deadline, signal) {
   const controller = new AbortController()
@@ -1124,11 +1152,13 @@ export async function capture(pid, overrides = {}) {
     await abortCapture(state, sampling, options.stepMs)
   }
   result.notes.push(...(await sampling.done))
+  // From here on nothing awaits, so a capture still in flight cannot change what is reported.
+  const processes = completeRecords(target.scope, result.processes)
   return {
-    exitCode: exitCodeFor(result.processes),
+    exitCode: exitCodeFor(processes),
     directory: place.directory,
-    summary: writeCapture(result, sampling, place.directory),
-    messages: closingMessages(result.processes, place.directory),
+    summary: writeCapture({ ...result, processes }, sampling, place.directory),
+    messages: closingMessages(processes, place.directory),
   }
 }
 
