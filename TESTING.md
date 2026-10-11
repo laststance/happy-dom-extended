@@ -51,6 +51,49 @@ pnpm approve-builds skia-canvas
 
 Set `environment: 'happy-dom-extended'` in the copy's Vitest config, and add `globalSetup: ['vitest-environment-happy-dom-extended/global-setup']` for the thread pools. Run the suite with `--pool=forks`, `--pool=threads`, `--pool=vmThreads` and `--pool=vmForks`, then run the same commands with `environment: 'happy-dom'`. A failure that also occurs with `happy-dom` belongs to the application or to Happy DOM. A failure that occurs only with this environment needs a regression test here. [Verification](docs/verification.md#real-application-trials) records the latest trials.
 
+## Capture a hang
+
+A test run that stays at full CPU, or never finishes, can only be diagnosed while it is still running. Keep it going and open a second terminal.
+
+1. Download the capture script. It is one file without dependencies, so you can read it before you run it.
+
+   ```sh
+   curl -fsSLO https://raw.githubusercontent.com/laststance/happy-dom-extended/main/scripts/capture-hang.mjs
+   ```
+
+2. List the Node processes, busiest first, and find the test runner: the `vitest` or `jest` command line, usually the parent of the busiest process. This step attaches to nothing.
+
+   ```sh
+   node capture-hang.mjs --list
+   ```
+
+3. Capture the runner. The script reads that process and its Node child processes and leaves them running.
+
+   ```sh
+   node capture-hang.mjs <pid>
+   ```
+
+4. Paste `summary.txt` from the directory the script names into a new issue, or into [issue 51](https://github.com/laststance/happy-dom-extended/issues/51) when the run uses `isolate: false`.
+5. Stop the stuck run.
+
+The script starts the Node inspector in the captured processes, records a five-second CPU profile for every thread, worker threads included, and pauses each busy thread just long enough to read its JavaScript stack. It never chooses a process itself and never stops one. `summary.txt` shows the home directory as `~` and contains no environment variables. The exit code is 0 when everything was captured, 2 when part was, and 1 when nothing was. Three limits apply:
+
+- One inspector port serves one process. In a run with several processes, such as the `forks` pool, the busiest one is captured and the others are listed as `inspector unavailable`. On macOS their native stacks are still saved next to the summary by `sample`.
+- If another program already holds port 9229, nothing can be captured. Stop that program, or pass `--port` when the stuck process was started with `--inspect-port`.
+- The inspector stays open on 127.0.0.1 in the captured process until that process ends, which is why the last step stops the run.
+
+The script runs on Node.js 22.18 or later. Its test suite runs on Linux and Windows in CI and was run on macOS locally.
+
+When a download is not possible, Node's own debugger gives the main thread's stack of one process. Pass the pid of the busy process, type `pause`, then `bt`, and copy the backtrace:
+
+```sh
+node inspect -p <pid>
+```
+
+This reaches only the default inspector port 9229, so it fails for a process started with another `--inspect-port`, and it shows the main thread only, so a hang inside a worker thread (`threads` and `vmThreads` pools) does not appear.
+
+A report without a capture is still welcome. Include the command, the versions of Node.js, the test runner, Happy DOM and this package, and any error the capture printed.
+
 ## Regression expectations
 
 Use `test`, observable names, literal expected values, and Arrange/Act/Assert. Check actual RGBA pixels, dimensions, MIME type, and decoded output rather than object existence. Cover image snapshots during redraw/resize, same-value dimension assignments, setup ordering, simultaneous environments, and disposal after errors. Await asynchronous operations and close test-owned resources.

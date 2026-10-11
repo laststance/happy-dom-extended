@@ -3,6 +3,7 @@
  * output, appending the comment, while `dts.sourcemap` decides whether a map is
  * actually written — so published `.d.*` files reference maps the tarball does
  * not contain and editors resolve to a missing file.
+ * Reported upstream as https://github.com/rolldown/tsdown/issues/1091.
  *
  * Called from each package's `build` (strip mode, default) and `check:package`
  * (`--check`) scripts.
