@@ -73,7 +73,7 @@ A test run that stays at full CPU, or never finishes, can only be diagnosed whil
    node capture-hang.mjs <pid>
    ```
 
-4. Paste `summary.txt` from the directory the script names into a new issue, or into [issue 51](https://github.com/laststance/happy-dom-extended/issues/51) when the run uses `isolate: false`.
+4. Paste `summary.txt` from the directory the script names into a new issue. [Issue 51](https://github.com/laststance/happy-dom-extended/issues/51) shows a capture of a known cause to compare with.
 5. Stop the stuck run.
 
 The script starts the Node inspector in the captured processes, records a five-second CPU profile for every thread, worker threads included, and pauses each busy thread just long enough to read its JavaScript stack. It never chooses a process itself and never stops one. `summary.txt` shows the home directory as `~` and contains no environment variables. The exit code is 0 when everything was captured, 2 when part was, and 1 when nothing was. Three limits apply:

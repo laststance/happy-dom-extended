@@ -194,7 +194,7 @@ When the install script ran but its download failed, rerun it with network acces
 
 **Exit code 3221225477 on Windows** with `threads` or `vmThreads` usually means the global setup is missing. Add it as shown in [Thread pools](#thread-pools), or use the default `forks` pool.
 
-**A test run stays at full CPU or never finishes.** Keep the run going and follow [Capture a hang](https://github.com/laststance/happy-dom-extended/blob/main/TESTING.md#capture-a-hang), which records what every thread is doing without stopping the run. Post the result in a new issue, or in [issue 51](https://github.com/laststance/happy-dom-extended/issues/51) when the run uses `isolate: false`.
+**A test run stays at full CPU or never finishes.** Keep the run going and follow [Capture a hang](https://github.com/laststance/happy-dom-extended/blob/main/TESTING.md#capture-a-hang), which records what every thread is doing without stopping the run, and post the result in a new issue. One cause is known and is not specific to this environment: with `isolate: false`, React 19 can loop forever while dispatching an event when a test renders `<html>` or `<body>` into a container and an earlier test file rendered a portal into `document.body`. [Issue 51](https://github.com/laststance/happy-dom-extended/issues/51) describes it.
 
 ## Contributing and releases
 
