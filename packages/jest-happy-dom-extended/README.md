@@ -158,6 +158,8 @@ Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-
 
 When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
 
+**A test run stays at full CPU or never finishes.** Keep the run going and follow [Capture a hang](https://github.com/laststance/happy-dom-extended/blob/main/TESTING.md#capture-a-hang), which records what every thread is doing without stopping the run. Post the result in a new issue.
+
 ## Contributing and releases
 
 The [monorepo](https://github.com/laststance/happy-dom-extended) contains source, regression/property tests and installed-consumer fixtures. `pnpm check` validates the implementation and its distribution. The private compatibility workspace is bundled; consumers install only this public package and its normal dependencies. Follow the [contribution guide](https://github.com/laststance/happy-dom-extended/blob/main/CONTRIBUTING.md) or [release guide](https://github.com/laststance/happy-dom-extended/blob/main/docs/releasing.md).

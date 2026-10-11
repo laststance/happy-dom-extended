@@ -17,7 +17,7 @@
     "format:check": "prettier --check .",
     "check:docs": "node scripts/check-docs-links.mjs",
     "test": "pnpm build && c8 pnpm test:runtime",
-    "test:unit": "node --test packages/compat/test/*.test.ts packages/jest-happy-dom-extended/test-node/*.test.mjs packages/vitest-happy-dom-extended/test-node/*.test.mjs",
+    "test:unit": "node --test packages/compat/test/*.test.ts packages/jest-happy-dom-extended/test-node/*.test.mjs packages/vitest-happy-dom-extended/test-node/*.test.mjs scripts/test/*.test.mjs",
     "test:jest": "jest --no-cache",
     "test:vitest": "vitest run --config packages/vitest-happy-dom-extended/vitest.config.ts",
     "sherif": "sherif",

@@ -15,6 +15,7 @@
     "fixtures/consumer-vitest-product/src/test/setup.ts",
     "fixtures/consumer-vitest-product/src/**/*.test.tsx",
     "packages/*/test-node/*.test.mjs",
+    "scripts/test/*.test.mjs",
     "packages/*/vitest.config.ts"
   ],
   "ignorePatterns": [".artifacts/**"],

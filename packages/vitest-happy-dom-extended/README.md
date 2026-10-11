@@ -103,7 +103,7 @@ export default defineConfig({
 })
 ```
 
-The global setup loads skia-canvas once in Vitest's main thread before any worker starts. Without it, a Windows run can crash with exit code 3221225477 (`0xC0000005`, an access violation) even after its tests pass. Windows unloads skia-canvas's native binary when the last worker thread that loaded it exits, while threads that skia-canvas started keep running its code. CI has seen this crash only on Windows. The setup is harmless on Linux and macOS, so configurations shared across platforms can keep it. `forks` and `vmForks` load skia-canvas in each child process's main thread and do not need it. In a Vitest project list, put `globalSetup` in each project that runs a thread pool.
+The global setup loads skia-canvas once in Vitest's main thread before any worker starts. Without it, a Windows run can crash with exit code 3221225477 (`0xC0000005`, an access violation) even after its tests pass. Windows unloads skia-canvas's native binary when the last worker thread that loaded it exits, while threads that skia-canvas started keep running its code. CI has seen this crash only on Windows. The setup is harmless on Linux and macOS, so configurations shared across platforms can keep it. `forks` and `vmForks` load skia-canvas in each child process's main thread and do not need it. In a Vitest project list, put `globalSetup` in each project that runs a thread pool. The crash is reported upstream as [samizdatco/skia-canvas#303](https://github.com/samizdatco/skia-canvas/issues/303); the `global-setup` entry stays after an upstream fix, so existing configurations keep resolving.
 
 ## Included behavior
 
@@ -193,6 +193,8 @@ Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-
 When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
 
 **Exit code 3221225477 on Windows** with `threads` or `vmThreads` usually means the global setup is missing. Add it as shown in [Thread pools](#thread-pools), or use the default `forks` pool.
+
+**A test run stays at full CPU or never finishes.** Keep the run going and follow [Capture a hang](https://github.com/laststance/happy-dom-extended/blob/main/TESTING.md#capture-a-hang), which records what every thread is doing without stopping the run, and post the result in a new issue. One cause is known and is not specific to this environment: with `isolate: false`, React 19 can loop forever while dispatching an event when a test renders `<html>` or `<body>` into a container and an earlier test file rendered a portal into `document.body`. [Issue 51](https://github.com/laststance/happy-dom-extended/issues/51) describes it.
 
 ## Contributing and releases
 
