@@ -23,7 +23,7 @@
     "coverage": "coverage/coverage-final.json"
   },
   "duplicates": {
-    "ignore": ["**/test/**", "**/test-node/**"]
+    "ignore": ["**/test/**", "**/test-node/**", "fixtures/**"]
   },
   "framework": [
     {
