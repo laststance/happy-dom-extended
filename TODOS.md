@@ -46,7 +46,7 @@ Applied `pull_request` (zero required approvals) and `non_fast_forward` to rules
 
 ### Decide on a dependency update tool
 
-Decided: Dependabot. `.github/dependabot.yml` updates `github-actions` and `npm` development dependencies weekly — `allow: dependency-type: development` keeps `happy-dom`, `skia-canvas` and every other runtime dependency pinned to the versions the verification matrix covers. Minor/patch dev-dependency updates are grouped into one PR to limit noise; majors arrive individually. SECURITY.md updated. Issue: laststance/happy-dom-extended#31.
+Decided: Dependabot, for GitHub Actions only. `.github/dependabot.yml` updates `github-actions` weekly. The `npm` entry, which covered development dependencies, was removed in laststance/happy-dom-extended#50; npm dependencies are updated by hand, so `happy-dom`, `skia-canvas` and every other runtime dependency stay pinned to the versions the verification matrix covers. SECURITY.md updated. Issue: laststance/happy-dom-extended#31.
 
 ### Claim the Vitest vmForks pool
 

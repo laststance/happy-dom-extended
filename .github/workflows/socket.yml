@@ -19,8 +19,10 @@ concurrency:
 jobs:
   socket:
     name: Socket Dependency Scan
-    # Fork pull requests cannot access the Socket API token.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Fork pull requests and Dependabot-triggered runs cannot access the Socket API token.
+    # The Socket GitHub App still reports on those pull requests. A maintainer's merge pushes to main as that
+    # maintainer, so the merged commit is scanned.
+    if: github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

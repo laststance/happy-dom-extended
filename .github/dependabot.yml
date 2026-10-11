@@ -9,21 +9,3 @@ updates:
       actions:
         patterns:
           - '*'
-
-  # Development dependencies only: happy-dom and skia-canvas stay pinned to the
-  # exact versions the verification matrix covers, so production updates must
-  # never arrive unattended.
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-    allow:
-      - dependency-type: development
-    groups:
-      dev-deps:
-        applies-to: version-updates
-        update-types:
-          - minor
-          - patch
-        patterns:
-          - '*'

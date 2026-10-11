@@ -173,7 +173,7 @@ Use the pnpm version pinned in the root package manifest. `pnpm check` runs sour
 
 Workflows are separated into [Test](.github/workflows/test.yml), [Lint](.github/workflows/lint.yml), [Format](.github/workflows/format.yml), [TypeCheck](.github/workflows/typecheck.yml), [Build](.github/workflows/build.yml), [Fallow](.github/workflows/fallow.yml), [Security](.github/workflows/security.yml), [Socket](.github/workflows/socket.yml), [OpenSSF Scorecard](.github/workflows/scorecard.yml) and [Release](.github/workflows/release.yml). Security includes CodeQL, dependency review and a production dependency audit. Codecov receives the Linux Node 24 coverage report.
 
-Socket scans same-repository PRs, pushes to main, its weekly schedule and manual runs, using the `SOCKET_SECURITY_API_TOKEN` Actions secret. Fork PRs skip that secret-dependent workflow. See [Socket token setup](https://docs.socket.dev/docs/create-socket-api-key-for-cicd) for maintainer configuration.
+Socket scans same-repository PRs, pushes to main, its weekly schedule and manual runs, using the `SOCKET_SECURITY_API_TOKEN` Actions secret. Fork PRs and Dependabot PRs skip that secret-dependent workflow, because neither can read Actions secrets; the Socket GitHub App still reports on them. When a maintainer merges a Dependabot PR, the push to main runs as that maintainer and is scanned. See [Socket token setup](https://docs.socket.dev/docs/create-socket-api-key-for-cicd) for maintainer configuration.
 
 Three source workspaces hold the code. `pnpm-workspace.yaml` also registers the installed-consumer fixtures under `fixtures/`.
 
