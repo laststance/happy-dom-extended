@@ -566,7 +566,8 @@ test('a spinning worker thread is captured while the main thread stays responsiv
   // Assert
   assert.equal(outcome.exitCode, 0)
   assert.match(outcome.summary, /thread main: idle/)
-  assert.match(outcome.summary, /WorkerThread: busy/)
+  // Node 22 labels the thread `[worker 1]`, Node 24 `[worker 1] WorkerThread`.
+  assert.match(outcome.summary, /thread \[worker 1\][^:\n]*: busy/)
   assert.match(outcome.summary, /paused stack:\n\s+spinInWorker \(/)
 })
 

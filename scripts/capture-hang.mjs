@@ -471,7 +471,8 @@ class Session {
   receive(text) {
     const message = JSON.parse(text)
     const settle = this.#pending.get(message.id)
-    if (settle) {
+    // The id comes from the inspected process; only a command this session sent has a waiter.
+    if (typeof settle === 'function') {
       this.#pending.delete(message.id)
       settle(message)
       return
