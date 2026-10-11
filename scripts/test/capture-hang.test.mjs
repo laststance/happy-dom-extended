@@ -337,6 +337,19 @@ test('raw evidence written on Windows hides the home directory in file URLs and 
   assert.equal(scrubbed, '{"url":"file:///~/app/a.test.ts","cwd":"~\\\\app"}')
 })
 
+test('evidence hides a home directory whose name is percent-encoded in file URLs', () => {
+  // Arrange
+  const home = '/Users/太郎 山田'
+  const profile =
+    '{"url":"file:///Users/%E5%A4%AA%E9%83%8E%20%E5%B1%B1%E7%94%B0/app/a.test.ts"}'
+
+  // Act
+  const scrubbed = scrubHome(profile, home)
+
+  // Assert
+  assert.equal(scrubbed, '{"url":"file://~/app/a.test.ts"}')
+})
+
 test('an interrupted capture lists the processes it never reached and is not reported as complete', () => {
   // Arrange
   const scope = [

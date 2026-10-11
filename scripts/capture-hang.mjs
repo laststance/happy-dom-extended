@@ -357,16 +357,20 @@ async function readListeners(platform = process.platform) {
  *
  * @param text - Any output of the capture.
  * @param home - The home directory to hide.
- * @returns The text with `~` in its place, also where a Windows path is
- * written with forward slashes (file URLs) or with doubled backslashes (JSON).
+ * @returns The text with `~` in its place, also where the path is written
+ * with forward slashes or percent-encoded (file URLs) or with doubled
+ * backslashes (JSON).
  * @example scrubHome('/Users/ada/app/a.test.ts', '/Users/ada') === '~/app/a.test.ts'
  */
 export function scrubHome(text, home = homedir()) {
   if (!home || home === path.parse(home).root) return text
+  const slashed = home.replaceAll('\\', '/')
   const spellings = [
     home,
-    home.replaceAll('\\', '/'),
+    slashed,
     home.replaceAll('\\', '\\\\'),
+    // File URLs percent-encode spaces, non-ASCII letters, `#` and `?`.
+    encodeURI(slashed).replaceAll('#', '%23').replaceAll('?', '%3F'),
   ]
   let scrubbed = text
   for (const spelling of spellings)
