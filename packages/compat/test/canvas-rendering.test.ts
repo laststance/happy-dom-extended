@@ -71,7 +71,11 @@ test('real renderer matches opaque browser pixels and stays within recorded edge
       `${name}: premultiplied ${maxPremultiplied}`,
     )
     assert.ok(rms <= limits[name][2], `${name}: RMS ${rms}`)
-    assert.equal(observed.textWidth, 20)
+    // Skia 4's Linux font backend differs from macOS by 0.000030517578125 px for Ahem.
+    assert.ok(
+      Math.abs(observed.textWidth - 20) <= 0.0001,
+      `${name}: Ahem width ${observed.textWidth} differs from 20 px`,
+    )
   }
 })
 
