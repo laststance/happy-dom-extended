@@ -29,6 +29,7 @@ import {
 import { WindowBrowserContext } from './happy-dom-internals.ts'
 import { fetchCanvasResource } from './resource-fetch.ts'
 import { conversionOptions } from './utils/conversion-options.ts'
+import { crossOriginDescriptor } from './utils/cross-origin-descriptor.ts'
 import { decodeVideoFrame, probeVideo } from './video-decoder.ts'
 
 export const videoSources = new WeakMap<HTMLVideoElement, CanvasVideoSource>()
@@ -583,34 +584,10 @@ export function installCanvasVideos(
     'crossOrigin',
   )!
   restorers.push(
-    replaceProperty(prototype, 'crossOrigin', {
-      enumerable: true,
-      get(this: HTMLVideoElement) {
-        if (!environments.has(this[PropertySymbol.window]))
-          return originalCORS.get!.call(this)
-        const value = this.getAttribute('crossorigin')
-        return value === null
-          ? null
-          : value.toLowerCase() === 'use-credentials'
-            ? 'use-credentials'
-            : 'anonymous'
-      },
-      set(this: HTMLVideoElement, value: unknown) {
-        if (!environments.has(this[PropertySymbol.window])) {
-          originalCORS.set!.call(this, value)
-          return
-        }
-        if (value === null || value === undefined)
-          this.removeAttribute('crossorigin')
-        else
-          this.setAttribute(
-            'crossorigin',
-            conversions.DOMString(
-              value,
-              conversionOptions(this[PropertySymbol.window]),
-            ),
-          )
-      },
-    }),
+    replaceProperty(
+      prototype,
+      'crossOrigin',
+      crossOriginDescriptor(originalCORS, (window) => environments.has(window)),
+    ),
   )
 }

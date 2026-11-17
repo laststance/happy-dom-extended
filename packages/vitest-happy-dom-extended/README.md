@@ -6,7 +6,7 @@
 
 Requires **Node.js >=22.18.0** and **Vitest 4 or 5**. Choose your package manager below.
 
-`skia-canvas` is a required dependency. Its installation script downloads the native binary for your platform. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported Linux, Windows and macOS builds and source-build requirements.
+`skia-canvas` is a required dependency. Skia Canvas 4 installs its native binary as a platform-specific optional `@skia-canvas/*` package, without an install script. Keep optional dependencies enabled and install on the target OS and architecture. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported platforms.
 
 ### npm
 
@@ -14,41 +14,19 @@ Requires **Node.js >=22.18.0** and **Vitest 4 or 5**. Choose your package manage
 npm install --save-dev vitest@5 vitest-environment-happy-dom-extended
 ```
 
-With npm 12, [approve](https://docs.npmjs.com/cli/v12/commands/npm-approve-scripts/) and run Skia's native installation script after installation:
-
-```sh
-npm approve-scripts skia-canvas
-npm rebuild skia-canvas
-```
-
 ### pnpm
 
 ```sh
 pnpm add -D vitest@5 vitest-environment-happy-dom-extended
-pnpm approve-builds skia-canvas
 ```
-
-pnpm 11 and 12 stop `pnpm add` with `ERR_PNPM_IGNORED_BUILDS` until Skia's install script is approved. The packages are already added, so run `pnpm approve-builds skia-canvas` next. It saves the approval under `allowBuilds` in `pnpm-workspace.yaml` and downloads the binary.
-
-pnpm 10 finishes `pnpm add` with an "Ignored build scripts" warning and no Skia binary. Its `pnpm approve-builds` ignores package names and opens a prompt: select **skia-canvas** there. See [pnpm approve-builds](https://pnpm.io/cli/approve-builds).
-
-For a non-interactive installation, merge this into `pnpm-workspace.yaml` before running `pnpm add`:
-
-```yaml
-allowBuilds:
-  skia-canvas: true
-```
-
-pnpm 10 uses a `pnpm.onlyBuiltDependencies` list in `package.json` instead when one exists, so add `skia-canvas` to that list. pnpm 11 and 12 read only `allowBuilds`.
 
 ### Bun
 
 ```sh
 bun add --dev vitest@5 vitest-environment-happy-dom-extended
-bun pm trust skia-canvas
 ```
 
-[`bun pm trust`](https://bun.sh/docs/pm/cli/pm#trust) runs Skia's installation script and saves the package in `trustedDependencies`. Use Bun to install dependencies; run Vitest with Node.js as shown below.
+Use Bun to install dependencies; run the test runner with Node.js as shown below.
 
 ### Video support
 
@@ -175,7 +153,7 @@ The package owns the Canvas/media/Worker resources it creates. Close ports trans
 
 ## Runtime boundaries
 
-- Runtime dependencies are pinned to Happy DOM 20.14.5 and CPU skia-canvas 3.0.8. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows. Installed Vitest 4.0.0, 4.1.11 and 5.0.3 consumers run in every pool with two workers and in `forks` with one worker, next to a React Testing Library product fixture in every pool. Their `threads` and `vmThreads` runs use the global setup. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
+- Runtime dependencies are pinned to Happy DOM 21.0.4 and CPU skia-canvas 4.0.1. CI covers Node 22.18.0, 24.20.0 and 26.8.1 on Linux/Windows. Installed Vitest 4.0.0, 4.1.11 and 5.1.0 consumers run in every pool with two workers and in `forks` with one worker, next to a React Testing Library product fixture in every pool. Their `threads` and `vmThreads` runs use the global setup. Vitest 4.0.0 needs Vite 7.1; Vite 7.2+ requires a later Vitest 4 that implements `getBuiltins`.
 - Canvas contexts use effective sRGB/unorm8 backing. Byte ImageData supports sRGB/display-p3 conversion; float16 ImageData is not supported. Font availability, edge rasterization and decoder rounding can differ from browsers.
 - 2D support does not include a Window Path2D constructor, WebGL, WebGPU or bitmaprenderer. Real layout and browser scheduling require a browser.
 - Dedicated Workers use actual node:worker_threads and the documented classic/module script loader. They are for trusted test code; their VM contexts are not a security sandbox. Node/file imports, service/shared workers and arbitrary browser-platform serialization are outside the supported contract.
@@ -188,13 +166,7 @@ Read the [exact Canvas limits and evidence](https://github.com/laststance/happy-
 
 ## Troubleshooting
 
-**`skia-canvas cannot load its native binary (lib/skia.node)`** means the package manager skipped Skia's install script. The error lists the approval commands for pnpm, npm 12 and Bun, and keeps the original loader error as its `cause`. Approve and run the script as described in [Installation](#installation), then rerun Vitest.
-
-When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
-
-**Exit code 3221225477 on Windows** with `threads` or `vmThreads` usually means the global setup is missing. Add it as shown in [Thread pools](#thread-pools), or use the default `forks` pool.
-
-**A test run stays at full CPU or never finishes.** Keep the run going and follow [Capture a hang](https://github.com/laststance/happy-dom-extended/blob/main/TESTING.md#capture-a-hang), which records what every thread is doing without stopping the run, and post the result in a new issue. One cause is known and is not specific to this environment: with `isolate: false`, React 19 can loop forever while dispatching an event when a test renders `<html>` or `<body>` into a container and an earlier test file rendered a portal into `document.body`. [Issue 51](https://github.com/laststance/happy-dom-extended/issues/51) describes it.
+**`skia-canvas cannot load its native binary`** means the optional package for the current OS and architecture is missing. The error preserves the original loader error as its `cause`. Enable optional dependencies, then reinstall with `pnpm install --force`, `npm install --include=optional`, or `bun install --force`. Do not copy `node_modules` between platforms. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported platforms and source builds.
 
 ## Contributing and releases
 

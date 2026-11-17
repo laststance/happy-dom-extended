@@ -31,7 +31,8 @@
       "name": "repository-tools",
       "entryPoints": ["scripts/*.mjs"],
       "entryPointRole": "support",
-      "toolingDependencies": ["typescript-compiler"]
+      "toolingDependencies": ["typescript-compiler"],
+      "enablers": ["fallow"]
     }
   ],
   "usedClassMembers": [
@@ -46,5 +47,7 @@
     "culori",
     "skia-canvas",
     "webidl-conversions"
-  ]
+  ],
+  "ignoreBinaries": ["sample"],
+  "ignoreUnresolvedImports": ["jest-happy-dom-extended/canvas"]
 }

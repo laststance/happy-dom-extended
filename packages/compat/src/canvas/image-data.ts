@@ -70,6 +70,9 @@ export function readImageData(
     const result = Reflect.apply(method, state.nativeContext, numbers)
     if (!(result instanceof NativeImageData))
       throw new window.TypeError('Renderer returned invalid ImageData.')
+    // Skia 4 can return float pixels, but this adapter explicitly requests byte-based ImageData.
+    if (!(result.data instanceof Uint8ClampedArray))
+      throw new window.TypeError('Renderer returned unsupported pixel storage.')
     convertPixelColors(result.data, 'srgb', settings.colorSpace)
     return Reflect.construct(window.ImageData, [
       new window.Uint8ClampedArray(

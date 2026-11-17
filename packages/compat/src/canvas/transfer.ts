@@ -224,6 +224,11 @@ export function prepareCanvasTransfer(
         state && width && height
           ? state.readPixels(0, 0, width, height).data
           : new Uint8ClampedArray()
+      // Transfer records contain byte pixels; reject unexpected float-backed renderer output.
+      if (!(data instanceof Uint8ClampedArray))
+        throw new window.TypeError(
+          'Renderer returned unsupported pixel storage.',
+        )
       const marker = {}
       const presentation =
         source instanceof OffscreenCanvas

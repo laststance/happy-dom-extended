@@ -26,7 +26,7 @@ assert.equal(
   environmentRequire('happy-dom').HTMLCanvasElement,
 )
 const dependencies = packageRequire('./package.json').dependencies
-assert.equal(dependencies['skia-canvas'], '3.0.8')
+assert.equal(dependencies['skia-canvas'], '4.0.1')
 assert.equal(dependencies.canvas, undefined)
 assert.equal(dependencies['@happy-dom/node-canvas-adapter'], undefined)
 process.stdout.write('ESM and CommonJS package exports loaded successfully.\n')

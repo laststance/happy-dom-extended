@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { toSkiaInstallError } from '../src/utils/skia-install-error.ts'
 
-test('A skia-canvas install blocked by the package manager explains how to approve and rerun its install script', () => {
+test('A missing skia-canvas binary explains how to reinstall optional platform packages', () => {
   // Arrange
   const missingBinary = Object.assign(
     new Error(
@@ -18,11 +18,11 @@ test('A skia-canvas install blocked by the package manager explains how to appro
   assert.equal(
     reported.message,
     [
-      'skia-canvas cannot load its native binary (lib/skia.node). Its install script downloads the binary, and pnpm, npm 12 and Bun skip that script until you approve it:',
-      '  pnpm:   pnpm approve-builds   (select skia-canvas)',
-      '  npm 12: npm approve-scripts skia-canvas && npm rebuild skia-canvas',
-      '  Bun:    bun pm trust skia-canvas',
-      'If the script ran but its download failed, rerun it with network access or build from source: https://skia-canvas.org/getting-started',
+      'skia-canvas cannot load its native binary. Skia Canvas 4 requires the optional @skia-canvas package for this OS and architecture:',
+      '  pnpm: pnpm install --force',
+      '  npm:  npm install --include=optional',
+      '  Bun:  bun install --force',
+      'Keep optional dependencies enabled and reinstall on the target platform; do not copy node_modules between architectures. See https://skia-canvas.org/getting-started',
     ].join('\n'),
   )
   assert.equal(reported.cause, missingBinary)
@@ -61,4 +61,20 @@ test('A non-object value thrown while loading skia-canvas is rethrown unchanged'
   const reported = toSkiaInstallError(thrownValue)
   // Assert
   assert.equal(reported, thrownValue)
+})
+
+test('An omitted Skia 4 platform package receives installation guidance', () => {
+  // Arrange
+  const missingPackage = new Error(
+    'Skia Canvas could not find a native binary for this platform (darwin-arm64).',
+  )
+  // Act
+  const reported = toSkiaInstallError(missingPackage)
+  // Assert
+  assert.ok(reported instanceof Error)
+  assert.equal(reported.cause, missingPackage)
+  assert.equal(
+    reported.message.includes('npm install --include=optional'),
+    true,
+  )
 })

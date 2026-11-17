@@ -1,6 +1,6 @@
 # Canvas compatibility and verification
 
-The public Jest and Vitest environments own the supported Canvas behavior around CPU `skia-canvas` 3.0.8. Happy DOM supplies DOM objects and the runner Window; Skia supplies actual pixels and PNG/JPEG/WebP encoding. This is a selected Web API implementation, with the limits below, rather than a complete browser engine.
+The public Jest and Vitest environments own the supported Canvas behavior around CPU `skia-canvas` 4.0.1. Happy DOM supplies DOM objects and the runner Window; Skia supplies actual pixels and PNG/JPEG/WebP encoding. This is a selected Web API implementation, with the limits below, rather than a complete browser engine.
 
 ## Supported behavior
 
@@ -20,7 +20,7 @@ The context's effective storage is sRGB `unorm8`. A requested P3 or float16 **co
 
 Rasterization and installed system fonts can differ from a browser. The pinned Ahem comparison below measures those differences separately from API behavior. Opaque `alpha: false` contexts maintain opaque black backing as required by the specification; the local Chrome 152 headless comparison returned transparent initial pixels before a first draw, so that browser discrepancy is not copied. Skia's half-alpha compositing can differ by one channel level (127 versus 128).
 
-Use Blob, ImageData and other platform constructors provided by the installed test environment. Objects created by a separate Happy DOM module copy or another Happy DOM version are unsupported; the public package pins its own runtime pair to 20.14.5.
+Use Blob, ImageData and other platform constructors provided by the installed test environment. Objects created by a separate Happy DOM module copy or another Happy DOM version are unsupported; the public package pins its own runtime pair to 21.0.4.
 
 Only the 2D context is implemented. WebGL, WebGPU, `bitmaprenderer`, a public Window.Path2D constructor, CanvasFilter objects, HDR/float surfaces and full browser text/layout behavior are not provided. The Canvas transfer extension handles ImageBitmap and OffscreenCanvas; it does not turn every Happy DOM class into a native structured-clone type. Browser-specific structured-clone realm behavior for ordinary Node values is not promised.
 
@@ -113,3 +113,5 @@ Behavior was reviewed against [WHATWG HTML source at 9ed7f27](https://github.com
 | [offscreen/manual/the-offscreen-canvas/offscreencanvas.transferrable.html](https://github.com/web-platform-tests/wpt/blob/17d68806f7be968ed38196f068db03fb3a5dff2a/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transferrable.html)                                                                                                                                                                                              | Actual Worker transfer, received dimensions, context-bound rejection, detached sender and repeated-transfer rejection            |
 
 Additional owned tests cover CORS on two real origins, video decode/seek/replacement, malformed input, resource ceilings, startup errors, live-child shutdown, native message listeners, receiver Window brands and partial-install restoration. Installed-tarball tests execute the supported Jest and Vitest versions with one and two workers, every Vitest pool and a React product fixture, including the private Worker bootstrap from the installed package. The GitHub test matrix is the authority for Linux/Windows and Node 22/24/26 results; a local macOS pass alone is not evidence that all six CI combinations passed.
+
+Skia Canvas 4 font metrics may vary by less than 0.0001 CSS px across platform font backends. The Ahem reference remains 20 px; the renderer regression allows that metric precision while retaining all existing pixel-difference limits.

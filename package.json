@@ -33,22 +33,22 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
-    "@swc/core": "1.16.13",
+    "@swc/core": "1.16.22",
     "@swc/jest": "0.2.39",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.6",
     "c8": "12.0.0",
     "cross-spawn": "7.0.6",
-    "eslint": "10.12.0",
+    "eslint": "10.15.0",
     "eslint-config-ts-prefixer": "5.1.0",
-    "fallow": "3.32.0",
+    "fallow": "3.43.1",
     "jest": "30.5.2",
-    "prettier": "3.9.9",
+    "prettier": "3.10.1",
     "publint": "0.3.25",
-    "release-it": "21.1.1",
+    "release-it": "21.1.2",
     "sherif": "1.13.0",
-    "tsdown": "0.23.0",
-    "typescript": "~6.0.3",
+    "tsdown": "0.23.7",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-compiler": "npm:typescript@7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.1.0"
   }
 }
