@@ -233,8 +233,8 @@ test('style setters coerce once and preserve accepted values for invalid numeric
     window.TypeError,
   )
   assert.throws(() => Reflect.set(drawing, 'lineWidth', 1n), window.TypeError)
-  // CPU Skia rounds half alpha down; the recorded browser comparison permits one channel level.
-  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [255, 0, 0, 127])
+  // Skia 4 rounds half alpha to 128, matching the Chromium Canvas reference.
+  assert.deepEqual([...drawing.getImageData(0, 0, 1, 1).data], [255, 0, 0, 128])
 })
 
 test('Canvas context properties can override inherited object keys without entering enum conversion', async (context) => {

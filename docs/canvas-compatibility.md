@@ -1,6 +1,6 @@
 # Canvas compatibility and verification
 
-The public Jest and Vitest environments own the supported Canvas behavior around CPU `skia-canvas` 3.0.8. Happy DOM supplies DOM objects and the runner Window; Skia supplies actual pixels and PNG/JPEG/WebP encoding. This is a selected Web API implementation, with the limits below, rather than a complete browser engine.
+The public Jest and Vitest environments own the supported Canvas behavior around CPU `skia-canvas` 4.0.1. Happy DOM supplies DOM objects and the runner Window; Skia supplies actual pixels and PNG/JPEG/WebP encoding. This is a selected Web API implementation, with the limits below, rather than a complete browser engine.
 
 ## Supported behavior
 
@@ -20,7 +20,7 @@ The context's effective storage is sRGB `unorm8`. A requested P3 or float16 **co
 
 Rasterization and installed system fonts can differ from a browser. The pinned Ahem comparison below measures those differences separately from API behavior. Opaque `alpha: false` contexts maintain opaque black backing as required by the specification; the local Chrome 152 headless comparison returned transparent initial pixels before a first draw, so that browser discrepancy is not copied. Skia's half-alpha compositing can differ by one channel level (127 versus 128).
 
-Use Blob, ImageData and other platform constructors provided by the installed test environment. Objects created by a separate Happy DOM module copy or another Happy DOM version are unsupported; the public package pins its own runtime pair to 20.14.5.
+Use Blob, ImageData and other platform constructors provided by the installed test environment. Objects created by a separate Happy DOM module copy or another Happy DOM version are unsupported; the public package pins its own runtime pair to 21.0.4.
 
 Only the 2D context is implemented. WebGL, WebGPU, `bitmaprenderer`, a public Window.Path2D constructor, CanvasFilter objects, HDR/float surfaces and full browser text/layout behavior are not provided. The Canvas transfer extension handles ImageBitmap and OffscreenCanvas; it does not turn every Happy DOM class into a native structured-clone type. Browser-specific structured-clone realm behavior for ordinary Node values is not promised.
 

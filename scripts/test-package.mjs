@@ -9,6 +9,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -49,12 +50,12 @@ const rootManifest = JSON.parse(
 const LATEST_VITEST_4 = '4.1.11'
 // Vitest 4.1 warns when anything imports this entry and Vitest 5 removed it; the environment must never mention it.
 const LEGACY_VITEST_ENTRY = 'vitest/environments'
-// Lines every blocked-install guidance contains; see packages/compat/src/utils/skia-install-error.ts.
+// Lines every missing-binary guidance contains; see packages/compat/src/utils/skia-install-error.ts.
 const SKIA_GUIDANCE_LINES = [
-  'skia-canvas cannot load its native binary (lib/skia.node).',
-  'pnpm approve-builds',
-  'npm approve-scripts skia-canvas && npm rebuild skia-canvas',
-  'bun pm trust skia-canvas',
+  'skia-canvas cannot load its native binary.',
+  'pnpm install --force',
+  'npm install --include=optional',
+  'bun install --force',
 ]
 // Upper bound for a piped Vitest stderr stream; verbose reporters stay far below it.
 const CAPTURED_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
@@ -509,8 +510,6 @@ function vitestManifest(fixture, vitestVersion, tarball) {
     name: `happy-dom-extended-${fixture}-verification`,
     private: true,
     type: 'module',
-    // npm 12 requires explicit approval to install Skia's native binary.
-    allowScripts: { 'skia-canvas': true },
     dependencies: fixtureManifest.dependencies ?? {},
     devDependencies: {
       ...fixtureManifest.devDependencies,
@@ -522,7 +521,28 @@ function vitestManifest(fixture, vitestVersion, tarball) {
   }
 }
 
-/** Hides skia-canvas's native binary, as a blocked install script leaves it, and expects the runner to print the approval commands.
+/** Resolves the native optional package installed for a tarball consumer.
+ * The missing-binary regression calls this before temporarily hiding that binary.
+ * @param consumer - Installed fixture directory whose dependency graph owns Skia.
+ * @returns Absolute path to the current platform's native binary.
+ * @example resolveSkiaBinary(consumer) // => '/tmp/consumer/node_modules/@skia-canvas/darwin-arm64/skia.node'
+ */
+function resolveSkiaBinary(consumer) {
+  const consumerRequire = createRequire(path.join(consumer, 'package.json'))
+  const skiaRequire = createRequire(consumerRequire.resolve('skia-canvas'))
+  // Linux publishes separate glibc and musl binaries; macOS and Windows use the OS/architecture pair.
+  const libc =
+    process.platform === 'linux'
+      ? process.report.getReport().header.glibcVersionRuntime
+        ? '-glibc'
+        : '-musl'
+      : ''
+  return skiaRequire.resolve(
+    `@skia-canvas/${process.platform}-${process.arch}${libc}`,
+  )
+}
+
+/** Hides skia-canvas's native binary, as an omitted optional dependency leaves it, and expects the runner to print the reinstall commands.
  * @param consumer - Installed consumer whose runner loads the environment.
  * @param argumentsList - Runner arguments after `process.execPath`, limited to one test file.
  * @param label - Failure prefix naming the runner and version.
@@ -536,7 +556,7 @@ function assertMissingSkiaGuidance(
   label,
   { environment = process.env, expectedOutput = SKIA_GUIDANCE_LINES } = {},
 ) {
-  const binary = path.join(consumer, 'node_modules/skia-canvas/lib/skia.node')
+  const binary = resolveSkiaBinary(consumer)
   const hiddenBinary = `${binary}.hidden`
   renameSync(binary, hiddenBinary)
   try {
@@ -557,7 +577,7 @@ function assertMissingSkiaGuidance(
     }
     // The failing run's output stays captured, so CI logs need an explicit line proving the check ran.
     console.log(
-      `${label}: a missing skia-canvas binary prints the approval commands.`,
+      `${label}: a missing skia-canvas binary prints the reinstall commands.`,
     )
   } finally {
     renameSync(hiddenBinary, binary)
@@ -579,8 +599,6 @@ try {
       {
         name: 'happy-dom-extended-consumer-verification',
         private: true,
-        // npm 12 requires explicit approval to install Skia's native binary.
-        allowScripts: { 'skia-canvas': true },
         devDependencies: {
           ...jestFixtureManifest.devDependencies,
           jest: jestVersion,
@@ -759,7 +777,7 @@ try {
         ],
         `Vitest ${vitestVersion} product`,
       )
-      // With the global setup, the main thread loads skia-canvas first, so it must report the blocked install before any worker starts.
+      // With the global setup, the main thread loads skia-canvas first, so it must report the missing platform package before any worker starts.
       assertMissingSkiaGuidance(
         product,
         [

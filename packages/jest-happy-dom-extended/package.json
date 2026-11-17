@@ -54,11 +54,11 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
-    "@happy-dom/jest-environment": "20.14.5",
+    "@happy-dom/jest-environment": "21.0.4",
     "buffer-image-size": "0.6.4",
     "culori": "4.0.2",
-    "happy-dom": "20.14.5",
-    "skia-canvas": "3.0.8",
+    "happy-dom": "21.0.4",
+    "skia-canvas": "4.0.1",
     "webidl-conversions": "8.0.1"
   },
   "peerDependencies": {

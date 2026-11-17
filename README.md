@@ -15,7 +15,7 @@
 
 Requires **Node.js >=22.18.0** and **Jest 30**, or **Vitest 4 or 5**. Choose your package manager below.
 
-`skia-canvas` is a required dependency. Its installation script downloads the native binary for your platform. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported Linux, Windows and macOS builds and source-build requirements.
+`skia-canvas` is a required dependency. Skia Canvas 4 installs its native binary as a platform-specific optional `@skia-canvas/*` package, without an install script. Keep optional dependencies enabled and install on the target OS and architecture. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported platforms.
 
 ### npm
 
@@ -25,37 +25,15 @@ npm install --save-dev jest@30 jest-happy-dom-extended
 npm install --save-dev vitest@5 vitest-environment-happy-dom-extended
 ```
 
-With npm 12, [approve](https://docs.npmjs.com/cli/v12/commands/npm-approve-scripts/) and run Skia's native installation script after installation:
-
-```sh
-npm approve-scripts skia-canvas
-npm rebuild skia-canvas
-```
-
 ### pnpm
 
 ```sh
 pnpm add -D jest@30 jest-happy-dom-extended
-pnpm approve-builds skia-canvas @parcel/watcher unrs-resolver
 # or
 pnpm add -D vitest@5 vitest-environment-happy-dom-extended
-pnpm approve-builds skia-canvas
 ```
 
-pnpm 11 and 12 stop `pnpm add` with `ERR_PNPM_IGNORED_BUILDS` until these install scripts are approved. The packages are already added, so run the `pnpm approve-builds` line next. It saves the approvals under `allowBuilds` in `pnpm-workspace.yaml` and runs the scripts. The Jest line also approves **@parcel/watcher** and **unrs-resolver**, which Jest 30 installs.
-
-pnpm 10 finishes `pnpm add` with an "Ignored build scripts" warning and no Skia binary. Its `pnpm approve-builds` ignores package names and opens a prompt: select the same packages there. See [pnpm approve-builds](https://pnpm.io/cli/approve-builds).
-
-For a non-interactive installation, merge this into `pnpm-workspace.yaml` before running `pnpm add`. The Vitest package only needs the `skia-canvas` line:
-
-```yaml
-allowBuilds:
-  skia-canvas: true
-  '@parcel/watcher': true
-  unrs-resolver: true
-```
-
-pnpm 10 uses a `pnpm.onlyBuiltDependencies` list in `package.json` instead when one exists, so add `skia-canvas` to that list. pnpm 11 and 12 read only `allowBuilds`.
+Jest 30 also installs **@parcel/watcher** and **unrs-resolver**. If pnpm reports blocked scripts for those packages, approve them with `pnpm approve-builds @parcel/watcher unrs-resolver` (pnpm 11/12), or select them in the interactive `pnpm approve-builds` prompt (pnpm 10). Skia Canvas 4 itself needs no script approval.
 
 ### Bun
 
@@ -63,10 +41,9 @@ pnpm 10 uses a `pnpm.onlyBuiltDependencies` list in `package.json` instead when 
 bun add --dev jest@30 jest-happy-dom-extended
 # or
 bun add --dev vitest@5 vitest-environment-happy-dom-extended
-bun pm trust skia-canvas
 ```
 
-[`bun pm trust`](https://bun.sh/docs/pm/cli/pm#trust) runs Skia's installation script and saves the package in `trustedDependencies`. Use Bun to install dependencies; run Jest or Vitest with Node.js as shown below.
+Use Bun to install dependencies; run the test runner with Node.js as shown below.
 
 ### Video support
 
@@ -150,15 +127,13 @@ Image loading is enabled by default. Disable it with Happy DOM `settings.enableI
 
 ## Compatibility and verification
 
-The runtime pair is pinned to **Happy DOM 20.14.5**, and the renderer is **skia-canvas 3.0.8** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**. Installed tarball consumers run Jest **30.0.0 and 30.5.2** serially and with two workers, and Vitest **4.0.0, 4.1.11 and 5.0.3** in every pool. A React product fixture using Testing Library also runs in every Vitest pool.
+The runtime pair is pinned to **Happy DOM 21.0.4**, and the renderer is **skia-canvas 4.0.1** in CPU mode. CI tests Node **22.18.0, 24.20.0 and 26.8.1** on **Linux and Windows**. Installed tarball consumers run Jest **30.0.0 and 30.5.2** serially and with two workers, and Vitest **4.0.0, 4.1.11 and 5.1.0** in every pool. A React product fixture using Testing Library also runs in every Vitest pool.
 
 The tests check real pixels and encoded images, actual HTTP/decoder/Worker cancellation, ownership transfer, failure recovery and teardown. Shared browser fixtures measure renderer-dependent differences with explicit tolerances. This is selected conformance evidence, not a complete Web Platform Tests run. See [verification](docs/verification.md) and the [Canvas contract](docs/canvas-compatibility.md).
 
 ## Troubleshooting
 
-**`skia-canvas cannot load its native binary (lib/skia.node)`** means the package manager skipped Skia's install script. The error lists the approval commands for pnpm, npm 12 and Bun, and keeps the original loader error as its `cause`. Approve and run the script as described in [Installation](#installation), then rerun the tests. jest-happy-dom-extended 0.2.0 reports the same problem as `Cannot find module '../skia.node'`.
-
-When the install script ran but its download failed, rerun it with network access or build Skia from source with the [Skia installation guide](https://skia-canvas.org/getting-started).
+**`skia-canvas cannot load its native binary`** means the optional package for the current OS and architecture is missing. The error preserves the original loader error as its `cause`. Enable optional dependencies, then reinstall with `pnpm install --force`, `npm install --include=optional`, or `bun install --force`. Do not copy `node_modules` between platforms. See the [Skia installation guide](https://skia-canvas.org/getting-started) for supported platforms and source builds.
 
 ## Contribute and release
 

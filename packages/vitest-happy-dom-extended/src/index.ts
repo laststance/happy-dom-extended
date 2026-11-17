@@ -253,7 +253,6 @@ async function createExtendedWindow(
   try {
     const dispose = installCompatibility(
       window,
-      // fallow-ignore-next-line unresolved-import -- tsdown emits this private bootstrap; installed-tarball tests execute it.
       new URL('./worker.cjs', import.meta.url),
     )
     return { window, adapter: prepared.adapter, dispose }
