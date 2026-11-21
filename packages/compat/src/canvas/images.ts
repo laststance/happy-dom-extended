@@ -3,7 +3,6 @@ import { setTimeout, clearTimeout } from 'node:timers'
 import imageSize from 'buffer-image-size'
 import { HTMLImageElement, HTMLElement, PropertySymbol } from 'happy-dom'
 import type { ICanvasAdapterCaller, Window } from 'happy-dom'
-import conversions from 'webidl-conversions'
 
 import type { DisposeCompatibility } from '../types.ts'
 import { disposeAll } from '../utils/dispose-all.ts'
@@ -22,7 +21,7 @@ import {
   installResourceFetch,
 } from './resource-fetch.ts'
 import { Image } from './skia.ts'
-import { conversionOptions } from './utils/conversion-options.ts'
+import { crossOriginDescriptor } from './utils/cross-origin-descriptor.ts'
 import { pixelBytes } from './utils/pixel-bytes.ts'
 
 interface ImageSourceState {
@@ -323,34 +322,10 @@ export function installCanvasImages(
     'crossOrigin',
   )!
   restorers.push(
-    replaceProperty(HTMLImageElement.prototype, 'crossOrigin', {
-      enumerable: true,
-      get(this: HTMLImageElement) {
-        if (!environments.has(this[PropertySymbol.window]))
-          return originalCORS.get!.call(this)
-        const value = this.getAttribute('crossorigin')
-        return value === null
-          ? null
-          : value.toLowerCase() === 'use-credentials'
-            ? 'use-credentials'
-            : 'anonymous'
-      },
-      set(this: HTMLImageElement, value: unknown) {
-        if (!environments.has(this[PropertySymbol.window])) {
-          originalCORS.set!.call(this, value)
-          return
-        }
-        if (value === null || value === undefined)
-          this.removeAttribute('crossorigin')
-        else
-          this.setAttribute(
-            'crossorigin',
-            conversions.DOMString(
-              value,
-              conversionOptions(this[PropertySymbol.window]),
-            ),
-          )
-      },
-    }),
+    replaceProperty(
+      HTMLImageElement.prototype,
+      'crossOrigin',
+      crossOriginDescriptor(originalCORS, (window) => environments.has(window)),
+    ),
   )
 }

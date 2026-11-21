@@ -39,7 +39,6 @@ export default class HappyDOMExtendedEnvironment extends HappyDOMBase {
     try {
       this.#disposeCompatibility = installCompatibility(
         this.window,
-        // fallow-ignore-next-line unresolved-import -- tsdown emits this private bootstrap; installed-tarball tests execute it.
         new URL('./worker.cjs', import.meta.url),
       )
     } catch (error) {

@@ -94,17 +94,17 @@ test('opaque Canvas keeps black backing through clip, compositing, pixel replace
   drawing.globalAlpha = 0.5
   drawing.fillStyle = 'blue'
   drawing.fillRect(0, 0, 1, 1)
-  // CPU Skia quantizes half alpha to 127; pinned Chrome produces 128 (one color level).
+  // Skia 4 matches Chromium by rounding half-alpha blue to 128.
   // Assert
   assert.deepEqual(
     [...drawing.getImageData(0, 0, 2, 1).data],
-    [0, 0, 127, 255, 0, 0, 0, 255],
+    [0, 0, 128, 255, 0, 0, 0, 255],
   )
   const pixels = new window.Uint8ClampedArray([255, 0, 0, 128])
   drawing.putImageData(new window.ImageData(pixels, 1), 1, 0)
   assert.deepEqual(
     [...drawing.getImageData(0, 0, 2, 1).data],
-    [0, 0, 127, 255, 255, 0, 0, 255],
+    [0, 0, 128, 255, 255, 0, 0, 255],
   )
   assert.deepEqual([...pixels], [255, 0, 0, 128])
   assert.equal(drawing.globalAlpha, 0.5)
