@@ -4,7 +4,7 @@ description: Install the pinned pnpm release and workspace dependencies.
 inputs:
   node-version:
     description: Node.js version to validate.
-    default: '24.20.0'
+    default: '26.12.1'
 
 runs:
   using: composite
