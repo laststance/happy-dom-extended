@@ -71,7 +71,7 @@
   },
   "devDependencies": {
     "@happy-dom-extended/compat": "workspace:*",
-    "fast-check": "4.10.2",
-    "vitest": "5.1.0"
+    "fast-check": "4.11.0",
+    "vitest": "5.1.1"
   }
 }
